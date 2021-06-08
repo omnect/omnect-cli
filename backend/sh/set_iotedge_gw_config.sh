@@ -7,7 +7,7 @@ function finish {
 trap finish EXIT
 
 function usage() {
-    echo "Usage: $0 -d device_cert -i identity_config -k device_cert_key -r root_cert" 1>&2; exit 1;
+    echo "Usage: $0 -e edge_device_cert -i identity_config -k edge_device_cert_key -r root_cert" 1>&2; exit 1;
 }
 
 function search_part_loopdev() {
@@ -24,10 +24,10 @@ function search_part_loopdev() {
 set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
-while getopts ":d:i:k:r:" opt; do
+while getopts ":e:i:k:r:" opt; do
     case "${opt}" in
-        d)
-            d=${OPTARG}
+        e)
+            e=${OPTARG}
             ;;
         i)
             i=${OPTARG}
@@ -45,20 +45,20 @@ while getopts ":d:i:k:r:" opt; do
 done
 shift $((OPTIND-1))
 
-if [ -z "${d}" ] || [ -z "${i}" ] || [ -z "${k}" ] || [ -z "${r}" ]; then
+if [ -z "${e}" ] || [ -z "${i}" ] || [ -z "${k}" ] || [ -z "${r}" ]; then
     usage
 fi
 
-echo "d = ${d}"
+echo "e = ${e}"
 echo "i = ${i}"
 echo "k = ${k}"
 echo "r = ${r}"
 
 [[ ! -f /tmp/image.wic ]] && echo "error: input device image not found" 1>&2 && exit 1
-[[ ! -f ${d} ]] && echo "error: input file \"${d}\" not found" 1>&2 && exit 1
+[[ ! -f ${e} ]] && echo "error: input file \"${e}\" not found" 1>&2 && exit 1
 [[ ! -f ${i} ]] && echo "error: input file \"${i}\" not found" 1>&2 && exit 1
+[[ ! -f ${k} ]] && echo "error: input file \"${k}\" not found" 1>&2 && exit 1
 [[ ! -f ${r} ]] && echo "error: input file \"${r}\" not found" 1>&2 && exit 1
-[[ ! -f ${s} ]] && echo "error: input file \"${s}\" not found" 1>&2 && exit 1
 
 # todo verify input identity config for "hostname", "trust_bundle_cert", "edge_ca" sections
 # this script enforces a default placement of certs, e.g.
@@ -96,8 +96,8 @@ cp ${r} /tmp/mount/etc/aziot/trust-bundle.pem
 chmod a+r /tmp/mount/etc/aziot/trust-bundle.pem
 
 # copy device cert and key
-echo cp ${d} /tmp/mount/etc/aziot/edge-ca.pem
-cp ${d} /tmp/mount/etc/aziot/edge-ca.pem
+echo cp ${e} /tmp/mount/etc/aziot/edge-ca.pem
+cp ${e} /tmp/mount/etc/aziot/edge-ca.pem
 chmod a+r /tmp/mount/etc/aziot/edge-ca.pem
 echo cp ${k} /tmp/mount/etc/aziot/edge-ca.key.pem
 cp ${k} /tmp/mount/etc/aziot/edge-ca.key.pem
