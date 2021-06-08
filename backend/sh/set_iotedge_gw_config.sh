@@ -6,14 +6,25 @@ function finish {
 }
 trap finish EXIT
 
+function usage() {
+    echo "Usage: $0 -d device_cert -i identity_config -k device_cert_key -r root_cert" 1>&2; exit 1;
+}
+
+function search_part_loopdev() {
+    for part in ${loopdev}p*
+    do
+        if [ "${part_pattern}" == "$(e2label ${part} 2>/dev/null)" ]; then
+            partloopdev=${part}
+            break
+        fi
+    done
+    echo partloopdev=${partloopdev}
+}
+
 set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
-function usage() {
-    echo "Usage: $0 -d device_cert -i identity_config -k device_cert_key -r root_cert -s service_cert " 1>&2; exit 1;
-}
-
-while getopts ":d:i:k:r:s:" opt; do
+while getopts ":d:i:k:r:" opt; do
     case "${opt}" in
         d)
             d=${OPTARG}
@@ -27,9 +38,6 @@ while getopts ":d:i:k:r:s:" opt; do
         r)
             r=${OPTARG}
             ;;
-        s)
-            s=${OPTARG}
-            ;;
         *)
             usage
             ;;
@@ -37,14 +45,14 @@ while getopts ":d:i:k:r:s:" opt; do
 done
 shift $((OPTIND-1))
 
-if [ -z "${d}" ] || [ -z "${i}" ] || [ -z "${k}" ] || [ -z "${r}" ] || [ -z "${s}" ]; then
+if [ -z "${d}" ] || [ -z "${i}" ] || [ -z "${k}" ] || [ -z "${r}" ]; then
     usage
 fi
 
 echo "d = ${d}"
 echo "i = ${i}"
+echo "k = ${k}"
 echo "r = ${r}"
-echo "s = ${s}"
 
 [[ ! -f /tmp/image.wic ]] && echo "error: input device image not found" 1>&2 && exit 1
 [[ ! -f ${d} ]] && echo "error: input file \"${d}\" not found" 1>&2 && exit 1
@@ -52,46 +60,45 @@ echo "s = ${s}"
 [[ ! -f ${r} ]] && echo "error: input file \"${r}\" not found" 1>&2 && exit 1
 [[ ! -f ${s} ]] && echo "error: input file \"${s}\" not found" 1>&2 && exit 1
 
+# todo verify input identity config for "hostname", "trust_bundle_cert", "edge_ca" sections
+# this script enforces a default placement of certs, e.g.
+# [trust_bundle_cert]
+# # root ca:
+# trust_bundle_cert = "file:///etc/aziot/trust-bundle.pem"
+# [edge_ca]
+# # device cert + key:
+# cert = "file:///etc/aziot/edge-ca.pem"
+# pk = "file:///etc/aziot/edge-ca.key.pem"
+
 # set up loop device to be able to mount /tmp/image.wic
 losetup -fP ${device} /tmp/image.wic
 loopdev=$(losetup | grep /tmp/image.wic | awk '{print $1}')
 echo loopdev=${loopdev}
 
-# search and mount "etc" partition
-part_pattern="etc"
-for part in ${loopdev}p*
-do
-    if [ "${part_pattern}" == "$(e2label ${part} 2>/dev/null)" ]; then
-        partloopdev=${part}
-        break
-    fi
-done
-echo partloopdev=${partloopdev}
-
-[[ -z "${partloopdev}" ]] && echo "error: couldnt set up loopdev for input device image (part_pattern: ${part_pattern})" 1>&2 && exit 1
-mkdir -p /tmp/mount/etc
-mount -o loop,rw ${partloopdev} /tmp/mount/etc
-
 # search and mount "rootA" partion
 part_pattern="rootA"
-for part in ${loopdev}p*
-do
-    if [ "${part_pattern}" == "$(e2label ${part} 2>/dev/null)" ]; then
-        partloopdev=${part}
-        break
-    fi
-done
-echo partloopdev=${partloopdev}
+search_part_loopdev
 
 [[ -z "${partloopdev}" ]] && echo "error: couldnt set up loopdev for input device image (part_pattern: ${part_pattern})" 1>&2 && exit 1
-mkdir -p /tmp/mount/rootA
-mount -o loop,ro ${partloopdev} /tmp/mount/rootA
+mkdir -p /tmp/mount
+mount -o loop ${partloopdev} /tmp/mount
 
 # copy identity config
-mkdir -p /tmp/mount/upper/aziot
-aziot_gid=$(cat /tmp/mount/rootA/etc/group | grep aziot: | awk 'BEGIN { FS = ":" } ; { print $3 }')
-chgrp ${aziot_gid} /tmp/mount/upper/aziot
-cp ${i} /tmp/mount/upper/aziot/config.toml
-chmod a+r /tmp/mount/upper/aziot/config.toml
+aziot_gid=$(cat /tmp/mount/etc/group | grep aziot: | awk 'BEGIN { FS = ":" } ; { print $3 }')
+echo cp ${i} /tmp/mount/etc/aziot/config.toml
+chgrp ${aziot_gid} /tmp/mount/etc/aziot/config.toml
+cp ${i} /tmp/mount/etc/aziot/config.toml
+chmod a+r /tmp/mount/etc/aziot/config.toml
 
-# copy root cert
+# copy root ca cert
+echo cp ${r} /tmp/mount/etc/aziot/trust-bundle.pem
+cp ${r} /tmp/mount/etc/aziot/trust-bundle.pem
+chmod a+r /tmp/mount/etc/aziot/trust-bundle.pem
+
+# copy device cert and key
+echo cp ${d} /tmp/mount/etc/aziot/edge-ca.pem
+cp ${d} /tmp/mount/etc/aziot/edge-ca.pem
+chmod a+r /tmp/mount/etc/aziot/edge-ca.pem
+echo cp ${k} /tmp/mount/etc/aziot/edge-ca.key.pem
+cp ${k} /tmp/mount/etc/aziot/edge-ca.key.pem
+chmod a+r /tmp/mount/etc/aziot/edge-ca.key.pem
