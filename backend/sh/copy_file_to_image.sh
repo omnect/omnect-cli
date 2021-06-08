@@ -57,14 +57,14 @@ echo loopdev=${loopdev}
 for part in ${loopdev}p*
 do
     if [ "${part_pattern}" == "$(e2label ${part} 2>/dev/null)" ]; then
-        etcloopdev=${part}
+        partloopdev=${part}
         break
     fi
 done
-echo etcloopdev=${etcloopdev}
+echo partloopdev=${partloopdev}
 
-[[ -z "${etcloopdev}" ]] && echo "error: couldnt set up loopdev for input device image" 1>&2 && exit 1
+[[ -z "${partloopdev}" ]] && echo "error: couldnt set up loopdev for input device image" 1>&2 && exit 1
 mkdir /tmp/mount
-mount -o loop,rw ${etcloopdev} /tmp/mount
+mount -o loop,rw ${partloopdev} /tmp/mount
 echo "cp ${i} /tmp/mount/upper/${o}"
 cp ${i} /tmp/mount/upper/${o}
