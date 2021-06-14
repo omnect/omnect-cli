@@ -1,5 +1,14 @@
 # ics-dm-cli
 
+# Troubleshooting
+## No credential store support
+`ics-dm-cli` needs to pull a docker image "todo" as backend for some cli
+commands. If you use a docker environment with credential store you have to
+pull the image prior to calling `ics-dm-cli` manually.
+```sh
+docker pull "todo"
+```
+
 # License
 
 Licensed under either of

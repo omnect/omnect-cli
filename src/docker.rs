@@ -1,7 +1,9 @@
 use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
-use std::path::Path;
+use std::fs::File;
+use std::io::{BufReader,Error, ErrorKind, Read};
+use std::path::{Path,PathBuf};
 
+use bollard::auth::DockerCredentials;
 use bollard::container::{Config, RemoveContainerOptions, LogOutput};
 use bollard::Docker;
 use bollard::exec::{CreateExecOptions, StartExecResults};
@@ -13,20 +15,67 @@ use futures_util::stream::StreamExt;
 use futures_util::TryStreamExt;
 
 //todo better via env var overwrite?
+const DOCKER_REG: &'static str = "icsdm.azurecr.io";
 const DOCKER_IMAGE: &'static str = "icsdm.azurecr.io/mlilien/ics-dm-cli-backend:latest";
 const TARGET_DEVICE_IMAGE: &'static str = "/tmp/image.wic";
+
+fn get_docker_cred() -> DockerCredentials {
+    if cfg!(windows) {
+        println!("Warning: Windows detected. We currently don't support the docker credential store.");
+    }
+    let mut path = PathBuf::new( );
+    path.push(dirs::home_dir().unwrap());
+    path.push(".docker/config.json");
+    let file = File::open(&path).expect("Cannot open docker config.");
+    let mut json_str = String::new();
+    let mut reader = BufReader::new(file);
+    reader.read_to_string(&mut json_str).expect("Cannot read docker config.");
+    let json : serde_json::Value  = serde_json::from_str(&json_str).expect("Cannot parse docker config.");
+    let auth = &json["auths"][DOCKER_REG]["auth"].to_owned().to_string().replace("\"","");
+    let identitytoken = &json["auths"][DOCKER_REG]["identitytoken"].to_owned().to_string().replace("\"","");
+
+    if "null" != identitytoken
+    {
+        println!("wtf");
+        return DockerCredentials{
+            identitytoken: Some(identitytoken.to_string()),
+            ..Default::default()
+        }
+    }
+    else if "null" != auth
+    {
+        println!("auth: {}", auth);
+        let byte_auth = base64::decode_config(auth, base64::STANDARD).expect("Cannot base64 decode docker credentials");
+        let dec_auth =  std::str::from_utf8(&byte_auth).expect("Cannot convert docker credentials.");
+        let v : Vec<&str> = dec_auth.split(":").collect();
+        return DockerCredentials{
+            username: Some(v[0].to_owned().to_string()),
+            password: Some(v[1].to_owned().to_string()),
+            ..Default::default()
+        }
+    }
+    else
+    {
+        return DockerCredentials{
+            ..Default::default()
+        }
+    }
+}
 
 async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOptions<&str>) -> Result<(), Box<dyn std::error::Error + 'static>> {
     let docker = Docker::connect_with_unix_defaults().unwrap();
 
-    docker.create_image(Some(CreateImageOptions {from_image: DOCKER_IMAGE,
-                ..Default::default()
-            }),
-            None,
-            None,
-        )
-        .try_collect::<Vec<_>>()
-        .await?;
+    match docker.image_history(DOCKER_IMAGE).await {
+        Err(_e) => {
+            //only pull the image if we don't have it locally available
+            docker.create_image(Some(CreateImageOptions {from_image: DOCKER_IMAGE,
+                                ..Default::default()}),
+                                None,
+                                Some(get_docker_cred())
+                            ).try_collect::<Vec<_>>().await?;
+        }
+        Ok(_) => (())
+    }
 
     let id = docker
         .create_container::<&str, &str>(None, container_config)
