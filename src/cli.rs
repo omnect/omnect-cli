@@ -27,9 +27,11 @@ pub enum IdentityConfig {
 #[structopt(after_help = COPYRIGHT)]
 pub enum WifiConfig {
     Set {
+        /// absolute path to config file
         #[structopt(short = "c", long = "config")]
         #[structopt(parse(from_os_str))]
         config: std::path::PathBuf,
+         /// absolute path to uncompressed image file
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]
         image: std::path::PathBuf,
