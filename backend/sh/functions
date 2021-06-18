@@ -1,0 +1,26 @@
+#!/bin/bash
+
+function search_part_loopdev () {
+    for part in ${loopdev}p*
+    do
+        if [ "${part_pattern}" == "$(e2label ${part} 2>/dev/null)" ]; then
+            partloopdev=${part}
+            break
+        fi
+    done
+    echo partloopdev=${partloopdev}
+}
+
+function mount_part () {
+    search_part_loopdev
+
+    [[ -z "${partloopdev}" ]] && echo "error: couldnt set up loopdev for input device image (part_pattern: ${part_pattern})" 1>&2 && exit 1
+    mkdir -p /tmp/mount/${part_pattern}
+    mount -o loop ${partloopdev} /tmp/mount/${part_pattern}
+}
+
+function losetup_image_wic () {
+    losetup -fP /tmp/image.wic
+    loopdev=$(losetup | grep /tmp/image.wic | awk '{print $1}')
+    echo loopdev=${loopdev}
+}

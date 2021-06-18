@@ -1,24 +1,20 @@
+#!/bin/bash
+
+# include shared functions
+. /sh/functions
+
 # exit handler which makes sure we dont leave an undefined host state regarding loop devices
 function finish {
   set +o errexit
-  umount /tmp/mount
+  umount /tmp/mount/data
+  umount /tmp/mount/etc
+  umount /tmp/mount/rootA
   losetup -D /tmp/image.wic
 }
 trap finish EXIT
 
 function usage() {
     echo "Usage: $0 -e edge_device_cert -i identity_config -k edge_device_cert_key -r root_cert" 1>&2; exit 1;
-}
-
-function search_part_loopdev() {
-    for part in ${loopdev}p*
-    do
-        if [ "${part_pattern}" == "$(e2label ${part} 2>/dev/null)" ]; then
-            partloopdev=${part}
-            break
-        fi
-    done
-    echo partloopdev=${partloopdev}
 }
 
 set -o errexit   # abort on nonzero exitstatus
@@ -64,41 +60,48 @@ echo "r = ${r}"
 # this script enforces a default placement of certs, e.g.
 # [trust_bundle_cert]
 # # root ca:
-# trust_bundle_cert = "file:///etc/aziot/trust-bundle.pem"
+# trust_bundle_cert = "file:///var/secrets/trust-bundle.pem"
 # [edge_ca]
 # # device cert + key:
-# cert = "file:///etc/aziot/edge-ca.pem"
-# pk = "file:///etc/aziot/edge-ca.key.pem"
+# cert = "file:///var/secrets/edge-ca.pem"
+# pk = "file:///var/secrets/edge-ca.key.pem"
 
 # set up loop device to be able to mount /tmp/image.wic
-losetup -fP ${device} /tmp/image.wic
-loopdev=$(losetup | grep /tmp/image.wic | awk '{print $1}')
-echo loopdev=${loopdev}
+losetup_image_wic
+
+# search and mount "etc" partion
+part_pattern="etc"
+mount_part
+
+# search and mount "data" partion
+part_pattern="data"
+mount_part
 
 # search and mount "rootA" partion
 part_pattern="rootA"
-search_part_loopdev
-
-[[ -z "${partloopdev}" ]] && echo "error: couldnt set up loopdev for input device image (part_pattern: ${part_pattern})" 1>&2 && exit 1
-mkdir -p /tmp/mount
-mount -o loop ${partloopdev} /tmp/mount
+mount_part
 
 # copy identity config
-aziot_gid=$(cat /tmp/mount/etc/group | grep aziot: | awk 'BEGIN { FS = ":" } ; { print $3 }')
-echo cp ${i} /tmp/mount/etc/aziot/config.toml
-chgrp ${aziot_gid} /tmp/mount/etc/aziot/config.toml
-cp ${i} /tmp/mount/etc/aziot/config.toml
-chmod a+r /tmp/mount/etc/aziot/config.toml
+aziot_gid=$(cat /tmp/mount/rootA/etc/group | grep aziot: | awk 'BEGIN { FS = ":" } ; { print $3 }')
+mkdir -p /tmp/mount/etc/upper/aziot/
+echo cp ${i} /tmp/mount/etc/upper/aziot/config.toml
+cp ${i} /tmp/mount/etc/upper/aziot/config.toml
+chgrp ${aziot_gid} /tmp/mount/etc/upper/aziot/config.toml
+chmod a+r /tmp/mount/etc/upper/aziot/config.toml
+
+# set hostname
+toml get ${i} hostname > /mnt/mount/etc/upper/hostname
 
 # copy root ca cert
-echo cp ${r} /tmp/mount/etc/aziot/trust-bundle.pem
-cp ${r} /tmp/mount/etc/aziot/trust-bundle.pem
-chmod a+r /tmp/mount/etc/aziot/trust-bundle.pem
+mkdir -p /tmp/mount/data/var/secrets
+echo cp ${r} /tmp/mount/data/var/secrets/trust-bundle.pem
+cp ${r} /tmp/mount/data/var/secrets/trust-bundle.pem
+chmod a+r /tmp/mount/data/var/secrets/trust-bundle.pem
 
 # copy device cert and key
-echo cp ${e} /tmp/mount/etc/aziot/edge-ca.pem
-cp ${e} /tmp/mount/etc/aziot/edge-ca.pem
-chmod a+r /tmp/mount/etc/aziot/edge-ca.pem
-echo cp ${k} /tmp/mount/etc/aziot/edge-ca.key.pem
-cp ${k} /tmp/mount/etc/aziot/edge-ca.key.pem
-chmod a+r /tmp/mount/etc/aziot/edge-ca.key.pem
+echo cp ${e} /tmp/mount/data/var/secrets/edge-ca.pem
+cp ${e} /tmp/mount/data/var/secrets/edge-ca.pem
+chmod a+r /tmp/mount/data/var/secrets/edge-ca.pem
+echo cp ${k} /tmp/mount/data/var/secrets/edge-ca.key.pem
+cp ${k} /tmp/mount/data/var/secrets/edge-ca.key.pem
+chmod a+r /tmp/mount/data/var/secrets/edge-ca.key.pem
