@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # include shared functions
-. /sh/functions
+. /ics-dm-sh/functions
 
 # exit handler which makes sure we dont leave an undefined host state regarding loop devices
 function finish {
@@ -53,4 +53,4 @@ cp ${i} /tmp/mount/etc/upper/wpa_supplicant/wpa_supplicant-wlan0.conf
 
 # enable wpa_supplicant service
 mkdir -p /tmp/mount/etc/upper/systemd/system/multi-user.target.wants
-ln -s /lib/systemd/system/wpa_supplicant@.service /tmp/mount/etc/upper/systemd/system/multi-user.target.wants/wpa_supplicant@wlan0.service
+ln -sf /lib/systemd/system/wpa_supplicant@.service /tmp/mount/etc/upper/systemd/system/multi-user.target.wants/wpa_supplicant@wlan0.service

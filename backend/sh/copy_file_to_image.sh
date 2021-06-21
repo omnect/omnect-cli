@@ -66,5 +66,6 @@ echo partloopdev=${partloopdev}
 [[ -z "${partloopdev}" ]] && echo "error: couldnt set up loopdev for input device image" 1>&2 && exit 1
 mkdir /tmp/mount
 mount -o loop,rw ${partloopdev} /tmp/mount
+mkdir -p /tmp/mount/upper
 echo "cp ${i} /tmp/mount/upper/${o}"
 cp ${i} /tmp/mount/upper/${o}

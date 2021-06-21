@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # include shared functions
-. /sh/functions
+. /ics-dm-sh/functions
 
 # exit handler which makes sure we dont leave an undefined host state regarding loop devices
 function finish {
