@@ -1,4 +1,3 @@
-// use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader,Error, ErrorKind, Read};
 use std::path::{PathBuf};
@@ -36,7 +35,6 @@ fn get_docker_cred() -> DockerCredentials {
 
     if "null" != identitytoken
     {
-        println!("wtf");
         return DockerCredentials{
             identitytoken: Some(identitytoken.to_string()),
             ..Default::default()
@@ -44,7 +42,6 @@ fn get_docker_cred() -> DockerCredentials {
     }
     else if "null" != auth
     {
-        println!("auth: {}", auth);
         let byte_auth = base64::decode_config(auth, base64::STANDARD).expect("Cannot base64 decode docker credentials");
         let dec_auth =  std::str::from_utf8(&byte_auth).expect("Cannot convert docker credentials.");
         let v : Vec<&str> = dec_auth.split(":").collect();
@@ -67,7 +64,7 @@ async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOpt
 
     match docker.image_history(DOCKER_IMAGE).await {
         Err(_e) => {
-            //only pull the image if we don't have it locally available
+            //only pull the image if we don't have it available locally
             docker.create_image(Some(CreateImageOptions {from_image: DOCKER_IMAGE,
                                 ..Default::default()}),
                                 None,
