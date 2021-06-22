@@ -81,15 +81,23 @@ mkdir -p /tmp/mount/etc/upper/aziot/
 echo cp ${i} /tmp/mount/etc/upper/aziot/config.toml
 cp ${i} /tmp/mount/etc/upper/aziot/config.toml
 chgrp ${aziot_gid} /tmp/mount/etc/upper/aziot/config.toml
-chmod a+r /tmp/mount/etc/upper/aziot/config.toml
+chmod a+r,g+w /tmp/mount/etc/upper/aziot/config.toml
+
+# activate identity config on first boot
+# here it is okay to alter a file in the root partition
+echo "aziotctl config apply" >> /tmp/mount/rootA/usr/bin/ics_dm_first_boot.sh
 
 # set hostname
-toml get ${i} hostname > /mnt/mount/etc/upper/hostname
+hostname=$(grep "^hostname" ${i} | cut -d "=" -f2 | xargs)
+echo "set hostname to ${hostname}"
+echo "${hostname}" > /tmp/mount/etc/upper/hostname
+cp /tmp/mount/rootA/etc/hosts /tmp/mount/etc/upper/
+sed -i "s/^127.0.1.1\(.*\)/127.0.1.1 ${hostname}/" /tmp/mount/etc/upper/hosts
 
 # copy root ca cert
 mkdir -p /tmp/mount/data/local/share/ca-certificates/
-echo cp ${r} /tmp/mount/data/local/share/ca-certificates/$(basename ${r})
-cp ${r} /tmp/mount/data/local/share/ca-certificates/$(basename ${r})
+echo cp ${r} /tmp/mount/data/local/share/ca-certificates/$(basename ${r}).crt
+cp ${r} /tmp/mount/data/local/share/ca-certificates/$(basename ${r}).crt
 # Just a remark: copying the root ca cert isn't sufficient. The device has
 # to call update-ca-certificates on first boot ... we handle that in
 # first-boot.service

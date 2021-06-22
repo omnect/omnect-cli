@@ -87,10 +87,20 @@ mkdir -p /tmp/mount/etc/upper/aziot/
 echo cp ${i} /tmp/mount/etc/upper/aziot/config.toml
 cp ${i} /tmp/mount/etc/upper/aziot/config.toml
 chgrp ${aziot_gid} /tmp/mount/etc/upper/aziot/config.toml
-chmod a+r /tmp/mount/etc/upper/aziot/config.toml
+chmod a+r,g+w /tmp/mount/etc/upper/aziot/config.toml
+
+# activate identity config on first boot if enrollment demo is not installed
+# here it is okay to alter a file in the root partition
+if [ ! -e /tmp/mount/rootA/etc/systemd/system/multi-user.target.wants/enrollment.service ]; then
+    echo "iotedge config apply" >> /tmp/mount/rootA/usr/bin/ics_dm_first_boot.sh
+fi
 
 # set hostname
-toml get ${i} hostname > /mnt/mount/etc/upper/hostname
+hostname=$(grep "^hostname" ${i} | cut -d "=" -f2 | xargs)
+echo "set hostname to ${hostname}"
+echo "${hostname}" > /tmp/mount/etc/upper/hostname
+cp /tmp/mount/rootA/etc/hosts /tmp/mount/etc/upper/
+sed -i "s/^127.0.1.1\(.*\)/127.0.1.1 ${hostname}/" /tmp/mount/etc/upper/hosts
 
 # copy root ca cert
 mkdir -p /tmp/mount/data/var/secrets
