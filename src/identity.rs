@@ -1,11 +1,39 @@
+use crate::docker;
 use crate::file;
 use std::io::{Error, ErrorKind};
+use std::path::PathBuf;
 
-pub fn config(config_file: std::path::PathBuf, image_file: std::path::PathBuf ) -> Result<(),Error> {
+pub fn set_iotedge_gateway_config(config_file: PathBuf, image_file: PathBuf, root_ca_file: PathBuf, device_identity_file: PathBuf, device_identity_key_file: PathBuf ) -> Result<(),Error> {
     file::file_exits(&config_file)?;
     file::file_exits(&image_file)?;
+    file::file_exits(&root_ca_file)?;
+    file::file_exits(&device_identity_file)?;
+    file::file_exits(&device_identity_key_file)?;
 
-    Err(Error::new(ErrorKind::Other, "Not implemented"))
+    /*
+        todo some content verification of config_file and image_file?
+        e.g. image_file currently should be an uncompressed wic file
+    */
+
+    docker::set_iotedge_gateway_config(config_file.to_str().unwrap(),
+                               image_file.to_str().unwrap(),
+                               root_ca_file.to_str().unwrap(),
+                               device_identity_file.to_str().unwrap(),
+                               device_identity_key_file.to_str().unwrap())?;
+
+    Ok (())
+}
+
+pub fn set_iotedge_sas_leaf_config(config_file: PathBuf, image_file: PathBuf, root_ca_file: PathBuf) -> Result<(),Error> {
+    file::file_exits(&config_file)?;
+    file::file_exits(&image_file)?;
+    file::file_exits(&root_ca_file)?;
+
+    docker::set_iotedge_sas_leaf_config(config_file.to_str().unwrap(),
+                                        image_file.to_str().unwrap(),
+                                        root_ca_file.to_str().unwrap())?;
+
+    Ok (())
 }
 
 pub fn info(image_file: std::path::PathBuf) -> Result<(),Error> {

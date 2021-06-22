@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::{BufReader,Error, ErrorKind, Read};
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 use bollard::auth::DockerCredentials;
 use bollard::container::{Config, RemoveContainerOptions, LogOutput};
@@ -158,7 +158,8 @@ pub async fn set_wifi_config(input_config_file: &str, input_image_file: &str) ->
     }
 }
 
-pub async fn set_iotedge_config(input_config_file: &str, input_image_file: &str, input_root_ca_file: &str, input_edge_device_identity_full_chain_file: &str, input_edge_device_identity_key_file: &str) -> Result<(),Error> {
+#[tokio::main]
+pub async fn set_iotedge_gateway_config(input_config_file: &str, input_image_file: &str, input_root_ca_file: &str, input_edge_device_identity_full_chain_file: &str, input_edge_device_identity_key_file: &str) -> Result<(),Error> {
     match block_on( async move {
 
         let mut binds :Vec<std::string::String> = Vec::new();
@@ -176,7 +177,6 @@ pub async fn set_iotedge_config(input_config_file: &str, input_image_file: &str,
         let target_input_edge_device_identity_key_file = format!("/tpm/{}",input_edge_device_identity_key_file);
         binds.push(format!("{}:{}",input_edge_device_identity_key_file, target_input_edge_device_identity_key_file));
 
-
         let host_config = HostConfig {
             // privileged for losetup in the container
             // @todo check how to restrict rights with capabilities instead
@@ -184,7 +184,6 @@ pub async fn set_iotedge_config(input_config_file: &str, input_image_file: &str,
             binds: Some(binds),
             ..Default::default()
         };
-
 
         let container_config = Config {
             image: Some(DOCKER_IMAGE),
@@ -196,7 +195,7 @@ pub async fn set_iotedge_config(input_config_file: &str, input_image_file: &str,
         let exec_options = CreateExecOptions {
             attach_stdout: Some(true),
             attach_stderr: Some(true),
-            cmd: Some(vec!["set_iotedge_gw_config.sh", "-i", &target_input_config_file, "-e", &input_edge_device_identity_full_chain_file, "-k", &target_input_edge_device_identity_key_file, "-r", &target_input_root_ca_file]),
+            cmd: Some(vec!["set_iotedge_gw_config.sh", "-i", &target_input_config_file, "-e", &target_input_edge_device_identity_full_chain_file, "-k", &target_input_edge_device_identity_key_file, "-r", &target_input_root_ca_file]),
             ..Default::default()
         };
         docker_exec(container_config,exec_options).await?;
@@ -208,6 +207,50 @@ pub async fn set_iotedge_config(input_config_file: &str, input_image_file: &str,
     }
 }
 
+#[tokio::main]
+pub async fn set_iotedge_sas_leaf_config(input_config_file: &str, input_image_file: &str, input_root_ca_file: &str) -> Result<(),Error> {
+    match block_on( async move {
+
+        let mut binds :Vec<std::string::String> = Vec::new();
+        // to setup the image loop device properly we need to access the hosts devtmpfs
+        binds.push("/dev/:/dev/".to_owned().to_string());
+
+        // input file binding
+        binds.push(format!("{}:{}",input_image_file, TARGET_DEVICE_IMAGE));
+        let target_input_config_file = format!("/tpm/{}",input_config_file);
+        binds.push(format!("{}:{}",input_config_file, target_input_config_file));
+        let target_input_root_ca_file = format!("/tpm/{}",input_root_ca_file);
+        binds.push(format!("{}:{}",input_root_ca_file, target_input_root_ca_file));
+
+        let host_config = HostConfig {
+            // privileged for losetup in the container
+            // @todo check how to restrict rights with capabilities instead
+            privileged: Some(true),
+            binds: Some(binds),
+            ..Default::default()
+        };
+
+        let container_config = Config {
+            image: Some(DOCKER_IMAGE),
+            tty: Some(true),
+            host_config: Some(host_config),
+            ..Default::default()
+        };
+
+        let exec_options = CreateExecOptions {
+            attach_stdout: Some(true),
+            attach_stderr: Some(true),
+            cmd: Some(vec!["set_iotedge_leaf_sas_config.sh", "-i", &target_input_config_file, "-r", &target_input_root_ca_file]),
+            ..Default::default()
+        };
+        docker_exec(container_config,exec_options).await?;
+        Ok(())
+    }) as Result<(), Box<dyn std::error::Error + 'static>>
+    {
+        Ok(_) => Ok(()),
+        Err(e) => { eprintln!("{:#?})", e); Err(Error::from(ErrorKind::Other))}
+    }
+}
 
 #[tokio::main]
 pub async fn docker_version() -> Result<(), std::io::Error> {
