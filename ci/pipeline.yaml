@@ -104,3 +104,4 @@ jobs:
         params:
           build: source/backend
           dockerfile: source/backend/Dockerfile
+          tag_as_latest: true
