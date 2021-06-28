@@ -1,0 +1,7 @@
+*.*.yaml
+credentials.yaml
+!credentials.template.yaml
+email.yaml
+!email.template.yaml
+*.sh
+!yocto_build.sh

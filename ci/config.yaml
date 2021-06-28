@@ -1,0 +1,28 @@
+---
+# Building block config
+# -----------------------------------------------------------------------------
+## Specifies the name of the building block
+bb_name: ics-dm-cli
+
+## Specifies insecure docker registries, format "host:port" or "ip:port"
+bb_insecure_registries: ["registry:5000"]
+## Specify if 'latest' tags are built for `git_branch`
+bb_release_as_latest: true
+
+## Specifies the version used for bb-gitversion
+bb_gitversion_version: 0.8.3
+
+## Specify the ics-dm-cli backend version, currently this has to be adapted in
+# two different places: here and Cargo.toml where the frontend
+# version has to match the backend version
+ics-dm-cli-backend-image_version: 0.1.0
+
+# Git config
+# -----------------------------------------------------------------------------
+## Specify the git repository to work with
+git_source: git@github.com:ICS-DeviceManagement/ics-dm-cli.git
+git_branch: main
+default_branch: main
+
+## This enables/disables ssl verification of the git resource
+git_skip_ssl_verification: false
