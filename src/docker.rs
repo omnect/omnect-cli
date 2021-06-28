@@ -13,9 +13,9 @@ use futures_executor::block_on;
 use futures_util::stream::StreamExt;
 use futures_util::TryStreamExt;
 
-//todo better via env var overwrite?
 const DOCKER_REG: &'static str = "icsdm.azurecr.io";
-const DOCKER_IMAGE: &'static str = "icsdm.azurecr.io/mlilien/ics-dm-cli-backend:latest";
+const DOCKER_IMAGE: &'static str = "ics-dm-cli-backend";
+
 const TARGET_DEVICE_IMAGE: &'static str = "/tmp/image.wic";
 
 fn get_docker_cred() -> DockerCredentials {
@@ -62,10 +62,11 @@ fn get_docker_cred() -> DockerCredentials {
 async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOptions<&str>) -> Result<(), Box<dyn std::error::Error + 'static>> {
     let docker = Docker::connect_with_unix_defaults().unwrap();
 
-    match docker.image_history(DOCKER_IMAGE).await {
+    let image = format!("{}/{}:{}",DOCKER_REG,DOCKER_IMAGE,env!("CARGO_PKG_VERSION"));
+    match docker.image_history(image.as_str()).await {
         Err(_e) => {
             //only pull the image if we don't have it available locally
-            docker.create_image(Some(CreateImageOptions {from_image: DOCKER_IMAGE,
+            docker.create_image(Some(CreateImageOptions {from_image: image.as_str(),
                                 ..Default::default()}),
                                 None,
                                 Some(get_docker_cred())
@@ -134,9 +135,10 @@ pub async fn set_wifi_config(input_config_file: &str, input_image_file: &str) ->
             ..Default::default()
         };
 
+        let image = format!("{}/{}:{}",DOCKER_REG,DOCKER_IMAGE,env!("CARGO_PKG_VERSION"));
 
         let container_config = Config {
-            image: Some(DOCKER_IMAGE),
+            image: Some(image.as_str()),
             tty: Some(true),
             host_config: Some(host_config),
             ..Default::default()
@@ -185,8 +187,10 @@ pub async fn set_iotedge_gateway_config(input_config_file: &str, input_image_fil
             ..Default::default()
         };
 
+        let image = format!("{}/{}:{}",DOCKER_REG,DOCKER_IMAGE,env!("CARGO_PKG_VERSION"));
+
         let container_config = Config {
-            image: Some(DOCKER_IMAGE),
+            image: Some(image.as_str()),
             tty: Some(true),
             host_config: Some(host_config),
             ..Default::default()
@@ -230,8 +234,10 @@ pub async fn set_iotedge_sas_leaf_config(input_config_file: &str, input_image_fi
             ..Default::default()
         };
 
+        let image = format!("{}/{}:{}",DOCKER_REG,DOCKER_IMAGE,env!("CARGO_PKG_VERSION"));
+
         let container_config = Config {
-            image: Some(DOCKER_IMAGE),
+            image: Some(image.as_str()),
             tty: Some(true),
             host_config: Some(host_config),
             ..Default::default()
