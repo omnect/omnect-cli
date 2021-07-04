@@ -1,22 +1,25 @@
-use ics_dm_cli::file;
+use ics_dm_cli::wifi;
+use ics_dm_cli::identity;
 use std::path::PathBuf;
-use std::fs::File;
 
 mod common;
 
 
 #[test]
-
-fn check_file_exists() {
+fn check_set_wificonfig() {
     common::setup();
 
-    let path_ok = PathBuf::from(r"./tmp/tesfile");
-    let path_err = PathBuf::from(r"not_existing_file");
+    let config_file_path = PathBuf::from(r"tests/testfiles/wpa_supplicant.conf");
+    let image_path = PathBuf::from(r"tests/testfiles/image.wic");
 
-    File::create(path_ok.clone()).unwrap();
+    assert_eq!(true, wifi::config(config_file_path, image_path).is_ok());
 
-    assert_eq!(true, file::file_exits(&path_ok).is_ok());
-    assert_eq!(false, file::file_exits(&path_err).is_ok());
+    common::cleanup();
+}
+
+#[test]
+fn check_set_identity() {
+    common::setup();
 
     common::cleanup();
 }

@@ -1,8 +1,8 @@
 mod cli;
 mod docker;
-pub mod file;
-mod identity;
-mod wifi;
+mod file;
+pub mod identity;
+pub mod wifi;
 
 use std::error::Error;
 
