@@ -1,13 +1,14 @@
-use std::fs;
+use std::fs::remove_dir_all;
 extern crate fs_extra;
 use fs_extra::dir::copy;
 use fs_extra::dir::CopyOptions;
 
 pub fn setup() {
-    let options = CopyOptions::new(); 
-    copy("testfiles", "tests", &options).unwrap();
+    copy("testfiles", "tests", &CopyOptions{
+        overwrite: true,
+        ..Default::default()}).unwrap();
 }
 
 pub fn cleanup() {
-    fs::remove_dir_all("tests/testfiles").unwrap();
+    remove_dir_all("tests/testfiles").unwrap();
 }
