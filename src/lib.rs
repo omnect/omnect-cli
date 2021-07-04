@@ -1,6 +1,6 @@
 mod cli;
 mod docker;
-mod file;
+pub mod file;
 mod identity;
 mod wifi;
 
