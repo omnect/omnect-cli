@@ -4,11 +4,11 @@ use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 
 pub fn set_iotedge_gateway_config(config_file: PathBuf, image_file: PathBuf, root_ca_file: PathBuf, device_identity_file: PathBuf, device_identity_key_file: PathBuf ) -> Result<(),Error> {
-    file::file_exits(&config_file)?;
-    file::file_exits(&image_file)?;
-    file::file_exits(&root_ca_file)?;
-    file::file_exits(&device_identity_file)?;
-    file::file_exits(&device_identity_key_file)?;
+    file::file_exists(&config_file)?;
+    file::file_exists(&image_file)?;
+    file::file_exists(&root_ca_file)?;
+    file::file_exists(&device_identity_file)?;
+    file::file_exists(&device_identity_key_file)?;
 
     /*
         todo some content verification of config_file and image_file?
@@ -25,9 +25,9 @@ pub fn set_iotedge_gateway_config(config_file: PathBuf, image_file: PathBuf, roo
 }
 
 pub fn set_iotedge_sas_leaf_config(config_file: PathBuf, image_file: PathBuf, root_ca_file: PathBuf) -> Result<(),Error> {
-    file::file_exits(&config_file)?;
-    file::file_exits(&image_file)?;
-    file::file_exits(&root_ca_file)?;
+    file::file_exists(&config_file)?;
+    file::file_exists(&image_file)?;
+    file::file_exists(&root_ca_file)?;
 
     docker::set_iotedge_sas_leaf_config(config_file.to_str().unwrap(),
                                         image_file.to_str().unwrap(),
@@ -37,7 +37,7 @@ pub fn set_iotedge_sas_leaf_config(config_file: PathBuf, image_file: PathBuf, ro
 }
 
 pub fn info(image_file: std::path::PathBuf) -> Result<(),Error> {
-    file::file_exits(&image_file)?;
+    file::file_exists(&image_file)?;
 
     Err(Error::new(ErrorKind::Other, "Not implemented"))
 }

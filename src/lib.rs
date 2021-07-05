@@ -21,7 +21,6 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         Command::Identity(IdentityInfo{image}) => identity::info(image)?,
         Command::Identity(SetIotedgeGatewayConfig{config,image,root_ca,device_identity,device_identity_key}) => identity::set_iotedge_gateway_config(config,image,root_ca,device_identity,device_identity_key)?,
         Command::Identity(SetIotedgeLeafSasConfig{config,image,root_ca}) => identity::set_iotedge_sas_leaf_config(config,image,root_ca)?,
-
     }
 
     Ok(())
