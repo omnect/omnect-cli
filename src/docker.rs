@@ -59,7 +59,8 @@ fn get_docker_cred() -> DockerCredentials {
     }
 }
 
-fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOptions<&str>) -> Result<(), Error> {
+#[tokio::main]
+async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOptions<&str>) -> Result<(), Error> {
     match block_on( async move {
         let docker = Docker::connect_with_unix_defaults().unwrap();
         let image = format!("{}/{}:{}",DOCKER_REG,DOCKER_IMAGE,env!("CARGO_PKG_VERSION"));
@@ -116,9 +117,9 @@ pub fn set_wifi_config(input_config_file: &str, input_image_file: &str) -> Resul
     binds.push("/dev/:/dev/".to_owned().to_string());
 
     // input file binding
-    binds.push(format!("{}:{}",input_image_file, TARGET_DEVICE_IMAGE));
-    let target_input_config_file = format!("/tpm/{}",input_config_file);
-    binds.push(format!("{}:{}",input_config_file, target_input_config_file));
+    binds.push(format!("{}:{}", input_image_file, TARGET_DEVICE_IMAGE));
+    let target_input_config_file = format!("/tpm/{}", input_config_file);
+    binds.push(format!("{}:{}", input_config_file, target_input_config_file));
 
     let host_config = HostConfig {
         // privileged for losetup in the container
@@ -128,7 +129,7 @@ pub fn set_wifi_config(input_config_file: &str, input_image_file: &str) -> Resul
         ..Default::default()
     };
 
-    let image = format!("{}/{}:{}",DOCKER_REG,DOCKER_IMAGE,env!("CARGO_PKG_VERSION"));
+    let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
 
     let container_config = Config {
         image: Some(image.as_str()),
@@ -154,15 +155,15 @@ pub fn set_iotedge_gateway_config(input_config_file: &str, input_image_file: &st
     binds.push("/dev/:/dev/".to_owned().to_string());
 
     // input file binding
-    binds.push(format!("{}:{}",input_image_file, TARGET_DEVICE_IMAGE));
-    let target_input_config_file = format!("/tpm/{}",input_config_file);
-    binds.push(format!("{}:{}",input_config_file, target_input_config_file));
-    let target_input_root_ca_file = format!("/tpm/{}",input_root_ca_file);
-    binds.push(format!("{}:{}",input_root_ca_file, target_input_root_ca_file));
-    let target_input_edge_device_identity_full_chain_file = format!("/tpm/{}",input_edge_device_identity_full_chain_file);
-    binds.push(format!("{}:{}",input_edge_device_identity_full_chain_file, target_input_edge_device_identity_full_chain_file));
-    let target_input_edge_device_identity_key_file = format!("/tpm/{}",input_edge_device_identity_key_file);
-    binds.push(format!("{}:{}",input_edge_device_identity_key_file, target_input_edge_device_identity_key_file));
+    binds.push(format!("{}:{}", input_image_file, TARGET_DEVICE_IMAGE));
+    let target_input_config_file = format!("/tpm/{}", input_config_file);
+    binds.push(format!("{}:{}", input_config_file, target_input_config_file));
+    let target_input_root_ca_file = format!("/tpm/{}", input_root_ca_file);
+    binds.push(format!("{}:{}", input_root_ca_file, target_input_root_ca_file));
+    let target_input_edge_device_identity_full_chain_file = format!("/tpm/{}", input_edge_device_identity_full_chain_file);
+    binds.push(format!("{}:{}", input_edge_device_identity_full_chain_file, target_input_edge_device_identity_full_chain_file));
+    let target_input_edge_device_identity_key_file = format!("/tpm/{}", input_edge_device_identity_key_file);
+    binds.push(format!("{}:{}", input_edge_device_identity_key_file, target_input_edge_device_identity_key_file));
 
     let host_config = HostConfig {
         // privileged for losetup in the container
@@ -197,11 +198,11 @@ pub fn set_iotedge_sas_leaf_config(input_config_file: &str, input_image_file: &s
     binds.push("/dev/:/dev/".to_owned().to_string());
 
     // input file binding
-    binds.push(format!("{}:{}",input_image_file, TARGET_DEVICE_IMAGE));
-    let target_input_config_file = format!("/tpm/{}",input_config_file);
-    binds.push(format!("{}:{}",input_config_file, target_input_config_file));
-    let target_input_root_ca_file = format!("/tpm/{}",input_root_ca_file);
-    binds.push(format!("{}:{}",input_root_ca_file, target_input_root_ca_file));
+    binds.push(format!("{}:{}", input_image_file, TARGET_DEVICE_IMAGE));
+    let target_input_config_file = format!("/tpm/{}", input_config_file);
+    binds.push(format!("{}:{}", input_config_file, target_input_config_file));
+    let target_input_root_ca_file = format!("/tpm/{}", input_root_ca_file);
+    binds.push(format!("{}:{}", input_root_ca_file, target_input_root_ca_file));
 
     let host_config = HostConfig {
         // privileged for losetup in the container

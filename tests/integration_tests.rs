@@ -19,7 +19,10 @@ fn check_set_wificonfig() {
 
 #[test]
 fn check_set_identity() {
-    common::setup();
+    /*common::setup();
 
-    common::cleanup();
+    let image_path = PathBuf::from(r"tests/testfiles/image.wic");
+    assert_eq!(true, identity::info(image_path).is_err());
+
+    common::cleanup();*/
 }

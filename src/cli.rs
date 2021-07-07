@@ -71,6 +71,31 @@ pub enum WifiConfig {
     }
 }
 
+#[derive(StructOpt, Debug, PartialEq)]
+#[structopt(about = ABOUT)]
+#[structopt(after_help = COPYRIGHT)]
+pub enum EnrollmentConfig {
+    Set {
+        /// absolute path to config file
+        #[structopt(short = "ec", long = "enrollment-config")]
+        #[structopt(parse(from_os_str))]
+        enrollment_config: std::path::PathBuf,
+        /// absolute path to config file
+        #[structopt(short = "pc", long = "provisioning-config")]
+        #[structopt(parse(from_os_str))]
+        provisioning_config: std::path::PathBuf,
+         /// absolute path to uncompressed image file
+        #[structopt(short = "i", long = "image")]
+        #[structopt(parse(from_os_str))]
+        image: std::path::PathBuf,
+    },
+    Info {
+        #[structopt(short = "i", long = "image")]
+        #[structopt(parse(from_os_str))]
+        image: std::path::PathBuf,
+    }
+}
+
 
 #[derive(StructOpt, Debug, PartialEq)]
 #[structopt(about = ABOUT)]
@@ -79,6 +104,7 @@ pub enum Command {
     Identity(IdentityConfig),
     DockerInfo,
     Wifi(WifiConfig),
+    Enrollment(EnrollmentConfig)
 }
 
-pub fn from_args() -> Command { Command::from_args()}
+pub fn from_args() -> Command { Command::from_args() }

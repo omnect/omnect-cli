@@ -11,10 +11,7 @@ pub fn config(config_file: std::path::PathBuf, image_file: std::path::PathBuf ) 
         e.g. image_file currently should be an uncompressed wic file
     */
 
-    docker::set_wifi_config(config_file.to_str().unwrap(),
-                            image_file.to_str().unwrap())?;
-
-    Ok (())
+    docker::set_wifi_config(config_file.to_str().unwrap(), image_file.to_str().unwrap())
 }
 
 pub fn info(image_file: std::path::PathBuf) -> Result<(),Error> {

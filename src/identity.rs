@@ -29,11 +29,7 @@ pub fn set_iotedge_sas_leaf_config(config_file: PathBuf, image_file: PathBuf, ro
     file::file_exists(&image_file)?;
     file::file_exists(&root_ca_file)?;
 
-    docker::set_iotedge_sas_leaf_config(config_file.to_str().unwrap(),
-                                        image_file.to_str().unwrap(),
-                                        root_ca_file.to_str().unwrap())?;
-
-    Ok (())
+    docker::set_iotedge_sas_leaf_config(config_file.to_str().unwrap(), image_file.to_str().unwrap(), root_ca_file.to_str().unwrap())
 }
 
 pub fn info(image_file: std::path::PathBuf) -> Result<(),Error> {
