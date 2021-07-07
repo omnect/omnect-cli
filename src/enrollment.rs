@@ -12,7 +12,7 @@ pub fn config(enrollment_config_file: std::path::PathBuf, provisioning_config_fi
         e.g. image_file currently should be an uncompressed wic file
     */
 
-    docker::set_wifi_config(enrollment_config_file.to_str().unwrap(), image_file.to_str().unwrap())
+    docker::set_enrollment_config(enrollment_config_file.to_str().unwrap(), provisioning_config_file.to_str().unwrap(), image_file.to_str().unwrap())
 }
 
 pub fn info(image_file: std::path::PathBuf) -> Result<(),Error> {

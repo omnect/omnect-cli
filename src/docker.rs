@@ -149,6 +149,46 @@ pub fn set_wifi_config(input_config_file: &str, input_image_file: &str) -> Resul
     docker_exec(container_config,exec_options)
 }
 
+pub fn set_enrollment_config(input_enrollment_config_file: &str, input_provisioning_config_file: &str, input_image_file: &str) -> Result<(),Error> {
+    let mut binds: Vec<std::string::String> = Vec::new();
+    // to setup the image loop device properly we need to access the hosts devtmpfs
+    binds.push("/dev/:/dev/".to_owned().to_string());
+
+    // input file binding
+    binds.push(format!("{}:{}", input_image_file, TARGET_DEVICE_IMAGE));
+    let target_input_enrollment_config_file = format!("/tpm/{}", input_enrollment_config_file);
+    binds.push(format!("{}:{}", input_enrollment_config_file, input_enrollment_config_file));
+    let target_input_provisioning_config_file = format!("/tpm/{}", input_provisioning_config_file);
+    binds.push(format!("{}:{}", input_provisioning_config_file, input_provisioning_config_file));
+
+    let host_config = HostConfig {
+        // privileged for losetup in the container
+        // @todo check how to restrict rights with capabilities instead
+        privileged: Some(true),
+        binds: Some(binds),
+        ..Default::default()
+    };
+
+    let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
+
+    let container_config = Config {
+        image: Some(image.as_str()),
+        tty: Some(true),
+        host_config: Some(host_config),
+        ..Default::default()
+    };
+
+    // backend call
+    let exec_options = CreateExecOptions {
+        attach_stdout: Some(true),
+        attach_stderr: Some(true),
+        cmd: Some(vec!["set_enrollment_config.sh", "-e", &target_input_enrollment_config_file, "-p", &target_input_provisioning_config_file]),
+        ..Default::default()
+    };
+
+    docker_exec(container_config,exec_options)
+}
+
 pub fn set_iotedge_gateway_config(input_config_file: &str, input_image_file: &str, input_root_ca_file: &str, input_edge_device_identity_full_chain_file: &str, input_edge_device_identity_key_file: &str) -> Result<(),Error> {
     let mut binds :Vec<std::string::String> = Vec::new();
     // to setup the image loop device properly we need to access the hosts devtmpfs
