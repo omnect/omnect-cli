@@ -1,19 +1,22 @@
 # ics-dm-cli
 
-ics-dm-cli is a cli tool to manage your ics-dm device(image)s.
+ics-dm-cli is a cli tool to manage your ics-dm yocto images.
 
 # Features
-- inject wifi config into flash images (wic)
+ics-dm-cli provides commands to inject various configurations into a flash image (wic) build with [meta-ics-dm](). Currently the following configurations options are supported:
+- inject wifi configuration via wpa_supplicant into all ics-
+- inject [auto enrollment]() configuration
 - inject an iotedge gateway identity configuration
 - inject an iotedge leaf identity configuration
 
 # Installation
+**Ensure ~/bin/ exists and is your $PATH**
 
 ```sh
 docker run --rm --entrypoint cat icsdm.azurecr.io/ics-dm-cli-backend:latest /install/ics-dm-cli > ~/bin/ics-dm-cli && chmod +x ~/bin/ics-dm-cli
 ```
 
-# Inject Wifi Configuration
+# Inject wifi configuration
 Adapt either `conf/wpa_supplicant.conf.simple.template` or `conf/wpa_supplicant.conf.template`.
 Use `wpa_passphrase` to generate your `psk`. Depending on your host system you may have to install `wpa_supplicant` to be able to use `wpa_passhrase`.
 
@@ -21,7 +24,7 @@ Use `wpa_passphrase` to generate your `psk`. Depending on your host system you m
 ics-dm-cli wifi set -c $(pwd)/conf/wpa_supplicant.conf -i /full/path/to/your/wic/image.wic
 ```
 
-# Prepare Devices for a Transparent Gateway with Leaf scenario
+# Prepare devices for a transparent gateway with leaf scenario
 
 This Example is based on the article [Configure an IoT Edge device to act as a transparent gateway](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-transparent-gateway?view=iotedge-2020-11). We assume that you use a X.509 CA certificate setup.
 ## IotEdge Gateway configuration

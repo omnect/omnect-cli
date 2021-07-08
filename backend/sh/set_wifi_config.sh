@@ -18,7 +18,7 @@ function usage() {
     echo "Usage: $0 -i input_file " 1>&2; exit 1;
 }
 
-while getopts ":i:o:" opt; do
+while getopts ":i:" opt; do
     case "${opt}" in
         i)
             i=${OPTARG}
