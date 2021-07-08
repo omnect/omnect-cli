@@ -77,11 +77,11 @@ pub enum WifiConfig {
 pub enum EnrollmentConfig {
     Set {
         /// absolute path to config file
-        #[structopt(short = "ec", long = "enrollment-config")]
+        #[structopt(short = "e", long = "enrollment-config")]
         #[structopt(parse(from_os_str))]
         enrollment_config: std::path::PathBuf,
         /// absolute path to config file
-        #[structopt(short = "pc", long = "provisioning-config")]
+        #[structopt(short = "p", long = "provisioning-config")]
         #[structopt(parse(from_os_str))]
         provisioning_config: std::path::PathBuf,
          /// absolute path to uncompressed image file

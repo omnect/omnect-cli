@@ -1,6 +1,9 @@
 use std::fs::File;
-use std::io::{BufReader,Error, ErrorKind, Read};
-use std::path::PathBuf;
+use std::io::{BufReader, Error, ErrorKind, Read};
+use std::path::{Path, PathBuf};
+
+extern crate path_absolutize;
+use path_absolutize::*;
 
 use bollard::auth::DockerCredentials;
 use bollard::container::{Config, RemoveContainerOptions, LogOutput};
@@ -63,7 +66,7 @@ fn get_docker_cred() -> DockerCredentials {
 async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOptions<&str>) -> Result<(), Error> {
     match block_on( async move {
         let docker = Docker::connect_with_unix_defaults().unwrap();
-        let image = format!("{}/{}:{}",DOCKER_REG,DOCKER_IMAGE,env!("CARGO_PKG_VERSION"));
+        let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
 
         if let Err(_e) = docker.image_history(image.as_str()).await {
             docker.create_image(
@@ -111,7 +114,11 @@ async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOpt
     }
 }
 
-pub fn set_wifi_config(input_config_file: &str, input_image_file: &str) -> Result<(),Error> {
+pub fn set_wifi_config(config: &PathBuf, image: &PathBuf) -> Result<(), Error> {
+    let input_config_file = ensure_filepath(&config)?;
+    let input_image_file = ensure_filepath(&image)?;
+
+
     let mut binds :Vec<std::string::String> = Vec::new();
     // to setup the image loop device properly we need to access the hosts devtmpfs
     binds.push("/dev/:/dev/".to_owned().to_string());
@@ -146,10 +153,14 @@ pub fn set_wifi_config(input_config_file: &str, input_image_file: &str) -> Resul
         ..Default::default()
     };
 
-    docker_exec(container_config,exec_options)
+    docker_exec(container_config, exec_options)
 }
 
-pub fn set_enrollment_config(input_enrollment_config_file: &str, input_provisioning_config_file: &str, input_image_file: &str) -> Result<(),Error> {
+pub fn set_enrollment_config(enrollment_config_file: &PathBuf, provisioning_config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Error> {
+    let input_enrollment_config_file = ensure_filepath(&enrollment_config_file)?;
+    let input_provisioning_config_file = ensure_filepath(&provisioning_config_file)?;
+    let input_image_file = ensure_filepath(&image_file)?;
+    
     let mut binds: Vec<std::string::String> = Vec::new();
     // to setup the image loop device properly we need to access the hosts devtmpfs
     binds.push("/dev/:/dev/".to_owned().to_string());
@@ -186,10 +197,17 @@ pub fn set_enrollment_config(input_enrollment_config_file: &str, input_provision
         ..Default::default()
     };
 
-    docker_exec(container_config,exec_options)
+    docker_exec(container_config, exec_options)
 }
 
-pub fn set_iotedge_gateway_config(input_config_file: &str, input_image_file: &str, input_root_ca_file: &str, input_edge_device_identity_full_chain_file: &str, input_edge_device_identity_key_file: &str) -> Result<(),Error> {
+pub fn set_iotedge_gateway_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf, edge_device_identity_full_chain_file: &PathBuf, edge_device_identity_key_file: &PathBuf) -> Result<(), Error> {
+    let input_config_file = ensure_filepath(&config_file)?;
+    let input_image_file = ensure_filepath(&image_file)?;
+    let input_root_ca_file = ensure_filepath(&root_ca_file)?;
+    let input_edge_device_identity_full_chain_file = ensure_filepath(&edge_device_identity_full_chain_file)?;
+    let input_edge_device_identity_key_file = ensure_filepath(&edge_device_identity_key_file)?;
+    
+    
     let mut binds :Vec<std::string::String> = Vec::new();
     // to setup the image loop device properly we need to access the hosts devtmpfs
     binds.push("/dev/:/dev/".to_owned().to_string());
@@ -213,7 +231,7 @@ pub fn set_iotedge_gateway_config(input_config_file: &str, input_image_file: &st
         ..Default::default()
     };
 
-    let image = format!("{}/{}:{}",DOCKER_REG,DOCKER_IMAGE,env!("CARGO_PKG_VERSION"));
+    let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
 
     let container_config = Config {
         image: Some(image.as_str()),
@@ -229,10 +247,14 @@ pub fn set_iotedge_gateway_config(input_config_file: &str, input_image_file: &st
         ..Default::default()
     };
 
-    docker_exec(container_config,exec_options)
+    docker_exec(container_config, exec_options)
 }
 
-pub fn set_iotedge_sas_leaf_config(input_config_file: &str, input_image_file: &str, input_root_ca_file: &str) -> Result<(),Error> {
+pub fn set_iotedge_sas_leaf_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf) -> Result<(), Error> {
+    let input_config_file = ensure_filepath(&config_file)?;
+    let input_image_file = ensure_filepath(&image_file)?;
+    let input_root_ca_file = ensure_filepath(&root_ca_file)?;    
+    
     let mut binds :Vec<std::string::String> = Vec::new();
     // to setup the image loop device properly we need to access the hosts devtmpfs
     binds.push("/dev/:/dev/".to_owned().to_string());
@@ -252,7 +274,7 @@ pub fn set_iotedge_sas_leaf_config(input_config_file: &str, input_image_file: &s
         ..Default::default()
     };
 
-    let image = format!("{}/{}:{}",DOCKER_REG,DOCKER_IMAGE,env!("CARGO_PKG_VERSION"));
+    let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
 
     let container_config = Config {
         image: Some(image.as_str()),
@@ -268,15 +290,31 @@ pub fn set_iotedge_sas_leaf_config(input_config_file: &str, input_image_file: &s
         ..Default::default()
     };
 
-    docker_exec(container_config,exec_options)
+    docker_exec(container_config, exec_options)
 }
 
 #[tokio::main]
-pub async fn docker_version() -> Result<(), std::io::Error> {
+pub async fn docker_version() -> Result<(), Error> {
     block_on( async move {
         let docker = Docker::connect_with_local_defaults().unwrap();
         let version = docker.version().await.unwrap();
         println!("docker version: {:#?}", version);
     });
+    Ok(())
+}
+
+fn ensure_filepath(filepath: &PathBuf) -> Result<String, Error> {
+    error_on_file_not_exists(&filepath)?;
+
+    Ok(Path::new(filepath).absolutize().unwrap().to_str().unwrap().to_string())
+}
+
+fn error_on_file_not_exists(file: &PathBuf) -> Result<(), Error> {
+    std::fs::metadata(&file)
+    .map_err(|e| {Error::new(e.kind(), e.to_string() + ": " + file.to_str().unwrap())})?
+    .is_file()
+    .then(|| ())
+    .ok_or(Error::new(ErrorKind::InvalidInput, file.to_str().unwrap().to_owned() + &" is not a file path"))?;
+
     Ok(())
 }

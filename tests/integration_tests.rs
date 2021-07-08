@@ -1,9 +1,5 @@
-extern crate path_absolutize;
-use ics_dm_cli::wifi;
-use ics_dm_cli::identity;
-use ics_dm_cli::enrollment;
-use std::path::{Path, PathBuf};
-use path_absolutize::*;
+use ics_dm_cli::docker;
+use std::path::PathBuf;
 
 mod common;
 
@@ -12,13 +8,12 @@ mod common;
 fn check_set_wifi_config() {
     common::setup();
 
-    let config_file_path = PathBuf::from(Path::new(r"tests/testfiles/wpa_supplicant.conf").absolutize().unwrap());
-    let image_path = PathBuf::from(Path::new(r"tests/testfiles/image.wic").absolutize().unwrap());
+    let config_file_path = PathBuf::from(r"tests/testfiles/wpa_supplicant.conf");
+    let image_path = PathBuf::from(r"tests/testfiles/image.wic");
 
-    assert_eq!(true, wifi::config(config_file_path, image_path).is_ok());
+    assert_eq!(true, docker::set_wifi_config(&config_file_path, &image_path).is_ok());
 
     common::cleanup();
-
 }
 
 #[test]
@@ -26,24 +21,39 @@ fn check_set_enrollment_config() {
     
     common::setup();
 
-    let enrollment_config_file_path = PathBuf::from(Path::new(r"tests/testfiles/enrollment_static.conf").absolutize().unwrap());
-    let provisioning_config_file_path = PathBuf::from(Path::new(r"tests/testfiles/provisioning_static.conf").absolutize().unwrap());
-    let image_path = PathBuf::from(Path::new(r"tests/testfiles/image.wic").absolutize().unwrap());
+    let enrollment_config_file_path = PathBuf::from(r"tests/testfiles/enrollment_static.conf");
+    let provisioning_config_file_path = PathBuf::from(r"tests/testfiles/provisioning_static.conf");
+    let image_path = PathBuf::from(r"tests/testfiles/image.wic");
 
-    assert_eq!(true, enrollment::config(enrollment_config_file_path, provisioning_config_file_path, image_path).is_ok());
+    assert_eq!(true, docker::set_enrollment_config(&enrollment_config_file_path, &provisioning_config_file_path, &image_path).is_ok());
 
     common::cleanup();
-    /**/
 }
 
 #[test]
-fn check_set_identity() {
-    /*
+fn check_set_identity_gateway_config() {
     common::setup();
 
+    let config_file_path = PathBuf::from(r"tests/testfiles/config.toml");
     let image_path = PathBuf::from(r"tests/testfiles/image.wic");
-    assert_eq!(true, identity::info(image_path).is_err());
+    let root_ca_file_path = PathBuf::from(r"tests/testfiles/root.ca.cert.pem");
+    let edge_device_identity_full_chain_file_path = PathBuf::from(r"tests/testfiles/full-chain.cert.pem");
+    let edge_device_identity_key_file_path = PathBuf::from(r"tests/testfiles/device-ca.key.pem");
+
+    assert_eq!(true, docker::set_iotedge_gateway_config(&config_file_path, &image_path, &root_ca_file_path, &edge_device_identity_full_chain_file_path, &edge_device_identity_key_file_path).is_ok());
 
     common::cleanup();
-    */
+}
+
+#[test]
+fn check_set_identity_leaf_config() {
+    common::setup();
+
+    let config_file_path = PathBuf::from(r"tests/testfiles/config.toml");
+    let image_path = PathBuf::from(r"tests/testfiles/image.wic");
+    let root_ca_file_path = PathBuf::from(r"tests/testfiles/root.ca.cert.pem");
+    
+    assert_eq!(true, docker::set_iotedge_sas_leaf_config(&config_file_path, &image_path, &root_ca_file_path).is_ok());
+
+    common::cleanup();
 }
