@@ -1,11 +1,10 @@
 # ics-dm-cli
-
 ics-dm-cli is a cli tool to manage your ics-dm yocto images.
 
 # Features
-ics-dm-cli provides commands to inject various configurations into a flash image (wic) build with [meta-ics-dm](). Currently the following configurations options are supported:
+ics-dm-cli provides commands to inject various configurations into a flash image (wic) build with [meta-ics-dm](https://github.com/ICS-DeviceManagement/meta-ics-dm). Currently the following configurations options are supported:
 - inject wifi configuration via wpa_supplicant into all ics-
-- inject [auto enrollment]() configuration
+- inject [auto enrollment](https://github.com/ICS-DeviceManagement/enrollment) configuration
 - inject an iotedge gateway identity configuration
 - inject an iotedge leaf identity configuration
 
@@ -21,17 +20,22 @@ Adapt either `conf/wpa_supplicant.conf.simple.template` or `conf/wpa_supplicant.
 Use `wpa_passphrase` to generate your `psk`. Depending on your host system you may have to install `wpa_supplicant` to be able to use `wpa_passhrase`.
 
 ```sh
-ics-dm-cli wifi set -c $(pwd)/conf/wpa_supplicant.conf -i /full/path/to/your/wic/image.wic
+ics-dm-cli wifi set -c /full/path/to/your/wpa_supplicant.conf -i /full/path/to/your/image.wic
+```
+
+# Inject enrollment configuration
+Adapt `conf/enrollment_static.conf.template` and `conf/provisioning_static.conf.template` to your needs.
+
+```sh
+ics-dm-cli enrollment set -e /full/path/to/your/conf/enrollment_static.conf -p /full/path/to/your/provisioning_static.conf.conf -i /full/path/to/your/image.wic
 ```
 
 # Prepare devices for a transparent gateway with leaf scenario
+Follow this article [Configure an IoT Edge device to act as a transparent gateway](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-transparent-gateway?view=iotedge-2020-11) to understand the iotedge based transparent gateway setup. We assume that you use a X.509 CA certificate setup.
 
-This Example is based on the article [Configure an IoT Edge device to act as a transparent gateway](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-transparent-gateway?view=iotedge-2020-11). We assume that you use a X.509 CA certificate setup.
 ## IotEdge Gateway configuration
-
 ### Certificates
-
-Follow the article [Create demo certificates to test IoT Edge device features](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11=).
+Follow the article [Create demo certificates to test IoT Edge device features](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11=) in case you don't have a workflow for certificate creation yet.
 For the iotedge gateway device, you need the following files:
   - `azure-iot-test-only.root.ca.cert.pem`
   - `iot-edge-ca-<name>-full-chain.cert.pem`
@@ -40,13 +44,13 @@ For the iotedge gateway device, you need the following files:
 ### Config file
 Use the following template as iotedge gateway config file: https://raw.githubusercontent.com/Azure/iotedge/master/edgelet/contrib/config/linux/template.toml.<br>
 Uncomment the following lines and adapt the hostname.<br>
-Don't adapt file paths!<br>
+**Don't adapt file paths!**<br>
 If you use a device image with enrollment demo, don't configure the provisioning! The configuration gets adapted at enrollment.
+
 ```sh
 # hostname = "my-device"
 
 # trust_bundle_cert = "file:///var/secrets/trust-bundle.pem"
-
 
 # [edge_ca]
 # cert = "file:///var/secrets/edge-ca.pem"                # file URI
@@ -60,7 +64,6 @@ ics-dm-cli identity  set-iotedge-gateway-config -c $(pwd)/conf/iotedge_config.to
 ```
 
 ## Leaf configuration
-
 ### Restriction
 We provision iot applications as modules. Currently our leaf device configuration is restricted to SaS authentication. See https://azure.github.io/iot-identity-service/develop-an-agent.html#connecting-your-agent-to-iot-hub for details.
 
@@ -97,7 +100,6 @@ ics-dm-cli identity set-iotedge-leaf-sas-config -c $(pwd)/conf/iotedge_config.to
 ```
 
 # Troubleshooting
-
 ## No credential store support
 `ics-dm-cli` needs to pull a docker image `icsdm.azurecr.io/ics-dm-cli-backend` as backend for some cli
 commands. If you use a docker environment with credential store you have to
@@ -107,7 +109,6 @@ docker pull icsdm.azurecr.io/ics-dm-cli-backend:$(ics-dm-cli --version | awk '{p
 ```
 
 # License
-
 Licensed under either of
 
 * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
@@ -116,7 +117,6 @@ Licensed under either of
 at your option.
 
 # Contribution
-
 Unless you explicitly state otherwise, any contribution intentionally
 submitted for inclusion in the work by you, as defined in the Apache-2.0
 license, shall be dual licensed as above, without any additional terms or
