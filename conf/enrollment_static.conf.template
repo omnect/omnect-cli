@@ -1,1 +1,8 @@
-# ToDo define content
+{
+  "dps_connectionString": "HostName=dps-ics-dm-dev.azure-devices-provisioning.net;SharedAccessKeyName=provisioningserviceowner;SharedAccessKey=************************************",
+  "edgeDevice": false,
+  "tags": {
+    "machine": "my-machine",
+    "ADUGroup": "my-adugroup"
+  }
+}
