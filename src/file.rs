@@ -1,6 +1,6 @@
 use std::io::{Error, ErrorKind};
 
-pub fn file_exists(file: &std::path::PathBuf) -> Result<(),Error> {
+pub fn error_on_file_not_exists(file: &std::path::PathBuf) -> Result<(),Error> {
     std::fs::metadata(&file)
     .map_err(|e| {Error::new(e.kind(), e.to_string() + ": " + file.to_str().unwrap())})?
     .is_file()
