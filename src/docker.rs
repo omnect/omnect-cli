@@ -157,9 +157,9 @@ pub fn set_enrollment_config(input_enrollment_config_file: &str, input_provision
     // input file binding
     binds.push(format!("{}:{}", input_image_file, TARGET_DEVICE_IMAGE));
     let target_input_enrollment_config_file = format!("/tpm/{}", input_enrollment_config_file);
-    binds.push(format!("{}:{}", input_enrollment_config_file, input_enrollment_config_file));
+    binds.push(format!("{}:{}", input_enrollment_config_file, target_input_enrollment_config_file));
     let target_input_provisioning_config_file = format!("/tpm/{}", input_provisioning_config_file);
-    binds.push(format!("{}:{}", input_provisioning_config_file, input_provisioning_config_file));
+    binds.push(format!("{}:{}", input_provisioning_config_file, target_input_provisioning_config_file));
 
     let host_config = HostConfig {
         // privileged for losetup in the container

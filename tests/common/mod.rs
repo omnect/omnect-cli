@@ -10,5 +10,7 @@ pub fn setup() {
 }
 
 pub fn cleanup() {
-    remove_dir_all("tests/testfiles").unwrap();
+    remove_dir_all("tests/testfiles").unwrap_or_else(|_err| {
+        // ignore all errors if dir cannot be deleted
+    });
 }
