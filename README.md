@@ -8,7 +8,7 @@ ics-dm-cli provides commands to inject various configurations into a flash image
 - inject an iotedge gateway identity configuration
 - inject an iotedge leaf identity configuration
 
-## Download prebuild Docker image
+# Download prebuild Docker image
 - login to azure docker registry either via admin user
     ```sh
     docker login icsdm.azurecr.io
