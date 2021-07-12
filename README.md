@@ -127,11 +127,12 @@ docker pull icsdm.azurecr.io/ics-dm-cli-backend:$(ics-dm-cli --version | awk '{p
 ## Verify configuration is functional 
 Check for valid AIS identity configuration on iotedge devices:
 ```sh
-iotedge system logs | iotedge system logs -- -af
+iotedge system logs
+```
 
 Check for valid AIS identity configuration on iot devices:
 ```sh
-aziotctl system logs | aziotctl system logs -- -af
+aziotctl system logs
 ```
 
 Check for valid wifi configuration:
