@@ -95,6 +95,7 @@ jobs:
               - |
                 cd source
                 cargo build --release --locked
+                cargo test
                 chown ${GROUP_ID}:${USER_ID} target/release/ics-dm-cli
                 mv target/release/ics-dm-cli backend
           params:

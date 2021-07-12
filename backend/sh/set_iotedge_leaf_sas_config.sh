@@ -100,4 +100,4 @@ echo cp ${r} /tmp/mount/data/local/share/ca-certificates/$(basename ${r}).crt
 cp ${r} /tmp/mount/data/local/share/ca-certificates/$(basename ${r}).crt
 # Just a remark: copying the root ca cert isn't sufficient. The device has
 # to call update-ca-certificates on first boot ... we handle that in
-# first-boot.service
+# ics-dm-first-boot.service

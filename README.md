@@ -17,17 +17,17 @@ docker run --rm --entrypoint cat icsdm.azurecr.io/ics-dm-cli-backend:latest /ins
 
 # Inject wifi configuration
 Adapt either `conf/wpa_supplicant.conf.simple.template` or `conf/wpa_supplicant.conf.template`.
-Use `wpa_passphrase` to generate your `psk`. Depending on your host system you may have to install `wpa_supplicant` to be able to use `wpa_passhrase`.
+Use `wpa_passphrase` to generate your `psk`. Depending on your host system you may have to install `wpa_supplicant` to be able to use `wpa_passphrase`.
 
 ```sh
-ics-dm-cli wifi set -c /full/path/to/your/wpa_supplicant.conf -i /full/path/to/your/image.wic
+ics-dm-cli wifi set -c <path>/wpa_supplicant.conf -i <path>/image.wic
 ```
 
 # Inject enrollment configuration
 Adapt `conf/enrollment_static.conf.template` and `conf/provisioning_static.conf.template` to your needs.
 
 ```sh
-ics-dm-cli enrollment set -e /full/path/to/your/conf/enrollment_static.conf -p /full/path/to/your/provisioning_static.conf.conf -i /full/path/to/your/image.wic
+ics-dm-cli enrollment set -e <path>/enrollment_static.conf -p <path>/provisioning_static.conf.conf -i <path>/image.wic
 ```
 
 # Prepare devices for a transparent gateway with leaf scenario
@@ -60,7 +60,7 @@ If you use a device image with enrollment demo, don't configure the provisioning
 
 ### Inject configuration
 ```sh
-ics-dm-cli identity  set-iotedge-gateway-config -c $(pwd)/conf/iotedge_config.toml -i /full/path/to/your/wic/iotedge_image.wic  -r /full/path/to/your/azure-iot-test-only.root.ca.cert.pem -d /full/path/to/your/iot-edge-device-ca-<name>-full-chain.cert.pem -k /full/path/to/your/iot-edge-device-ca-<name>.key.pem
+ics-dm-cli identity  set-iotedge-gateway-config -c <path>/iotedge_config.toml -i <path>/iotedge_image.wic  -r <path>/azure-iot-test-only.root.ca.cert.pem -d <path>/iot-edge-device-ca-<name>-full-chain.cert.pem -k <path>/iot-edge-device-ca-<name>.key.pem
 ```
 
 ## Leaf configuration
@@ -96,7 +96,7 @@ Uncomment and adapt the following lines.
 
 ### Inject configuration
 ```sh
-ics-dm-cli identity set-iotedge-leaf-sas-config -c $(pwd)/conf/iotedge_config.toml -i /full/path/to/your/wic/leaf_image.wic  -r /full/path/to/your/azure-iot-test-only.root.ca.cert.pem
+ics-dm-cli identity set-iotedge-leaf-sas-config -c <path>/iotedge_config.toml -i <path>/leaf_image.wic  -r <path>/azure-iot-test-only.root.ca.cert.pem
 ```
 
 # Troubleshooting
@@ -107,6 +107,14 @@ pull the image prior to calling `ics-dm-cli` manually. (Note this is not necessa
 ```sh
 docker pull icsdm.azurecr.io/ics-dm-cli-backend:$(ics-dm-cli --version | awk '{print $2}')
 ```
+
+## Verify configuration is functional 
+### check for valid iotedge toml / azure identity toml
+- iotedge system logs | iotedge system logs -- -af
+- aziotctl system logs | aziotctl system logs -- -af
+
+### check for valid wifi wpa_supplicant.conf:
+ - systemctl status wpa_supplicant@wlan0
 
 # License
 Licensed under either of

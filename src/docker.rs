@@ -2,8 +2,7 @@ use std::fs::File;
 use std::io::{BufReader, Error, ErrorKind, Read};
 use std::path::{Path, PathBuf};
 
-extern crate path_absolutize;
-use path_absolutize::*;
+use path_absolutize::Absolutize;
 
 use bollard::auth::DockerCredentials;
 use bollard::container::{Config, RemoveContainerOptions, LogOutput};

@@ -56,7 +56,6 @@ echo "r = ${r}"
 [[ ! -f ${k} ]] && echo "error: input file \"${k}\" not found" 1>&2 && exit 1
 [[ ! -f ${r} ]] && echo "error: input file \"${r}\" not found" 1>&2 && exit 1
 
-# todo verify input identity config for "hostname", "trust_bundle_cert", "edge_ca" sections
 # this script enforces a default placement of certs, e.g.
 # [trust_bundle_cert]
 # # root ca:
