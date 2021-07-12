@@ -5,8 +5,8 @@ ics-dm-cli is a cli tool to manage your ics-dm yocto images.
 ics-dm-cli provides commands to inject various configurations into a flash image (wic) build with [meta-ics-dm](https://github.com/ICS-DeviceManagement/meta-ics-dm). Currently the following configurations options are supported:
 - inject wifi configuration via wpa_supplicant into all ics-
 - inject [auto enrollment](https://github.com/ICS-DeviceManagement/enrollment) configuration
-- inject an iotedge gateway identity configuration
-- inject an iotedge leaf identity configuration
+- inject an iotedge gateway identity configuration for AIS (Azure Identity Service)
+- inject an iotedge leaf identity configuration for AIS
 
 # Download prebuild Docker image
 - login to azure docker registry either via admin user
@@ -25,7 +25,7 @@ ics-dm-cli provides commands to inject various configurations into a flash image
 If you want to use a specific version, look for available versions in the [registry](https://portal.azure.com/#@CONPLEMENTAG1.onmicrosoft.com/resource/subscriptions/ff939028-597d-472b-a7cc-bca2ac8f96bd/resourcegroups/DockerRegistry/providers/Microsoft.ContainerRegistry/registries/icsdm/repository).
 
 # Installation
-**Ensure ~/bin/ exists and is your $PATH**
+Ensure ~/bin/ exists and is in your $PATH before executing:
 
 ```sh
 docker run --rm --entrypoint cat icsdm.azurecr.io/ics-dm-cli-backend:latest /install/ics-dm-cli > ~/bin/ics-dm-cli && chmod +x ~/bin/ics-dm-cli
@@ -125,12 +125,19 @@ docker pull icsdm.azurecr.io/ics-dm-cli-backend:$(ics-dm-cli --version | awk '{p
 ```
 
 ## Verify configuration is functional 
-### check for valid iotedge toml / azure identity toml
-- iotedge system logs | iotedge system logs -- -af
-- aziotctl system logs | aziotctl system logs -- -af
+Check for valid AIS identity configuration on iotedge devices:
+```sh
+iotedge system logs | iotedge system logs -- -af
 
-### check for valid wifi wpa_supplicant.conf:
- - systemctl status wpa_supplicant@wlan0
+Check for valid AIS identity configuration on iot devices:
+```sh
+aziotctl system logs | aziotctl system logs -- -af
+```
+
+Check for valid wifi configuration:
+```sh
+systemctl status wpa_supplicant@wlan0
+```
 
 # License
 Licensed under either of
