@@ -1,3 +1,10 @@
 .vscode
 target
-test/testfiles/**
+tests/testfiles/config.toml
+tests/testfiles/device-ca.key.pem
+tests/testfiles/enrollment_static.conf
+tests/testfiles/full-chain.cert.pem
+tests/testfiles/image.wic
+tests/testfiles/provisioning_static.conf
+tests/testfiles/root.ca.cert.pem
+tests/testfiles/wpa_supplicant.conf
