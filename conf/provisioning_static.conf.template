@@ -1,0 +1,4 @@
+{
+  "provisioning_global_endpoint": "dps-ics-dm-dev.azure-devices-provisioning.net",
+  "provisioning_scope_id": ""
+}

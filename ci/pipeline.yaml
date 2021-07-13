@@ -1,0 +1,108 @@
+resource_types:
+  - name: email
+    type: docker-image
+    source:
+      repository: icsdm.azurecr.io/clone/pcfseceng/email-resource
+      username: ((ics_dm_registry_user))
+      password: ((ics_dm_registry_password))
+      tag: 1.0.19
+
+resources:
+  - name: source
+    type: git
+    source:
+      uri: ((git_source))
+      private_key: ((privatekey))
+      branch: ((git_branch))
+      skip_ssl_verification: ((git_skip_ssl_verification))
+      fetch_tags: true
+      depth: 1
+
+  - name: ics-dm-cli-backend-image
+    type: docker-image
+    source:
+      repository: icsdm.azurecr.io/ics-dm-cli-backend
+      username: ((ics_dm_registry_user))
+      password: ((ics_dm_registry_password))
+      tag: ((ics-dm-cli-backend-image_version))
+      insecure_registries: ((bb_insecure_registries))
+
+  - name: rust-image
+    type: docker-image
+    source:
+      repository: rust
+      username: ((docker_io_registry_user))
+      password: ((docker_io_registry_password))
+      tag: slim-buster
+
+  - name: send-an-email
+    type: email
+    source:
+      smtp:
+        host: ((email_smtp_host_url))
+        port: ((email_smtp_port))
+        anonymous: ((email_smtp_anonymous))
+        username: ((email_smtp_user))
+        password: ((email_smtp_pw))
+        skip_ssl_validation: ((email_smtp_skip_ssl_validation))
+        ca_cert: ((email_smtp_ca_cert))
+        host_origin: ((email_smtp_host_origin))
+        login_auth: ((email_smtp_login_auth))
+      from:  ((email_from))
+      to: ((email_to))
+
+jobs:
+  - name: build-and-deploy-ics-dm-cli
+    public: true
+    on_failure:
+      put: send-an-email
+      params:
+        subject_text: "ci ${BUILD_PIPELINE_NAME}: build ${BUILD_ID} failed!"
+        body_text: |
+          Oh no!
+          Build ID: "${BUILD_ID}"
+          Build Name: "${BUILD_NAME}"
+          Build Job Name: "${BUILD_JOB_NAME}"
+          Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
+          ATC External URL: "${ATC_EXTERNAL_URL}"
+    on_success:
+      put: send-an-email
+      params:
+        subject_text: "ci ${BUILD_PIPELINE_NAME}: build ${BUILD_ID} successfully finished"
+        body_text: |
+          Yeah!
+          Build ID: "${BUILD_ID}"
+          Build Name: "${BUILD_NAME}"
+          Build Job Name: "${BUILD_JOB_NAME}"
+          Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
+          ATC External URL: "${ATC_EXTERNAL_URL}"
+    plan:
+      - get: source
+        trigger: true
+      - get: rust-image
+      - task: build-ics-dm-cli
+        image: rust-image
+        config:
+          platform: linux
+          inputs:
+            - name: source
+          outputs:
+            - name: source
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                cd source
+                cargo build --release --locked
+                cargo test
+                chown ${GROUP_ID}:${USER_ID} target/release/ics-dm-cli
+                mv target/release/ics-dm-cli backend
+          params:
+            GROUP_ID: "1000"
+            USER_ID: "1000"
+      - put: ics-dm-cli-backend-image
+        params:
+          build: source/backend
+          dockerfile: source/backend/Dockerfile
+          tag_as_latest: true
