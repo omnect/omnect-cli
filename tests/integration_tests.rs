@@ -22,10 +22,9 @@ fn check_set_enrollment_config() {
     common::setup();
 
     let enrollment_config_file_path = PathBuf::from(r"tests/testfiles/enrollment_static.conf");
-    let provisioning_config_file_path = PathBuf::from(r"tests/testfiles/provisioning_static.conf");
     let image_path = PathBuf::from(r"tests/testfiles/image.wic");
 
-    assert_eq!(true, docker::set_enrollment_config(&enrollment_config_file_path, &provisioning_config_file_path, &image_path).is_ok());
+    assert_eq!(true, docker::set_enrollment_config(&enrollment_config_file_path, &image_path).is_ok());
 
     common::cleanup();
 }

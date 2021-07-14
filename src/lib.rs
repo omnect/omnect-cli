@@ -19,9 +19,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         {
             docker::set_wifi_config(&config, &image)?
         },
-        Command::Enrollment(EnrollmentSet {enrollment_config, provisioning_config, image}) => 
+        Command::Enrollment(EnrollmentSet {enrollment_config, image}) => 
         {
-            docker::set_enrollment_config(&enrollment_config, &provisioning_config, &image)?
+            docker::set_enrollment_config(&enrollment_config, &image)?
         },
         Command::Identity(SetIotedgeGatewayConfig{config, image, root_ca, device_identity, device_identity_key}) => 
         {

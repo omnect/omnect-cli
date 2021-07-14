@@ -155,9 +155,8 @@ pub fn set_wifi_config(config: &PathBuf, image: &PathBuf) -> Result<(), Error> {
     docker_exec(container_config, exec_options)
 }
 
-pub fn set_enrollment_config(enrollment_config_file: &PathBuf, provisioning_config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Error> {
+pub fn set_enrollment_config(enrollment_config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Error> {
     let input_enrollment_config_file = ensure_filepath(&enrollment_config_file)?;
-    let input_provisioning_config_file = ensure_filepath(&provisioning_config_file)?;
     let input_image_file = ensure_filepath(&image_file)?;
     
     let mut binds: Vec<std::string::String> = Vec::new();
@@ -168,8 +167,6 @@ pub fn set_enrollment_config(enrollment_config_file: &PathBuf, provisioning_conf
     binds.push(format!("{}:{}", input_image_file, TARGET_DEVICE_IMAGE));
     let target_input_enrollment_config_file = format!("/tpm/{}", input_enrollment_config_file);
     binds.push(format!("{}:{}", input_enrollment_config_file, target_input_enrollment_config_file));
-    let target_input_provisioning_config_file = format!("/tpm/{}", input_provisioning_config_file);
-    binds.push(format!("{}:{}", input_provisioning_config_file, target_input_provisioning_config_file));
 
     let host_config = HostConfig {
         // privileged for losetup in the container
@@ -192,7 +189,7 @@ pub fn set_enrollment_config(enrollment_config_file: &PathBuf, provisioning_conf
     let exec_options = CreateExecOptions {
         attach_stdout: Some(true),
         attach_stderr: Some(true),
-        cmd: Some(vec!["set_enrollment_config.sh", "-e", &target_input_enrollment_config_file, "-p", &target_input_provisioning_config_file]),
+        cmd: Some(vec!["set_enrollment_config.sh", "-c", &target_input_enrollment_config_file]),
         ..Default::default()
     };
 
