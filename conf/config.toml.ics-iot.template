@@ -1,0 +1,18 @@
+# ==============================================================================
+# Hostname
+# ==============================================================================
+
+hostname = "my-ics-iot-device"                              # optional overwrite
+
+# ==============================================================================
+# Provisioning
+# ==============================================================================
+
+[provisioning]
+source = "dps"                           # don't change if using enrollment demo
+global_endpoint = "https://dps-ics-dm-dev.azure-devices-provisioning.net"
+id_scope = "0ne002B81C8"
+
+[provisioning.attestation]
+method = "tpm"                           # don't change if using enrollment demo
+# registration_id:                       # don't set if using enrollment demo

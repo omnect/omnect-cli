@@ -1,0 +1,32 @@
+# ===================================================================================
+# Hostname
+# ===================================================================================
+
+hostname = "my-ics-iotedge-gateway-device"                       # optional overwrite
+
+# ===================================================================================
+# Provisioning
+# ===================================================================================
+
+[provisioning]
+source = "dps"                                # don't change if using enrollment demo
+global_endpoint = "https://dps-ics-dm-dev.azure-devices-provisioning.net"
+id_scope = "0ne002B81C8"
+
+[provisioning.attestation]
+method = "tpm"                                # don't change if using enrollment demo
+# registration_id:                            # don't set if using enrollment demo
+
+# ===================================================================================
+# Trust bundle cert
+# ===================================================================================
+
+trust_bundle_cert = "file:///var/secrets/<your-trust-bundle>.pem" # don't change path
+
+# ===================================================================================
+# Edge CA certificate
+# ===================================================================================
+
+[edge_ca]
+cert = "file:///var/secrets/<your-edge-ca>.pem"                   # don't change path
+pk = "file:///var/secrets/<your-edge-ca>.key.pem"                 # don't change path

@@ -15,7 +15,7 @@ set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
 function usage() {
-    echo "Usage: $0 -c enrollment_input_file " 1>&2; exit 1;
+    echo "Usage: $0 -c enrollment_input_file" 1>&2; exit 1;
 }
 
 while getopts ":c:" opt; do
@@ -46,7 +46,7 @@ losetup_image_wic
 part_pattern="etc"
 mount_part
 
-# copy enrollment_static.conf and provisioning_static.conf
+# copy enrollment_static.conf
 mkdir -p /tmp/mount/etc/upper/ics_dm
 echo "cp ${c} /tmp/mount/etc/upper/ics_dm/enrollment_static.conf"
 cp ${c} /tmp/mount/etc/upper/ics_dm/enrollment_static.conf

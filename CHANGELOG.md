@@ -13,4 +13,5 @@ Initial Version
 - ics-dm-cli can inject wifi config into wic image file
 - ics-dm-cli can inject enrollment config into wic image file
 - ics-dm-cli can inject iotedge gateway configuration into wic image file
-- ics-dm-cli can inject iotedge leaf configuration into wic image file
+- ics-dm-cli can inject iot leaf configuration into wic image file
+- ics-dm-cli can inject identity config for all device variants into wic image file

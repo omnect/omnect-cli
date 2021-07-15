@@ -52,7 +52,19 @@ fn check_set_identity_leaf_config() {
     let image_path = PathBuf::from(r"tests/testfiles/image.wic");
     let root_ca_file_path = PathBuf::from(r"tests/testfiles/root.ca.cert.pem");
     
-    assert_eq!(true, docker::set_iotedge_sas_leaf_config(&config_file_path, &image_path, &root_ca_file_path).is_ok());
+    assert_eq!(true, docker::set_iot_leaf_sas_config(&config_file_path, &image_path, &root_ca_file_path).is_ok());
+
+    common::cleanup();
+}
+
+#[test]
+fn check_set_identity_config() {
+    common::setup();
+
+    let config_file_path = PathBuf::from(r"tests/testfiles/config.toml");
+    let image_path = PathBuf::from(r"tests/testfiles/image.wic");
+    
+    assert_eq!(true, docker::set_identity_config(&config_file_path, &image_path).is_ok());
 
     common::cleanup();
 }

@@ -1,0 +1,25 @@
+# ==============================================================================
+# Hostname
+# ==============================================================================
+
+hostname = "my-ics-iot-leaf-gateway-device"                 # optional overwrite
+
+# ==============================================================================
+# Local Gateway Hostname
+# ==============================================================================
+
+local_gateway_hostname = "my-ics-iotedge-gateway-device"
+
+# ==============================================================================
+# Provisioning
+# ==============================================================================
+
+## Manual provisioning with symmetric key
+[provisioning]
+source = "manual"                                           # don't change
+iothub_hostname = "example.azure-devices.net"
+device_id = "my-device"
+
+[provisioning.authentication]
+method = "sas"                                              # don't change
+device_id_pk = { value = "<primary key from your device>" } # inline key (base64)

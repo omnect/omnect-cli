@@ -62,8 +62,8 @@ fn get_docker_cred() -> DockerCredentials {
 }
 
 #[tokio::main]
-async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOptions<&str>) -> Result<(), Error> {
-    match block_on( async move {
+async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOptions<&str>) -> Result<(), Box<dyn std::error::Error>> {
+    block_on( async move {
         let docker = Docker::connect_with_unix_defaults().unwrap();
         let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
 
@@ -87,16 +87,94 @@ async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOpt
 
         let mut stream = docker.start_exec(&exec.id, None);
 
+        let mut stream_error_log: Option<String> = None;
+
         while let Some(Ok(msg)) = stream.next().await {
             match msg {
                 StartExecResults::Attached{ log } => match log {
                     LogOutput::StdOut{ .. } => print!("{}", log),
-                    LogOutput::StdErr{ .. } => eprint!("{}", log),
+                    LogOutput::StdErr{ .. } => {
+                        eprint!("{}", log);
+                        stream_error_log = Some(log.to_string());
+                    },
                     _ => {}
                 }
                 _ => {}
             }
         }
+
+        // @ToDo not called if there was an error after docker.create_container
+        docker.remove_container(&container.id, Some(RemoveContainerOptions {
+                force: true,
+                ..Default::default()
+            }),
+        ).await?;
+
+        match stream_error_log {
+            None => Ok(()),
+            Some(msg) => Err(Box::<dyn std::error::Error>::from(msg))
+        }
+    })
+}
+
+
+// This version of docker_exec would always call docker.remove_container even if an error occured.
+// Unfortunately it panics with a runtime error
+/*
+#[tokio::main]
+async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOptions<&str>) -> Result<(), Box<dyn std::error::Error>> {
+    block_on( async move {
+        let mut docker_exec_result = Ok(());
+        let docker = Docker::connect_with_unix_defaults().unwrap();
+        let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
+
+        if let Err(_e) = docker.image_history(image.as_str()).await {
+            docker.create_image(
+                Some(CreateImageOptions {
+                    from_image: image.as_str(),
+                    ..Default::default()
+                }),
+                None,
+                Some(get_docker_cred())
+            ).try_collect::<Vec<_>>().await.unwrap();
+        }
+
+        let container = docker.create_container::<&str, &str>(None, container_config).await?;
+
+        // by this block we ensure that docker.remove_container container is called
+        // even if an error occured befire
+        let container_exec_result = block_on(async {
+            docker.start_container::<String>(&container.id, None).await?;
+
+            // non interactive
+            let exec = docker.create_exec(&container.id, exec_options).await?;
+    
+            let mut stream = docker.start_exec(&exec.id, None);
+    
+            let mut stream_error_log: Option<String> = None;
+    
+            while let Some(Ok(msg)) = stream.next().await {
+                match msg {
+                    StartExecResults::Attached{ log } => match log {
+                        LogOutput::StdOut{ .. } => print!("{}", log),
+                        LogOutput::StdErr{ .. } => {
+                            eprint!("{}", log);
+                            stream_error_log = Some(log.to_string());
+                        },
+                        _ => {}
+                    }
+                    _ => {}
+                }
+            }
+
+            Ok(stream_error_log)
+        });
+
+        match container_exec_result {
+            Ok(Some(msg)) => docker_exec_result = Err(Box::<dyn std::error::Error>::from(msg)),
+            Err(e) => docker_exec_result = Err(e),
+            _ => {}
+        };
 
         docker.remove_container(&container.id, Some(RemoveContainerOptions {
                 force: true,
@@ -104,16 +182,12 @@ async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOpt
             }),
         ).await?;
 
-        Ok(())
-
-    }) as Result<(), Box<dyn std::error::Error + 'static>>
-    {
-        Ok(_) => Ok(()),
-        Err(e) => { eprintln!("{:#?})", e); Err(Error::from(ErrorKind::Other))}
-    }
+        docker_exec_result
+    })
 }
+*/
 
-pub fn set_wifi_config(config: &PathBuf, image: &PathBuf) -> Result<(), Error> {
+pub fn set_wifi_config(config: &PathBuf, image: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let input_config_file = ensure_filepath(&config)?;
     let input_image_file = ensure_filepath(&image)?;
 
@@ -155,7 +229,7 @@ pub fn set_wifi_config(config: &PathBuf, image: &PathBuf) -> Result<(), Error> {
     docker_exec(container_config, exec_options)
 }
 
-pub fn set_enrollment_config(enrollment_config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Error> {
+pub fn set_enrollment_config(enrollment_config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let input_enrollment_config_file = ensure_filepath(&enrollment_config_file)?;
     let input_image_file = ensure_filepath(&image_file)?;
     
@@ -196,7 +270,7 @@ pub fn set_enrollment_config(enrollment_config_file: &PathBuf, image_file: &Path
     docker_exec(container_config, exec_options)
 }
 
-pub fn set_iotedge_gateway_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf, edge_device_identity_full_chain_file: &PathBuf, edge_device_identity_key_file: &PathBuf) -> Result<(), Error> {
+pub fn set_iotedge_gateway_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf, edge_device_identity_full_chain_file: &PathBuf, edge_device_identity_key_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let input_config_file = ensure_filepath(&config_file)?;
     let input_image_file = ensure_filepath(&image_file)?;
     let input_root_ca_file = ensure_filepath(&root_ca_file)?;
@@ -246,7 +320,7 @@ pub fn set_iotedge_gateway_config(config_file: &PathBuf, image_file: &PathBuf, r
     docker_exec(container_config, exec_options)
 }
 
-pub fn set_iotedge_sas_leaf_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf) -> Result<(), Error> {
+pub fn set_iot_leaf_sas_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let input_config_file = ensure_filepath(&config_file)?;
     let input_image_file = ensure_filepath(&image_file)?;
     let input_root_ca_file = ensure_filepath(&root_ca_file)?;    
@@ -282,7 +356,47 @@ pub fn set_iotedge_sas_leaf_config(config_file: &PathBuf, image_file: &PathBuf, 
     let exec_options = CreateExecOptions {
         attach_stdout: Some(true),
         attach_stderr: Some(true),
-        cmd: Some(vec!["set_iotedge_leaf_sas_config.sh", "-i", &target_input_config_file, "-r", &target_input_root_ca_file]),
+        cmd: Some(vec!["set_iot_leaf_config.sh", "-i", &target_input_config_file, "-r", &target_input_root_ca_file]),
+        ..Default::default()
+    };
+
+    docker_exec(container_config, exec_options)
+}
+
+pub fn set_identity_config(config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let input_config_file = ensure_filepath(&config_file)?;
+    let input_image_file = ensure_filepath(&image_file)?;
+    
+    let mut binds :Vec<std::string::String> = Vec::new();
+    // to setup the image loop device properly we need to access the hosts devtmpfs
+    binds.push("/dev/:/dev/".to_owned().to_string());
+
+    // input file binding
+    binds.push(format!("{}:{}", input_image_file, TARGET_DEVICE_IMAGE));
+    let target_input_config_file = format!("/tpm/{}", input_config_file);
+    binds.push(format!("{}:{}", input_config_file, target_input_config_file));
+
+    let host_config = HostConfig {
+        // privileged for losetup in the container
+        // @todo check how to restrict rights with capabilities instead
+        privileged: Some(true),
+        binds: Some(binds),
+        ..Default::default()
+    };
+
+    let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
+
+    let container_config = Config {
+        image: Some(image.as_str()),
+        tty: Some(true),
+        host_config: Some(host_config),
+        ..Default::default()
+    };
+
+    let exec_options = CreateExecOptions {
+        attach_stdout: Some(true),
+        attach_stderr: Some(true),
+        cmd: Some(vec!["set_identity_config.sh", "-i", &target_input_config_file]),
         ..Default::default()
     };
 
