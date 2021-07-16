@@ -14,11 +14,11 @@ local_gateway_hostname = "my-ics-iotedge-gateway-device"
 # Provisioning
 # =========================================================================================================
 
-## Manual provisioning with symmetric key
+## Manual provisioning with sas symmetric key authentication for a leaf device
 [provisioning]
 source = "manual"                                                               # don't change
-iothub_hostname = "example.azure-devices.net"
-device_id = "my-device"
+iothub_hostname = "my-iothub.azure-devices.net"
+device_id = "my-device-id"
 
 [provisioning.authentication]
 method = "sas"                                                                  # don't change
