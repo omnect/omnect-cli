@@ -60,8 +60,8 @@ fn check_set_identity_leaf_config() {
 fn check_set_identity_config() {
     common::setup("check_set_identity_config");
 
-    let config_file_path = PathBuf::from(r"check_set_identity_leaf_config/testfiles/config.toml");
-    let image_path = PathBuf::from(r"check_set_identity_leaf_config/testfiles/image.wic");
+    let config_file_path = PathBuf::from(r"check_set_identity_config/testfiles/config.toml");
+    let image_path = PathBuf::from(r"check_set_identity_config/testfiles/image.wic");
 
     assert_eq!(true, docker::set_identity_config(&config_file_path, &image_path).is_ok());
 
