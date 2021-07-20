@@ -120,6 +120,9 @@ Check for valid wifi configuration:
 systemctl status wpa_supplicant@wlan0
 ```
 
+# ToDo's
+- [ ] Make linked ICS_DeviceManagement Wiki public
+
 # License
 Licensed under either of
 

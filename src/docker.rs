@@ -26,7 +26,8 @@ const TARGET_DEVICE_IMAGE: &'static str = "/tmp/image.wic";
 
 fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
     if cfg!(windows) {
-        return Err(Box::<dyn std::error::Error>::from("Windows detected. We currently don't support the docker credential store."))
+        println!("Warning: Windows detected. We currently don't support the docker credential store. \
+                  @see: https://github.com/ICS-DeviceManagement/ics-dm-cli#troubleshooting");
     }
 
     let mut path = PathBuf::new();
@@ -115,7 +116,7 @@ async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&s
         let container = docker.create_container::<&str, &str>(None, container_config).await?;
 
         // by this block we ensure that docker.remove_container container is called
-        // even if an error occured befire
+        // even if an error occured before
         let container_exec_result = async {
             docker.start_container::<String>(&container.id, None).await?;
 
