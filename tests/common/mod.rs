@@ -11,12 +11,13 @@ impl<'a> Testrunner<'a> {
         create_dir(prefix).unwrap();
         copy("testfiles", prefix, &CopyOptions {
             overwrite: true,
-            ..Default::default()}).unwrap_or_else(|err| {
-                // ignore all errors if dir cannot be deleted
-                println!("Problem copy: {}", err);
-                1
-            }
-        );
+            ..Default::default()
+        }).unwrap_or_else(|err| {
+            // ignore all errors if dir cannot be deleted
+            println!("Problem copy: {}", err);
+            1
+        });
+        
         Testrunner { prefix }
     }
 }
