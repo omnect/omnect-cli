@@ -1,5 +1,5 @@
 # ics-dm-cli
-ics-dm-cli is a cli tool to manage your ics-dm-device variants.
+ics-dm-cli is a cli tool to manage your ics-dm-device [variants](https://wiki.conplement.de/display/ICSDeviceManagement/ICS_DeviceManagement+Home).
 
 # Features
 ics-dm-cli provides commands to inject various configurations into a flash image (wic) build with [meta-ics-dm](https://github.com/ICS-DeviceManagement/meta-ics-dm). Currently the following configurations options are supported:
@@ -92,7 +92,7 @@ Adapt [config.toml.ics-iot-leaf.template](conf/config.toml.ics-iot-leaf.template
 
 ### Inject configuration
 ```sh
-ics-dm-cli identity set-iot-leaf-sas-config -c <path>/iotedge_config.toml -i <path>/leaf_image.wic  -r <path>/azure-iot-test-only.root.ca.cert.pem
+ics-dm-cli identity set-iot-leaf-sas-config -c <path>/iot_config.toml -i <path>/leaf_image.wic  -r <path>/azure-iot-test-only.root.ca.cert.pem
 ```
 
 # Troubleshooting

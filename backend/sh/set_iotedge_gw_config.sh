@@ -14,19 +14,19 @@ function finish {
 trap finish EXIT
 
 function usage() {
-    echo "Usage: $0 -e edge_device_cert -i identity_config -k edge_device_cert_key -r root_cert" 1>&2; exit 1;
+    echo "Usage: $0 -c identity_config -e edge_device_cert -k edge_device_cert_key -r root_cert" 1>&2; exit 1;
 }
 
 set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
-while getopts ":e:i:k:r:" opt; do
+while getopts ":c:e:k:r:" opt; do
     case "${opt}" in
+        c)
+            c=${OPTARG}
+            ;;
         e)
             e=${OPTARG}
-            ;;
-        i)
-            i=${OPTARG}
             ;;
         k)
             k=${OPTARG}
@@ -41,18 +41,18 @@ while getopts ":e:i:k:r:" opt; do
 done
 shift $((OPTIND-1))
 
-if [ -z "${e}" ] || [ -z "${i}" ] || [ -z "${k}" ] || [ -z "${r}" ]; then
+if [ -z "${c}" ] || [ -z "${e}" ] || [ -z "${k}" ] || [ -z "${r}" ]; then
     usage
 fi
 
+echo "c = ${c}"
 echo "e = ${e}"
-echo "i = ${i}"
 echo "k = ${k}"
 echo "r = ${r}"
 
 [[ ! -f /tmp/image.wic ]] && echo "error: input device image not found" 1>&2 && exit 1
+[[ ! -f ${c} ]] && echo "error: input file \"${c}\" not found" 1>&2 && exit 1
 [[ ! -f ${e} ]] && echo "error: input file \"${e}\" not found" 1>&2 && exit 1
-[[ ! -f ${i} ]] && echo "error: input file \"${i}\" not found" 1>&2 && exit 1
 [[ ! -f ${k} ]] && echo "error: input file \"${k}\" not found" 1>&2 && exit 1
 [[ ! -f ${r} ]] && echo "error: input file \"${r}\" not found" 1>&2 && exit 1
 
@@ -83,8 +83,8 @@ mount_part
 # copy identity config
 aziot_gid=$(cat /tmp/mount/rootA/etc/group | grep aziot: | awk 'BEGIN { FS = ":" } ; { print $3 }')
 mkdir -p /tmp/mount/etc/upper/aziot/
-echo cp ${i} /tmp/mount/etc/upper/aziot/config.toml
-cp ${i} /tmp/mount/etc/upper/aziot/config.toml
+echo cp ${c} /tmp/mount/etc/upper/aziot/config.toml
+cp ${c} /tmp/mount/etc/upper/aziot/config.toml
 chgrp ${aziot_gid} /tmp/mount/etc/upper/aziot/config.toml
 chmod a+r,g+w /tmp/mount/etc/upper/aziot/config.toml
 
@@ -95,7 +95,7 @@ if [ ! -e /tmp/mount/rootA/etc/systemd/system/multi-user.target.wants/enrollment
 fi
 
 # set hostname
-hostname=$(grep "^hostname" ${i} | cut -d "=" -f2 | xargs)
+hostname=$(grep "^hostname" ${c} | cut -d "=" -f2 | xargs)
 echo "set hostname to ${hostname}"
 echo "${hostname}" > /tmp/mount/etc/upper/hostname
 cp /tmp/mount/rootA/etc/hosts /tmp/mount/etc/upper/

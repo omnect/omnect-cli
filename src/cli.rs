@@ -1,6 +1,6 @@
 use structopt::StructOpt;
 
-const ABOUT: &'static str = "This tools helps to manage your ics-dm devices. For more oinformation visit:\nhttps://github.com/ICS-DeviceManagement/ics-dm-cli";
+const ABOUT: &'static str = "This tools helps to manage your ics-dm devices. For more information visit:\nhttps://github.com/ICS-DeviceManagement/ics-dm-cli";
 const COPYRIGHT: &'static str = "Copyright © 2021 by conplement AG";
 
 #[derive(StructOpt, Debug, PartialEq)]

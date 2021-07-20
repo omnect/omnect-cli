@@ -15,7 +15,7 @@ set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
 function usage() {
-    echo "Usage: $0 -c enrollment_input_file" 1>&2; exit 1;
+    echo "Usage: $0 -c enrollment_static.conf file" 1>&2; exit 1;
 }
 
 while getopts ":c:" opt; do

@@ -14,19 +14,19 @@ function finish {
 trap finish EXIT
 
 function usage() {
-    echo "Usage: $0  -i identity_config -r root_cert [-d device_cert] [-k device_cert_key]" 1>&2; exit 1;
+    echo "Usage: $0  -c identity_config -r root_cert [-d device_cert] [-k device_cert_key]" 1>&2; exit 1;
 }
 
 set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
-while getopts ":d:i:k:r:" opt; do
+while getopts ":c:d:k:r:" opt; do
     case "${opt}" in
+        c)
+            c=${OPTARG}
+            ;;
         d)
             d=${OPTARG}
-            ;;
-        i)
-            i=${OPTARG}
             ;;
         k)
             k=${OPTARG}
@@ -45,18 +45,18 @@ shift $((OPTIND-1))
 # and "-k" are optional.
 #
 # if [ -z "${d}" ] || [ -z "${i}" ] || [ -z "${k}" ] || [ -z "${r}" ]; then
-if [ -z "${i}" ] || [ -z "${r}" ]; then
+if [ -z "${c}" ] || [ -z "${r}" ]; then
     usage
 fi
 
+echo "c = ${c}"
 echo "d = ${d}"
-echo "i = ${i}"
 echo "k = ${k}"
 echo "r = ${r}"
 
 [[ ! -f /tmp/image.wic ]] && echo "error: input device image not found" 1>&2 && exit 1
 #[[ ! -f ${d} ]] && echo "error: input file \"${d}\" not found" 1>&2 && exit 1
-[[ ! -f ${i} ]] && echo "error: input file \"${i}\" not found" 1>&2 && exit 1
+[[ ! -f ${c} ]] && echo "error: input file \"${c}\" not found" 1>&2 && exit 1
 #[[ ! -f ${k} ]] && echo "error: input file \"${k}\" not found" 1>&2 && exit 1
 [[ ! -f ${r} ]] && echo "error: input file \"${r}\" not found" 1>&2 && exit 1
 
@@ -78,8 +78,8 @@ mount_part
 # copy identity config
 aziot_gid=$(cat /tmp/mount/rootA/etc/group | grep aziot: | awk 'BEGIN { FS = ":" } ; { print $3 }')
 mkdir -p /tmp/mount/etc/upper/aziot/
-echo cp ${i} /tmp/mount/etc/upper/aziot/config.toml
-cp ${i} /tmp/mount/etc/upper/aziot/config.toml
+echo cp ${c} /tmp/mount/etc/upper/aziot/config.toml
+cp ${c} /tmp/mount/etc/upper/aziot/config.toml
 chgrp ${aziot_gid} /tmp/mount/etc/upper/aziot/config.toml
 chmod a+r,g+w /tmp/mount/etc/upper/aziot/config.toml
 
@@ -88,7 +88,7 @@ chmod a+r,g+w /tmp/mount/etc/upper/aziot/config.toml
 echo "aziotctl config apply" >> /tmp/mount/rootA/usr/bin/ics_dm_first_boot.sh
 
 # set hostname
-hostname=$(grep "^hostname" ${i} | cut -d "=" -f2 | xargs)
+hostname=$(grep "^hostname" ${c} | cut -d "=" -f2 | xargs)
 echo "set hostname to ${hostname}"
 echo "${hostname}" > /tmp/mount/etc/upper/hostname
 cp /tmp/mount/rootA/etc/hosts /tmp/mount/etc/upper/
