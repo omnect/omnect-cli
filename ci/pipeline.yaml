@@ -35,6 +35,13 @@ resources:
       password: ((docker_io_registry_password))
       tag: slim-buster
 
+  - name: dnd-image
+    type: docker-image
+    source:
+      repository: registry:5000/dnd-image
+      insecure_registries: ((bb_insecure_registries))
+      tag: latest
+
   - name: send-an-email
     type: email
     source:
@@ -77,9 +84,10 @@ jobs:
           Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
           ATC External URL: "${ATC_EXTERNAL_URL}"
     plan:
-      - get: source
-        trigger: true
-      - get: rust-image
+      - in_parallel:
+        - get: source
+          trigger: true
+        - get: rust-image
       - task: build-ics-dm-cli
         image: rust-image
         config:
@@ -95,9 +103,13 @@ jobs:
               - |
                 cd source
                 cargo build --release --locked
-                cargo test
                 chown ${GROUP_ID}:${USER_ID} target/release/ics-dm-cli
                 mv target/release/ics-dm-cli backend
+                # here we build tests, but we run them after we build the
+                # backend-container.
+                # we build them here, otherwise we would have to compile all
+                # dependencies twice
+                cargo test --no-run
           params:
             GROUP_ID: "1000"
             USER_ID: "1000"
@@ -106,3 +118,50 @@ jobs:
           build: source/backend
           dockerfile: source/backend/Dockerfile
           tag_as_latest: true
+      - put: dnd-image
+        params:
+          inputs:
+              - name: source
+          build: source/ci
+          dockerfile: source/ci/Dockerfile.dnd
+      - task: test-ics-dm-cli
+        image: dnd-image
+        #dnd needs privileged rights
+        privileged: true
+        config:
+          platform: linux
+          inputs:
+            - name: source
+          outputs:
+            - name: source
+          run:
+            path: bash
+            args:
+              - -exc
+              - |
+                start_docker() {
+                  /etc/init.d/docker start
+                  mkdir -p /sys/fs/cgroup/systemd
+                  mount -t cgroup -o none,name=systemd cgroup /sys/fs/cgroup/systemd
+                  mkdir -p /sys/fs/cgroup/cpu,cpuacct
+                  mount -t cgroup -o cpu,cpuacct cgroup /sys/fs/cgroup/cpu,cpuacct
+                  mkdir -p /sys/fs/cgroup/net_cls,net_prio
+                  mount -t cgroup -o net_cls,net_prio cgroup /sys/fs/cgroup/net_cls,net_prio
+                }
+                start_docker
+
+                stop_docker() {
+                  /etc/init.d/docker stop
+                }
+                trap stop_docker EXIT
+
+                set +x
+                docker login -u ${DOCKER_USER} -p ${DOCKER_PASS} ${DOCKER_SERVER}
+                set -x
+
+                cd source
+                cargo test
+          params:
+            DOCKER_USER: "((ics_dm_registry_user))"
+            DOCKER_PASS: "((ics_dm_registry_password))"
+            DOCKER_SERVER: "icsdm.azurecr.io"
