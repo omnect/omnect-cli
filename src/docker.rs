@@ -25,11 +25,6 @@ static DOCKER_IMAGE_ID: Lazy<String> = Lazy::new(|| format!("{}/{}:{}", DOCKER_R
 const TARGET_DEVICE_IMAGE: &'static str = "/tmp/image.wic";
 
 fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
-    if cfg!(windows) {
-        println!("Warning: Windows detected. We currently don't support the docker credential store. \
-                  @see: https://github.com/ICS-DeviceManagement/ics-dm-cli#troubleshooting");
-    }
-
     let mut path = PathBuf::new();
     path.push(dirs::home_dir().unwrap());
     path.push(".docker/config.json");
