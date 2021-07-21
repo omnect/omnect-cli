@@ -105,11 +105,6 @@ jobs:
                 cargo build --release --locked
                 chown ${GROUP_ID}:${USER_ID} target/release/ics-dm-cli
                 mv target/release/ics-dm-cli backend
-                # here we build tests, but we run them after we build the
-                # backend-container.
-                # we build them here, otherwise we would have to compile all
-                # dependencies twice
-                cargo test --no-run
           params:
             GROUP_ID: "1000"
             USER_ID: "1000"
@@ -158,6 +153,7 @@ jobs:
                 set +x
                 docker login -u ${DOCKER_USER} -p ${DOCKER_PASS} ${DOCKER_SERVER}
                 set -x
+                sync
 
                 cd source
                 cargo test
