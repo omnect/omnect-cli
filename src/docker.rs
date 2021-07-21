@@ -1,102 +1,157 @@
 use std::fs::File;
-use std::io::{BufReader, Error, ErrorKind, Read};
+use std::io::{BufReader, Error, ErrorKind};
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
-use path_absolutize::Absolutize;
-
+use bollard::Docker;
 use bollard::auth::DockerCredentials;
 use bollard::container::{Config, RemoveContainerOptions, LogOutput};
-use bollard::Docker;
 use bollard::exec::{CreateExecOptions, StartExecResults};
-use bollard::image::CreateImageOptions;
+use bollard::image::{CreateImageOptions, ListImagesOptions};
 use bollard::models::HostConfig;
 
 use futures_executor::block_on;
 use futures_util::stream::StreamExt;
 use futures_util::TryStreamExt;
 
-const DOCKER_REG: &'static str = "icsdm.azurecr.io";
-const DOCKER_IMAGE: &'static str = "ics-dm-cli-backend";
+use path_absolutize::Absolutize;
+use once_cell::sync::Lazy;
+
+const DOCKER_REG_NAME: &'static str = "icsdm.azurecr.io";
+const DOCKER_IMAGE_NAME: &'static str = "ics-dm-cli-backend";
+const DOCKER_IMAGE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
+static DOCKER_IMAGE_ID: Lazy<String> = Lazy::new(|| format!("{}/{}:{}", DOCKER_REG_NAME, DOCKER_IMAGE_NAME, DOCKER_IMAGE_VERSION));
 
 const TARGET_DEVICE_IMAGE: &'static str = "/tmp/image.wic";
 
-fn get_docker_cred() -> DockerCredentials {
-    if cfg!(windows) {
-        println!("Warning: Windows detected. We currently don't support the docker credential store.");
-    }
-    let mut path = PathBuf::new( );
+fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
+    let mut path = PathBuf::new();
     path.push(dirs::home_dir().unwrap());
     path.push(".docker/config.json");
-    let file = File::open(&path).expect("Cannot open docker config.");
-    let mut json_str = String::new();
-    let mut reader = BufReader::new(file);
-    reader.read_to_string(&mut json_str).expect("Cannot read docker config.");
-    let json : serde_json::Value  = serde_json::from_str(&json_str).expect("Cannot parse docker config.");
-    let auth = &json["auths"][DOCKER_REG]["auth"].to_owned().to_string().replace("\"","");
-    let identitytoken = &json["auths"][DOCKER_REG]["identitytoken"].to_owned().to_string().replace("\"","");
+    
+    let file = File::open(&path)?;
+    let reader = BufReader::new(file);
+    let json: serde_json::Value = serde_json::from_reader(reader)?;
+    let identitytoken = json["auths"][DOCKER_REG_NAME]["identitytoken"].to_string().replace("\"","");
 
-    if "null" != identitytoken
-    {
-        return DockerCredentials{
-            identitytoken: Some(identitytoken.to_string()),
+    if "null" != identitytoken {
+        return Ok(DockerCredentials {
+            identitytoken: Some(identitytoken),
             ..Default::default()
-        }
+        })
     }
-    else if "null" != auth
-    {
-        let byte_auth = base64::decode_config(auth, base64::STANDARD).expect("Cannot base64 decode docker credentials");
-        let dec_auth =  std::str::from_utf8(&byte_auth).expect("Cannot convert docker credentials.");
-        let v : Vec<&str> = dec_auth.split(":").collect();
-        return DockerCredentials{
-            username: Some(v[0].to_owned().to_string()),
-            password: Some(v[1].to_owned().to_string()),
+
+    let auth = json["auths"][DOCKER_REG_NAME]["auth"].to_string().replace("\"","");
+    
+    if "null" != auth {
+        let byte_auth = base64::decode_config(auth, base64::STANDARD)?;
+        let v : Vec<&str> =  std::str::from_utf8(&byte_auth)?.split(":").collect();
+
+        return Ok(DockerCredentials {
+            username: Some(v[0].to_string()),
+            password: Some(v[1].to_string()),
             ..Default::default()
-        }
+        })
     }
-    else
-    {
-        return DockerCredentials{
-            ..Default::default()
-        }
-    }
+    
+    return Ok(DockerCredentials{
+        ..Default::default()
+    })
 }
 
 #[tokio::main]
-async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOptions<&str>) -> Result<(), Error> {
-    match block_on( async move {
+async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&str>>) -> Result<(), Box<dyn std::error::Error>> {
+    block_on( async move {
         let docker = Docker::connect_with_unix_defaults().unwrap();
-        let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
+        let mut filters = HashMap::new();
+        filters.insert("reference", vec![DOCKER_IMAGE_ID.as_str()]);
 
-        if let Err(_e) = docker.image_history(image.as_str()).await {
+        let image_list = docker.list_images(
+            Some(ListImagesOptions {
+                all: true,
+                filters,
+                ..Default::default()
+            })
+        );
+
+        if true == image_list.await?.is_empty() {
             docker.create_image(
                 Some(CreateImageOptions {
-                    from_image: image.as_str(),
+                    from_image: DOCKER_IMAGE_ID.as_str(),
                     ..Default::default()
                 }),
                 None,
-                Some(get_docker_cred())
-            ).try_collect::<Vec<_>>().await.unwrap();
+                Some(get_docker_cred()?)
+            ).try_collect::<Vec<_>>().await?;
         }
+
+        let host_config = HostConfig {
+            // privileged for losetup in the container
+            // @todo check how to restrict rights with capabilities instead
+            privileged: Some(true),
+            binds: binds,
+            ..Default::default()
+        };
+    
+        let container_config = Config {
+            image: Some(DOCKER_IMAGE_ID.as_str()),
+            tty: Some(true),
+            host_config: Some(host_config),
+            ..Default::default()
+        };
+    
+        // backend call
+        let exec_options = CreateExecOptions {
+            attach_stdout: Some(true),
+            attach_stderr: Some(true),
+            cmd: cmd,
+            ..Default::default()
+        };
 
         let container = docker.create_container::<&str, &str>(None, container_config).await?;
-        
-        docker.start_container::<String>(&container.id, None).await?;
 
-        // non interactive
-        let exec = docker.create_exec(&container.id, exec_options).await?;
+        // by this block we ensure that docker.remove_container container is called
+        // even if an error occured before
+        let container_exec_result = async {
+            docker.start_container::<String>(&container.id, None).await?;
 
-        let mut stream = docker.start_exec(&exec.id, None);
-
-        while let Some(Ok(msg)) = stream.next().await {
-            match msg {
-                StartExecResults::Attached{ log } => match log {
-                    LogOutput::StdOut{ .. } => print!("{}", log),
-                    LogOutput::StdErr{ .. } => eprint!("{}", log),
+            // non interactive
+            let exec = docker.create_exec(&container.id, exec_options).await?;
+    
+            let mut stream = docker.start_exec(&exec.id, None);
+    
+            let mut stream_error_log: Option<String> = None;
+    
+            while let Some(Ok(msg)) = stream.next().await {
+                match msg {
+                    StartExecResults::Attached{ log } => match log {
+                        LogOutput::StdOut{ .. } => {
+                            // print stdoutset_enr
+                            print!("{}", log)
+                        },
+                        LogOutput::StdErr{ .. } => {
+                            // print stderr
+                            eprint!("{}", log);
+                            // save error string
+                            stream_error_log = Some(log.to_string());
+                        },
+                        _ => {}
+                    }
                     _ => {}
                 }
-                _ => {}
             }
-        }
+
+            Ok(stream_error_log)
+        };
+        
+        let mut docker_exec_result = Ok(());
+
+        match container_exec_result.await {
+            // if result has error string convert it to error
+            Ok(Some(msg)) => docker_exec_result = Err(Box::<dyn std::error::Error>::from(msg)),
+            Err(e) => docker_exec_result = Err(e),
+            _ => {}
+        };
 
         docker.remove_container(&container.id, Some(RemoveContainerOptions {
                 force: true,
@@ -104,21 +159,15 @@ async fn docker_exec(container_config: Config<&str>, exec_options: CreateExecOpt
             }),
         ).await?;
 
-        Ok(())
-
-    }) as Result<(), Box<dyn std::error::Error + 'static>>
-    {
-        Ok(_) => Ok(()),
-        Err(e) => { eprintln!("{:#?})", e); Err(Error::from(ErrorKind::Other))}
-    }
+        docker_exec_result
+    })
 }
 
-pub fn set_wifi_config(config: &PathBuf, image: &PathBuf) -> Result<(), Error> {
+pub fn set_wifi_config(config: &PathBuf, image: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let input_config_file = ensure_filepath(&config)?;
     let input_image_file = ensure_filepath(&image)?;
+    let mut binds : Vec<std::string::String> = Vec::new();
 
-
-    let mut binds :Vec<std::string::String> = Vec::new();
     // to setup the image loop device properly we need to access the hosts devtmpfs
     binds.push("/dev/:/dev/".to_owned().to_string());
 
@@ -127,40 +176,14 @@ pub fn set_wifi_config(config: &PathBuf, image: &PathBuf) -> Result<(), Error> {
     let target_input_config_file = format!("/tpm/{}", input_config_file);
     binds.push(format!("{}:{}", input_config_file, target_input_config_file));
 
-    let host_config = HostConfig {
-        // privileged for losetup in the container
-        // @todo check how to restrict rights with capabilities instead
-        privileged: Some(true),
-        binds: Some(binds),
-        ..Default::default()
-    };
-
-    let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
-
-    let container_config = Config {
-        image: Some(image.as_str()),
-        tty: Some(true),
-        host_config: Some(host_config),
-        ..Default::default()
-    };
-
-    // backend call
-    let exec_options = CreateExecOptions {
-        attach_stdout: Some(true),
-        attach_stderr: Some(true),
-        cmd: Some(vec!["set_wifi_config.sh", "-i", &target_input_config_file]),
-        ..Default::default()
-    };
-
-    docker_exec(container_config, exec_options)
+    docker_exec(Some(binds), Some(vec!["set_wifi_config.sh", "-i", &target_input_config_file]))
 }
 
-pub fn set_enrollment_config(enrollment_config_file: &PathBuf, provisioning_config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Error> {
+pub fn set_enrollment_config(enrollment_config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let input_enrollment_config_file = ensure_filepath(&enrollment_config_file)?;
-    let input_provisioning_config_file = ensure_filepath(&provisioning_config_file)?;
     let input_image_file = ensure_filepath(&image_file)?;
-    
     let mut binds: Vec<std::string::String> = Vec::new();
+
     // to setup the image loop device properly we need to access the hosts devtmpfs
     binds.push("/dev/:/dev/".to_owned().to_string());
 
@@ -168,46 +191,18 @@ pub fn set_enrollment_config(enrollment_config_file: &PathBuf, provisioning_conf
     binds.push(format!("{}:{}", input_image_file, TARGET_DEVICE_IMAGE));
     let target_input_enrollment_config_file = format!("/tpm/{}", input_enrollment_config_file);
     binds.push(format!("{}:{}", input_enrollment_config_file, target_input_enrollment_config_file));
-    let target_input_provisioning_config_file = format!("/tpm/{}", input_provisioning_config_file);
-    binds.push(format!("{}:{}", input_provisioning_config_file, target_input_provisioning_config_file));
 
-    let host_config = HostConfig {
-        // privileged for losetup in the container
-        // @todo check how to restrict rights with capabilities instead
-        privileged: Some(true),
-        binds: Some(binds),
-        ..Default::default()
-    };
-
-    let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
-
-    let container_config = Config {
-        image: Some(image.as_str()),
-        tty: Some(true),
-        host_config: Some(host_config),
-        ..Default::default()
-    };
-
-    // backend call
-    let exec_options = CreateExecOptions {
-        attach_stdout: Some(true),
-        attach_stderr: Some(true),
-        cmd: Some(vec!["set_enrollment_config.sh", "-e", &target_input_enrollment_config_file, "-p", &target_input_provisioning_config_file]),
-        ..Default::default()
-    };
-
-    docker_exec(container_config, exec_options)
+    docker_exec(Some(binds), Some(vec!["set_enrollment_config.sh", "-c", &target_input_enrollment_config_file]))
 }
 
-pub fn set_iotedge_gateway_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf, edge_device_identity_full_chain_file: &PathBuf, edge_device_identity_key_file: &PathBuf) -> Result<(), Error> {
+pub fn set_iotedge_gateway_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf, edge_device_identity_full_chain_file: &PathBuf, edge_device_identity_key_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let input_config_file = ensure_filepath(&config_file)?;
     let input_image_file = ensure_filepath(&image_file)?;
     let input_root_ca_file = ensure_filepath(&root_ca_file)?;
     let input_edge_device_identity_full_chain_file = ensure_filepath(&edge_device_identity_full_chain_file)?;
     let input_edge_device_identity_key_file = ensure_filepath(&edge_device_identity_key_file)?;
-    
-    
     let mut binds :Vec<std::string::String> = Vec::new();
+
     // to setup the image loop device properly we need to access the hosts devtmpfs
     binds.push("/dev/:/dev/".to_owned().to_string());
 
@@ -222,34 +217,10 @@ pub fn set_iotedge_gateway_config(config_file: &PathBuf, image_file: &PathBuf, r
     let target_input_edge_device_identity_key_file = format!("/tpm/{}", input_edge_device_identity_key_file);
     binds.push(format!("{}:{}", input_edge_device_identity_key_file, target_input_edge_device_identity_key_file));
 
-    let host_config = HostConfig {
-        // privileged for losetup in the container
-        // @todo check how to restrict rights with capabilities instead
-        privileged: Some(true),
-        binds: Some(binds),
-        ..Default::default()
-    };
-
-    let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
-
-    let container_config = Config {
-        image: Some(image.as_str()),
-        tty: Some(true),
-        host_config: Some(host_config),
-        ..Default::default()
-    };
-
-    let exec_options = CreateExecOptions {
-        attach_stdout: Some(true),
-        attach_stderr: Some(true),
-        cmd: Some(vec!["set_iotedge_gw_config.sh", "-i", &target_input_config_file, "-e", &target_input_edge_device_identity_full_chain_file, "-k", &target_input_edge_device_identity_key_file, "-r", &target_input_root_ca_file]),
-        ..Default::default()
-    };
-
-    docker_exec(container_config, exec_options)
+    docker_exec(Some(binds), Some(vec!["set_iotedge_gw_config.sh", "-c", &target_input_config_file, "-e", &target_input_edge_device_identity_full_chain_file, "-k", &target_input_edge_device_identity_key_file, "-r", &target_input_root_ca_file]))
 }
 
-pub fn set_iotedge_sas_leaf_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf) -> Result<(), Error> {
+pub fn set_iot_leaf_sas_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let input_config_file = ensure_filepath(&config_file)?;
     let input_image_file = ensure_filepath(&image_file)?;
     let input_root_ca_file = ensure_filepath(&root_ca_file)?;    
@@ -265,31 +236,23 @@ pub fn set_iotedge_sas_leaf_config(config_file: &PathBuf, image_file: &PathBuf, 
     let target_input_root_ca_file = format!("/tpm/{}", input_root_ca_file);
     binds.push(format!("{}:{}", input_root_ca_file, target_input_root_ca_file));
 
-    let host_config = HostConfig {
-        // privileged for losetup in the container
-        // @todo check how to restrict rights with capabilities instead
-        privileged: Some(true),
-        binds: Some(binds),
-        ..Default::default()
-    };
+    docker_exec(Some(binds), Some(vec!["set_iot_leaf_config.sh", "-c", &target_input_config_file, "-r", &target_input_root_ca_file]))
+}
 
-    let image = format!("{}/{}:{}", DOCKER_REG,DOCKER_IMAGE, env!("CARGO_PKG_VERSION"));
+pub fn set_identity_config(config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let input_config_file = ensure_filepath(&config_file)?;
+    let input_image_file = ensure_filepath(&image_file)?;
+    
+    let mut binds :Vec<std::string::String> = Vec::new();
+    // to setup the image loop device properly we need to access the hosts devtmpfs
+    binds.push("/dev/:/dev/".to_owned().to_string());
 
-    let container_config = Config {
-        image: Some(image.as_str()),
-        tty: Some(true),
-        host_config: Some(host_config),
-        ..Default::default()
-    };
+    // input file binding
+    binds.push(format!("{}:{}", input_image_file, TARGET_DEVICE_IMAGE));
+    let target_input_config_file = format!("/tpm/{}", input_config_file);
+    binds.push(format!("{}:{}", input_config_file, target_input_config_file));
 
-    let exec_options = CreateExecOptions {
-        attach_stdout: Some(true),
-        attach_stderr: Some(true),
-        cmd: Some(vec!["set_iotedge_leaf_sas_config.sh", "-i", &target_input_config_file, "-r", &target_input_root_ca_file]),
-        ..Default::default()
-    };
-
-    docker_exec(container_config, exec_options)
+    docker_exec(Some(binds), Some(vec!["set_identity_config.sh", "-c", &target_input_config_file]))
 }
 
 #[tokio::main]

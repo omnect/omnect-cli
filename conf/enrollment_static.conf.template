@@ -1,5 +1,5 @@
 {
-  "dps_connectionString": "HostName=dps-ics-dm-dev.azure-devices-provisioning.net;SharedAccessKeyName=provisioningserviceowner;SharedAccessKey=************************************",
+  "dps_connectionString": "HostName=my-dps.azure-devices-provisioning.net;SharedAccessKeyName=provisioningserviceowner;SharedAccessKey=************************************",
   "edgeDevice": false,
   "tags": {
     "machine": "my-machine",

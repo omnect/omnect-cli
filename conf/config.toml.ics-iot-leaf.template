@@ -1,0 +1,27 @@
+# =========================================================================================================
+# Hostname
+# =========================================================================================================
+
+hostname = "my-ics-iot-leaf-gateway-device"                                     # optional overwrite
+
+# =========================================================================================================
+# Local Gateway Hostname
+# =========================================================================================================
+
+local_gateway_hostname = "my-ics-iotedge-gateway-device"
+
+# =========================================================================================================
+# Provisioning
+# =========================================================================================================
+
+## Manual provisioning with sas symmetric key authentication for a leaf device
+[provisioning]
+source = "manual"                                                               # don't change
+iothub_hostname = "my-iothub.azure-devices.net"
+device_id = "my-device-id"
+
+[provisioning.authentication]
+method = "sas"                                                                  # don't change
+device_id_pk = { value = "YXppb3QtaWRlbnRpdHktc2VydmljZXxhemlvdC1pZGU=" }       # inline key (base64), or...
+# device_id_pk = { uri = "file:///var/secrets/device-id.key" }                  # file URI, or...
+# device_id_pk = { uri = "pkcs11:slot-id=0;object=device%20id?pin-value=1234" } # PKCS#11 URI
