@@ -1,6 +1,6 @@
 [package]
 name = "ics-dm-cli"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Marcel Lilienthal <134974+mlilien@users.noreply.github.com>",
            "Jan Zachmann <jan.zachmann@conplement.de>"]
 edition = "2018"
@@ -19,3 +19,4 @@ base64 = "0.13.0"
 fs_extra = "1.2.0"
 path-absolutize = "3.0.10"
 once_cell = "1.8.0"
+uuid = { version = "0.8", default-features = false, features = ["v4"] }

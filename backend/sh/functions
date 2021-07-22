@@ -1,14 +1,21 @@
 #!/bin/bash
 
+function d_echo() {
+    if [ -n ${DEBUG} ]; then
+        echo "${@}"
+    fi
+}
+
 function search_part_loopdev () {
     for part in ${loopdev}p*
     do
+        d_echo try part=${part}
         if [ "${part_pattern}" == "$(e2label ${part} 2>/dev/null)" ]; then
             partloopdev=${part}
             break
         fi
     done
-    echo partloopdev=${partloopdev}
+    d_echo partloopdev=${partloopdev}
 }
 
 function mount_part () {
@@ -20,7 +27,7 @@ function mount_part () {
 }
 
 function losetup_image_wic () {
-    losetup -fP /tmp/image.wic
-    loopdev=$(losetup | grep /tmp/image.wic | awk '{print $1}')
-    echo loopdev=${loopdev}
+    losetup -fP ${w}
+    loopdev=$(losetup | grep ${w} | awk '{print $1}')
+    d_echo loopdev=${loopdev}
 }

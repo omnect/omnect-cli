@@ -7,7 +7,7 @@
 function finish {
   set +o errexit
   umount /tmp/mount/etc
-  losetup -D /tmp/image.wic
+  losetup -d ${loopdev}
 }
 trap finish EXIT
 
@@ -15,13 +15,16 @@ set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
 function usage() {
-    echo "Usage: $0 -i input_file " 1>&2; exit 1;
+    echo "Usage: $0 -i input_file -w wic_image" 1>&2; exit 1;
 }
 
-while getopts ":i:" opt; do
+while getopts ":i:w:" opt; do
     case "${opt}" in
         i)
             i=${OPTARG}
+            ;;
+        w)
+            w=${OPTARG}
             ;;
         *)
             usage
@@ -30,16 +33,17 @@ while getopts ":i:" opt; do
 done
 shift $((OPTIND-1))
 
-if [ -z "${i}" ]; then
+if [ -z "${i}" ] || [ -z "${w}" ]; then
     usage
 fi
 
-echo "i = ${i}"
+d_echo "i = ${i}"
+d_echo "w = ${w}"
 
-[[ ! -f /tmp/image.wic ]] && echo "error: input device image not found" 1>&2 && exit 1
+[[ ! -f ${w} ]] && echo "error: input device image not found" 1>&2 && exit 1
 [[ ! -f ${i} ]] && echo "error: input file \"${i}\" not found" 1>&2 && exit 1
 
-# set up loop device to be able to mount /tmp/image.wic
+# set up loop device to be able to mount image.wic
 losetup_image_wic
 
 # search and mount "etc" partion
@@ -48,7 +52,7 @@ mount_part
 
 # copy wpa_supplicant conf
 mkdir -p /tmp/mount/etc/upper/wpa_supplicant
-echo "cp ${i} /tmp/mount/etc/upper/wpa_supplicant/wpa_supplicant-wlan0.conf"
+d_echo "cp ${i} /tmp/mount/etc/upper/wpa_supplicant/wpa_supplicant-wlan0.conf"
 cp ${i} /tmp/mount/etc/upper/wpa_supplicant/wpa_supplicant-wlan0.conf
 
 # enable wpa_supplicant service

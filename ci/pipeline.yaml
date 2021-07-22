@@ -135,7 +135,7 @@ jobs:
                 sync
 
                 cd source
-                cargo test -- --test-threads=1
+                cargo test
           params:
             DOCKER_USER: "((ics_dm_registry_user))"
             DOCKER_PASS: "((ics_dm_registry_password))"

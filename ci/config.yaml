@@ -15,7 +15,7 @@ bb_gitversion_version: 0.8.3
 ## Specify the ics-dm-cli backend version, currently this has to be adapted in
 # two different places: here and Cargo.toml where the frontend
 # version has to match the backend version
-ics-dm-cli-backend-image_version: 0.1.0
+ics-dm-cli-backend-image_version: 0.1.1
 
 # Git config
 # -----------------------------------------------------------------------------
