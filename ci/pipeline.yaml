@@ -24,7 +24,6 @@ resources:
       repository: icsdm.azurecr.io/ics-dm-cli-backend
       username: ((ics_dm_registry_user))
       password: ((ics_dm_registry_password))
-      tag: ((ics-dm-cli-backend-image_version))
       insecure_registries: ((bb_insecure_registries))
 
   - name: rust-image
@@ -107,6 +106,7 @@ jobs:
                 cargo build --release --locked
                 chown ${GROUP_ID}:${USER_ID} target/release/ics-dm-cli
                 mv target/release/ics-dm-cli backend
+                backend/ics-dm-cli --version | awk '{print $2}' > tag
           params:
             GROUP_ID: "1000"
             USER_ID: "1000"
@@ -114,6 +114,7 @@ jobs:
         params:
           build: source/backend
           dockerfile: source/backend/Dockerfile
+          tag_file: source/tag
           tag_as_latest: true
       - task: test-ics-dm-cli
         image: concourse-rust-dnd

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - ics-dm-ci can inject adu config
 - enabled usage of parallel instances of ics-dm-cli
+- pipeline doesn't have to configure backend version explicitly anymore
 
 ## [0.1.0] Q2 2021
 
