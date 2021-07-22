@@ -267,6 +267,23 @@ pub fn set_identity_config(config_file: &PathBuf, image_file: &PathBuf) -> Resul
     docker_exec(Some(binds), Some(vec!["set_identity_config.sh", "-c", &target_input_config_file, "-w", target_input_image_file.as_str()]))
 }
 
+pub fn set_adu_config(adu_config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let input_adu_config_file = ensure_filepath(&adu_config_file)?;
+    let input_image_file = ensure_filepath(&image_file)?;
+    let mut binds: Vec<std::string::String> = Vec::new();
+
+    // to setup the image loop device properly we need to access the hosts devtmpfs
+    binds.push("/dev/:/dev/".to_owned().to_string());
+
+    // input file binding
+    let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
+    binds.push(format!("{}:{}", input_image_file, target_input_image_file));
+    let target_input_adu_config_file = format!("/tpm/{}", input_adu_config_file);
+    binds.push(format!("{}:{}", input_adu_config_file, target_input_adu_config_file));
+
+    docker_exec(Some(binds), Some(vec!["copy_file_to_image.sh", "-i", &target_input_adu_config_file, "-o", "/etc/adu/adu-conf.txt" , "-w", target_input_image_file.as_str()]))
+}
+
 #[tokio::main]
 pub async fn docker_version() -> Result<(), Error> {
     block_on( async move {

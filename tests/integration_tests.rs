@@ -57,3 +57,13 @@ fn check_set_identity_config() {
 
     assert_eq!(true, docker::set_identity_config(&config_file_path, &image_path).is_ok());
 }
+
+#[test]
+fn check_set_adu_config() {
+    let _tr = Testrunner::new("check_set_adu_config");
+
+    let adu_config_file_path = PathBuf::from(r"check_set_adu_config/testfiles/adu-conf.txt");
+    let image_path = PathBuf::from(r"check_set_adu_config/testfiles/image.wic");
+
+    assert_eq!(true, docker::set_adu_config(&adu_config_file_path, &image_path).is_ok());
+}

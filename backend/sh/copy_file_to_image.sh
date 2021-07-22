@@ -6,7 +6,7 @@
 # exit handler which makes sure we dont leave an undefined host state regarding loop devices
 function finish {
   set +o errexit
-  umount /tmp/mount
+  umount /tmp/mount/${part_pattern}
   losetup -d ${loopdev}
 }
 trap finish EXIT
@@ -52,8 +52,8 @@ losetup_image_wic
 
 #filter partition from output file, valid values for part_pattern are "etc" or "data"
 part_pattern=${o##/}
-o=${part_pattern##*/}
-part_pattern=${part_pattern%/*}
+o=${part_pattern#*/}
+part_pattern=${part_pattern%%/*}
 d_echo part_pattern=${part_pattern}
 
 if [ ! "${part_pattern}" == "etc"  ] && [ ! "${part_pattern}" == "data"  ]; then
@@ -62,8 +62,6 @@ fi
 # finally mount it
 mount_part
 
-mkdir /tmp/mount
-mount -o loop,rw ${partloopdev} /tmp/mount
-mkdir -p /tmp/mount/upper
+mkdir -p $(dirname /tmp/mount/upper/${o})
 d_echo "cp ${i} /tmp/mount/upper/${o}"
 cp ${i} /tmp/mount/upper/${o}
