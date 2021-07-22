@@ -1,1 +1,3 @@
-test.sh
+*
+!sh
+!Dockerfile

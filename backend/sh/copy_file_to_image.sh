@@ -5,9 +5,9 @@
 
 # exit handler which makes sure we dont leave an undefined host state regarding loop devices
 function finish {
-  set +o errexit
-  umount /tmp/mount/${part_pattern}
-  losetup -d ${loopdev}
+    set +o errexit
+    umount /tmp/mount/${part_pattern}
+    losetup -d ${loopdev}
 }
 trap finish EXIT
 

@@ -6,13 +6,12 @@ use std::collections::HashMap;
 use bollard::Docker;
 use bollard::auth::DockerCredentials;
 use bollard::container::{Config, RemoveContainerOptions, LogOutput};
-use bollard::exec::{CreateExecOptions, StartExecResults};
+use bollard::exec::{CreateExecOptions, StartExecOptions, StartExecResults};
 use bollard::image::{CreateImageOptions, ListImagesOptions};
 use bollard::models::HostConfig;
 
 use futures_executor::block_on;
-use futures_util::stream::StreamExt;
-use futures_util::TryStreamExt;
+use futures_util::{StreamExt,TryStreamExt};
 
 use path_absolutize::Absolutize;
 use once_cell::sync::Lazy;
@@ -63,7 +62,7 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
 #[tokio::main]
 async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&str>>) -> Result<(), Box<dyn std::error::Error>> {
     block_on( async move {
-        let docker = Docker::connect_with_unix_defaults().unwrap();
+        let docker = Docker::connect_with_local_defaults().unwrap();
         let mut filters = HashMap::new();
         filters.insert("reference", vec![DOCKER_IMAGE_ID.as_str()]);
 
@@ -125,29 +124,30 @@ async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&s
             // non interactive
             let exec = docker.create_exec(&container.id, exec_options).await?;
 
-            let mut stream = docker.start_exec(&exec.id, None);
+            let results = docker.start_exec(&exec.id, None::<StartExecOptions>).await?;
 
             let mut stream_error_log: Option<String> = None;
+            match results {
+                StartExecResults::Attached { mut output, .. } => {
 
-            while let Some(Ok(msg)) = stream.next().await {
-                match msg {
-                    StartExecResults::Attached{ log } => match log {
-                        LogOutput::StdOut{ .. } => {
-                            // print stdoutset_enr
-                            print!("{}", log)
-                        },
-                        LogOutput::StdErr{ .. } => {
-                            // print stderr
-                            eprint!("{}", log);
-                            // save error string
-                            stream_error_log = Some(log.to_string());
-                        },
-                        _ => {}
+                    while let Some(Ok(log)) = output.next().await {
+                        match log {
+                            LogOutput::StdOut{ .. } => {
+                                // print stdoutset_enr
+                                print!("{}", log )
+                            },
+                            LogOutput::StdErr{ .. } => {
+                                // print stderr
+                                eprint!("{}", log );
+                                // save error string
+                                stream_error_log = Some(log.to_string());
+                            }
+                            _ => {}
+                        }
                     }
-                    _ => {}
                 }
+                _ => {}
             }
-
             Ok(stream_error_log)
         };
 
@@ -175,9 +175,6 @@ pub fn set_wifi_config(config: &PathBuf, image: &PathBuf) -> Result<(), Box<dyn 
     let input_image_file = ensure_filepath(&image)?;
     let mut binds : Vec<std::string::String> = Vec::new();
 
-    // to setup the image loop device properly we need to access the hosts devtmpfs
-    binds.push("/dev/:/dev/".to_owned().to_string());
-
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
     binds.push(format!("{}:{}", input_image_file, target_input_image_file));
@@ -191,9 +188,6 @@ pub fn set_enrollment_config(enrollment_config_file: &PathBuf, image_file: &Path
     let input_enrollment_config_file = ensure_filepath(&enrollment_config_file)?;
     let input_image_file = ensure_filepath(&image_file)?;
     let mut binds: Vec<std::string::String> = Vec::new();
-
-    // to setup the image loop device properly we need to access the hosts devtmpfs
-    binds.push("/dev/:/dev/".to_owned().to_string());
 
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
@@ -211,9 +205,6 @@ pub fn set_iotedge_gateway_config(config_file: &PathBuf, image_file: &PathBuf, r
     let input_edge_device_identity_full_chain_file = ensure_filepath(&edge_device_identity_full_chain_file)?;
     let input_edge_device_identity_key_file = ensure_filepath(&edge_device_identity_key_file)?;
     let mut binds :Vec<std::string::String> = Vec::new();
-
-    // to setup the image loop device properly we need to access the hosts devtmpfs
-    binds.push("/dev/:/dev/".to_owned().to_string());
 
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
@@ -236,8 +227,6 @@ pub fn set_iot_leaf_sas_config(config_file: &PathBuf, image_file: &PathBuf, root
     let input_root_ca_file = ensure_filepath(&root_ca_file)?;
 
     let mut binds :Vec<std::string::String> = Vec::new();
-    // to setup the image loop device properly we need to access the hosts devtmpfs
-    binds.push("/dev/:/dev/".to_owned().to_string());
 
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
@@ -255,8 +244,6 @@ pub fn set_identity_config(config_file: &PathBuf, image_file: &PathBuf) -> Resul
     let input_image_file = ensure_filepath(&image_file)?;
 
     let mut binds :Vec<std::string::String> = Vec::new();
-    // to setup the image loop device properly we need to access the hosts devtmpfs
-    binds.push("/dev/:/dev/".to_owned().to_string());
 
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
@@ -271,9 +258,6 @@ pub fn set_adu_config(adu_config_file: &PathBuf, image_file: &PathBuf) -> Result
     let input_adu_config_file = ensure_filepath(&adu_config_file)?;
     let input_image_file = ensure_filepath(&image_file)?;
     let mut binds: Vec<std::string::String> = Vec::new();
-
-    // to setup the image loop device properly we need to access the hosts devtmpfs
-    binds.push("/dev/:/dev/".to_owned().to_string());
 
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
