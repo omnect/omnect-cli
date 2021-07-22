@@ -35,11 +35,12 @@ resources:
       password: ((docker_io_registry_password))
       tag: slim-buster
 
-  - name: dnd-image
+  - name: concourse-rust-dnd
     type: docker-image
     source:
-      repository: registry:5000/dnd-image
-      insecure_registries: ((bb_insecure_registries))
+      repository: icsdm.azurecr.io/concourse-rust-dnd
+      username: ((ics_dm_registry_user))
+      password: ((ics_dm_registry_password))
       tag: latest
 
   - name: send-an-email
@@ -88,6 +89,7 @@ jobs:
         - get: source
           trigger: true
         - get: rust-image
+        - get: concourse-rust-dnd
       - task: build-ics-dm-cli
         image: rust-image
         config:
@@ -113,14 +115,8 @@ jobs:
           build: source/backend
           dockerfile: source/backend/Dockerfile
           tag_as_latest: true
-      - put: dnd-image
-        params:
-          inputs:
-              - name: source
-          build: source/ci
-          dockerfile: source/ci/Dockerfile.dnd
       - task: test-ics-dm-cli
-        image: dnd-image
+        image: concourse-rust-dnd
         #dnd needs privileged rights
         privileged: true
         config:
@@ -130,33 +126,16 @@ jobs:
           outputs:
             - name: source
           run:
-            path: bash
+            path: /usr/local/bin/entrypoint.sh
             args:
-              - -exc
               - |
-                start_docker() {
-                  /etc/init.d/docker start
-                  mkdir -p /sys/fs/cgroup/systemd
-                  mount -t cgroup -o none,name=systemd cgroup /sys/fs/cgroup/systemd
-                  mkdir -p /sys/fs/cgroup/cpu,cpuacct
-                  mount -t cgroup -o cpu,cpuacct cgroup /sys/fs/cgroup/cpu,cpuacct
-                  mkdir -p /sys/fs/cgroup/net_cls,net_prio
-                  mount -t cgroup -o net_cls,net_prio cgroup /sys/fs/cgroup/net_cls,net_prio
-                }
-                start_docker
-
-                stop_docker() {
-                  /etc/init.d/docker stop
-                }
-                trap stop_docker EXIT
-
                 set +x
                 docker login -u ${DOCKER_USER} -p ${DOCKER_PASS} ${DOCKER_SERVER}
                 set -x
                 sync
 
                 cd source
-                cargo test
+                cargo test -- --test-threads=1
           params:
             DOCKER_USER: "((ics_dm_registry_user))"
             DOCKER_PASS: "((ics_dm_registry_password))"
