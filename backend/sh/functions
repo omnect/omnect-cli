@@ -27,7 +27,7 @@ function devtmpfs_mount() {
     mount --move ${tmp_dir} /dev
 }
 
-# init - normaly we would do that in an entrypoint, but we can do that with
+# init - normaly we would do that in an entrypoint, but we cant do that with
 # the bollard framework if the entrypoint is non blocking
 if [ ! -e /tmp/check_passed ]; then
     check_mount
