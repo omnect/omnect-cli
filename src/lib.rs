@@ -37,9 +37,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         {
             docker::set_iot_leaf_sas_config(&config, &image, &root_ca)?
         },
-        Command::IotHubDeviceUpdate(IotHubDeviceUpdateSet{ adu_config, image}) =>
+        Command::IotHubDeviceUpdate(IotHubDeviceUpdateSet{ iot_hub_device_update_config, image}) =>
         {
-            docker::set_adu_config(&adu_config, &image)?
+            docker::set_iot_hub_device_update_config(&iot_hub_device_update_config, &image)?
         }
         _ =>
         {

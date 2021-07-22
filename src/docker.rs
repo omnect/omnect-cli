@@ -242,7 +242,6 @@ pub fn set_iot_leaf_sas_config(config_file: &PathBuf, image_file: &PathBuf, root
 pub fn set_identity_config(config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let input_config_file = ensure_filepath(&config_file)?;
     let input_image_file = ensure_filepath(&image_file)?;
-
     let mut binds :Vec<std::string::String> = Vec::new();
 
     // input file binding
@@ -254,18 +253,18 @@ pub fn set_identity_config(config_file: &PathBuf, image_file: &PathBuf) -> Resul
     docker_exec(Some(binds), Some(vec!["set_identity_config.sh", "-c", &target_input_config_file, "-w", target_input_image_file.as_str()]))
 }
 
-pub fn set_adu_config(adu_config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-    let input_adu_config_file = ensure_filepath(&adu_config_file)?;
+pub fn set_iot_hub_device_update_config(iot_hub_device_update_config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let input_iot_hub_device_update_config_file = ensure_filepath(&iot_hub_device_update_config_file)?;
     let input_image_file = ensure_filepath(&image_file)?;
     let mut binds: Vec<std::string::String> = Vec::new();
 
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
     binds.push(format!("{}:{}", input_image_file, target_input_image_file));
-    let target_input_adu_config_file = format!("/tpm/{}", input_adu_config_file);
-    binds.push(format!("{}:{}", input_adu_config_file, target_input_adu_config_file));
+    let target_input_iot_hub_device_update_config_file = format!("/tpm/{}", input_iot_hub_device_update_config_file);
+    binds.push(format!("{}:{}", input_iot_hub_device_update_config_file, target_input_iot_hub_device_update_config_file));
 
-    docker_exec(Some(binds), Some(vec!["copy_file_to_image.sh", "-i", &target_input_adu_config_file, "-o", "/etc/adu/adu-conf.txt" , "-w", target_input_image_file.as_str()]))
+    docker_exec(Some(binds), Some(vec!["copy_file_to_image.sh", "-i", &target_input_iot_hub_device_update_config_file, "-o", "/etc/adu/adu-conf.txt" , "-w", target_input_image_file.as_str()]))
 }
 
 #[tokio::main]

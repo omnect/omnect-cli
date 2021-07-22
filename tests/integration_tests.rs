@@ -59,11 +59,11 @@ fn check_set_identity_config() {
 }
 
 #[test]
-fn check_set_adu_config() {
-    let _tr = Testrunner::new("check_set_adu_config");
+fn check_set_iot_hub_device_update_config() {
+    let _tr = Testrunner::new("check_set_iot_hub_device_update_config");
 
-    let adu_config_file_path = PathBuf::from(r"check_set_adu_config/testfiles/adu-conf.txt");
-    let image_path = PathBuf::from(r"check_set_adu_config/testfiles/image.wic");
+    let adu_config_file_path = PathBuf::from(r"check_set_iot_hub_device_update_config/testfiles/adu-conf.txt");
+    let image_path = PathBuf::from(r"check_set_iot_hub_device_update_config/testfiles/image.wic");
 
-    assert_eq!(true, docker::set_adu_config(&adu_config_file_path, &image_path).is_ok());
+    assert_eq!(true, docker::set_iot_hub_device_update_config(&adu_config_file_path, &image_path).is_ok());
 }

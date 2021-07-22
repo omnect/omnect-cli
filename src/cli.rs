@@ -108,9 +108,9 @@ pub enum EnrollmentConfig {
 pub enum IotHubDeviceUpdateConfig {
     Set {
         /// path to config file
-        #[structopt(short = "c", long = "adu-conf.txt")]
+        #[structopt(short = "c", long = "config")]
         #[structopt(parse(from_os_str))]
-        adu_config: std::path::PathBuf,
+        iot_hub_device_update_config: std::path::PathBuf,
          /// path to uncompressed image file
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]
