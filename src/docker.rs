@@ -22,7 +22,7 @@ const DOCKER_IMAGE_NAME: &'static str = "ics-dm-cli-backend";
 const DOCKER_IMAGE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 static DOCKER_IMAGE_ID: Lazy<String> = Lazy::new(|| format!("{}/{}:{}", DOCKER_REG_NAME, DOCKER_IMAGE_NAME, DOCKER_IMAGE_VERSION));
 
-const  TARGET_DEVICE_IMAGE: &'static str = "image.wic";
+const TARGET_DEVICE_IMAGE: &'static str = "image.wic";
 
 fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
     let mut path = PathBuf::new();
@@ -93,16 +93,18 @@ async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&s
             ..Default::default()
         };
 
-        let mut env : Vec<&str> = Vec::new();
+        let mut env : Option<Vec<&str>> = None;
         if cfg!(debug_assertions) {
-            env.push("DEBUG=1")
+            let mut _env = Vec::new();
+            _env.push("DEBUG=1");
+            env = Some(_env);
         }
 
         let container_config = Config {
             image: Some(DOCKER_IMAGE_ID.as_str()),
             tty: Some(true),
             host_config: Some(host_config),
-            env: Some(env),
+            env: env,
             ..Default::default()
         };
 
@@ -124,10 +126,8 @@ async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&s
             // non interactive
             let exec = docker.create_exec(&container.id, exec_options).await?;
 
-            let results = docker.start_exec(&exec.id, None::<StartExecOptions>).await?;
-
             let mut stream_error_log: Option<String> = None;
-            match results {
+            match docker.start_exec(&exec.id, None::<StartExecOptions>).await? {
                 StartExecResults::Attached { mut output, .. } => {
 
                     while let Some(Ok(log)) = output.next().await {

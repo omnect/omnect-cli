@@ -12,7 +12,7 @@ ics-dm-cli provides commands to inject various configurations into a flash image
   - Inject an iotedge gateway identity configuration for AIS
   - Inject an iotedge leaf identity configuration for AIS
 - Device Update for IoT Hub configuration
-  - Inject `aduconf.txt`
+  - Inject `adu-conf.txt`
 
 # Download prebuild Docker image
 - login to azure docker registry either via admin user
