@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1] Q3 2021
+## [0.2.0] Q3 2021
 
 - ics-dm-ci can inject adu config
 - enabled usage of parallel instances of ics-dm-cli
