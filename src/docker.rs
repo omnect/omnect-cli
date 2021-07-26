@@ -5,13 +5,12 @@ use std::collections::HashMap;
 
 use bollard::Docker;
 use bollard::auth::DockerCredentials;
-use bollard::container::{Config, RemoveContainerOptions, LogOutput};
-use bollard::exec::{CreateExecOptions, StartExecOptions, StartExecResults};
+use bollard::container::{Config, RemoveContainerOptions, LogOutput, LogsOptions};
 use bollard::image::{CreateImageOptions, ListImagesOptions};
 use bollard::models::HostConfig;
 
 use futures_executor::block_on;
-use futures_util::{StreamExt,TryStreamExt};
+use futures_util::TryStreamExt;
 
 use path_absolutize::Absolutize;
 use once_cell::sync::Lazy;
@@ -105,55 +104,53 @@ async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&s
             tty: Some(true),
             host_config: Some(host_config),
             env: env,
-            ..Default::default()
-        };
-
-        // backend call
-        let exec_options = CreateExecOptions {
-            attach_stdout: Some(true),
-            attach_stderr: Some(true),
             cmd: cmd,
             ..Default::default()
         };
-
+    
         let container = docker.create_container::<&str, &str>(None, container_config).await?;
 
         // by this block we ensure that docker.remove_container container is called
         // even if an error occured before
-        let container_exec_result = async {
+        let run_container_result = async {
             docker.start_container::<String>(&container.id, None).await?;
 
-            // non interactive
-            let exec = docker.create_exec(&container.id, exec_options).await?;
+            let logs_options = Some(LogsOptions {
+                follow: true,
+                stdout: true,
+                stderr: true,
+                tail: "all",
+                ..Default::default()
+            });
 
             let mut stream_error_log: Option<String> = None;
-            match docker.start_exec(&exec.id, None::<StartExecOptions>).await? {
-                StartExecResults::Attached { mut output, .. } => {
+            let mut stream = docker.logs(&container.id, logs_options);
 
-                    while let Some(Ok(log)) = output.next().await {
-                        match log {
-                            LogOutput::StdOut{ .. } => {
-                                // print stdoutset_enr
-                                print!("{}", log )
-                            },
-                            LogOutput::StdErr{ .. } => {
-                                // print stderr
-                                eprint!("{}", log );
-                                // save error string
-                                stream_error_log = Some(log.to_string());
-                            }
-                            _ => {}
-                        }
+            while let Some(log) = stream.try_next().await? {
+                match log {
+                    LogOutput::StdIn{ .. } => {
+                        print!("stdin: {}", log)
+                    },
+                    LogOutput::StdOut{ .. } => {
+                        print!("stdout: {}", log)
+                    },
+                    LogOutput::Console{ .. } => {
+                        print!("console: {}", log)
+                    },
+                    LogOutput::StdErr{ .. } => {
+                        eprintln!("{}", log);
+                        // save error string to 
+                        stream_error_log = Some(log.to_string());
+                        break;
                     }
                 }
-                _ => {}
             }
             Ok(stream_error_log)
         };
 
         let mut docker_exec_result = Ok(());
 
-        match container_exec_result.await {
+        match run_container_result.await {
             // if result has error string convert it to error
             Ok(Some(msg)) => docker_exec_result = Err(Box::<dyn std::error::Error>::from(msg)),
             Err(e) => docker_exec_result = Err(e),
@@ -233,10 +230,12 @@ pub fn set_iot_leaf_sas_config(config_file: &PathBuf, image_file: &PathBuf, root
     binds.push(format!("{}:{}", input_image_file, target_input_image_file));
     let target_input_config_file = format!("/tpm/{}", input_config_file);
     binds.push(format!("{}:{}", input_config_file, target_input_config_file));
-    let target_input_root_ca_file = format!("/tpm/{}", input_root_ca_file);
+    let mut target_input_root_ca_file = format!("/tpm/{}", input_root_ca_file);
     binds.push(format!("{}:{}", input_root_ca_file, target_input_root_ca_file));
 
-    docker_exec(Some(binds), Some(vec!["set_iot_leaf_config.sh", "-c", &target_input_config_file, "-r", &target_input_root_ca_file, "-w", target_input_image_file.as_str()]))
+    target_input_root_ca_file = "bla".to_string();
+
+    docker_exec(Some(binds), Some(vec!["set_iot_leaf_config.sh", "-c", &target_input_config_file, "-r", &target_input_root_ca_file]))
 }
 
 pub fn set_identity_config(config_file: &PathBuf, image_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
