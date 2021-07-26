@@ -10,12 +10,7 @@ bb_insecure_registries: ["registry:5000"]
 bb_release_as_latest: true
 
 ## Specifies the version used for bb-gitversion
-bb_gitversion_version: 0.8.3
-
-## Specify the ics-dm-cli backend version, currently this has to be adapted in
-# two different places: here and Cargo.toml where the frontend
-# version has to match the backend version
-ics-dm-cli-backend-image_version: 0.1.0
+bb_gitversion_version: 0.8.4
 
 # Git config
 # -----------------------------------------------------------------------------

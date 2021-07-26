@@ -11,6 +11,8 @@ ics-dm-cli provides commands to inject various configurations into a flash image
   - Inject general identity configuration for AIS (Azure Identity Service)
   - Inject an iotedge gateway identity configuration for AIS
   - Inject an iotedge leaf identity configuration for AIS
+- Device Update for IoT Hub configuration
+  - Inject `adu-conf.txt`
 
 # Download prebuild Docker image
 - login to azure docker registry either via admin user
@@ -95,6 +97,14 @@ Adapt [config.toml.ics-iot-leaf.template](conf/config.toml.ics-iot-leaf.template
 ics-dm-cli identity set-iot-leaf-sas-config -c <path>/iot_config.toml -i <path>/leaf_image.wic  -r <path>/azure-iot-test-only.root.ca.cert.pem
 ```
 
+# Device Update for IoT Hub configuration
+## Inject `adu-conf.txt`
+
+```sh
+ics-dm-cli iot-hub-device-update set -c <path>/adu-conf.txt -i <path>/image.wic
+```
+
+
 # Troubleshooting
 ## No credential store support
 `ics-dm-cli` needs to pull a docker image `icsdm.azurecr.io/ics-dm-cli-backend` as backend for some cli
@@ -104,7 +114,7 @@ pull the image prior to calling `ics-dm-cli` manually. (Note this is not necessa
 docker pull icsdm.azurecr.io/ics-dm-cli-backend:$(ics-dm-cli --version | awk '{print $2}')
 ```
 
-## Verify configuration is functional 
+## Verify configuration is functional
 Check for valid AIS identity configuration on iotedge devices:
 ```sh
 iotedge system logs

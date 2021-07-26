@@ -1,14 +1,50 @@
 #!/bin/bash
 
+function d_echo() {
+    if [ ! -z ${DEBUG} ]; then
+        echo "${@}"
+    fi
+}
+
+function check_mount() {
+    tmp_mount=/tmp/check_mount
+    mkdir -p ${tmp_mount}
+    if [ $(mount -t devtmpfs none ${tmp_mount} &> /dev/null;echo $?) != "0" ]; then
+        echo "error: container has no mount privileges" 1>&2
+        exit 1
+    fi
+    umount ${tmp_mount}
+    rmdir ${tmp_mount}
+}
+
+function devtmpfs_mount() {
+    tmp_dir=/tmp/devtmpfs_mount
+    mkdir -p ${tmp_dir}
+    mount -t devtmpfs none ${tmp_dir}
+    mkdir -p ${tmp_dir}/pts
+    mount --move /dev/pts ${tmp_dir}/pts
+    umount /dev &>/dev/null || true
+    mount --move ${tmp_dir} /dev
+}
+
+# init - normaly we would do that in an entrypoint, but we cant do that with
+# the bollard framework if the entrypoint is non blocking
+if [ ! -e /tmp/check_passed ]; then
+    check_mount
+    devtmpfs_mount
+    touch /tmp/check_passed
+fi
+
 function search_part_loopdev () {
     for part in ${loopdev}p*
     do
+        d_echo try part=${part}
         if [ "${part_pattern}" == "$(e2label ${part} 2>/dev/null)" ]; then
             partloopdev=${part}
             break
         fi
     done
-    echo partloopdev=${partloopdev}
+    d_echo partloopdev=${partloopdev}
 }
 
 function mount_part () {
@@ -20,7 +56,7 @@ function mount_part () {
 }
 
 function losetup_image_wic () {
-    losetup -fP /tmp/image.wic
-    loopdev=$(losetup | grep /tmp/image.wic | awk '{print $1}')
-    echo loopdev=${loopdev}
+    losetup -fP ${w}
+    loopdev=$(losetup | grep ${w} | awk '{print $1}')
+    d_echo loopdev=${loopdev}
 }

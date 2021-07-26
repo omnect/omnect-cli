@@ -102,6 +102,27 @@ pub enum EnrollmentConfig {
     }
 }
 
+#[derive(StructOpt, Debug, PartialEq)]
+#[structopt(about = ABOUT)]
+#[structopt(after_help = COPYRIGHT)]
+pub enum IotHubDeviceUpdateConfig {
+    Set {
+        /// path to config file
+        #[structopt(short = "c", long = "config")]
+        #[structopt(parse(from_os_str))]
+        iot_hub_device_update_config: std::path::PathBuf,
+         /// path to uncompressed image file
+        #[structopt(short = "i", long = "image")]
+        #[structopt(parse(from_os_str))]
+        image: std::path::PathBuf,
+    },
+    Info {
+        #[structopt(short = "i", long = "image")]
+        #[structopt(parse(from_os_str))]
+        image: std::path::PathBuf,
+    }
+}
+
 
 #[derive(StructOpt, Debug, PartialEq)]
 #[structopt(about = ABOUT)]
@@ -110,7 +131,8 @@ pub enum Command {
     Identity(IdentityConfig),
     DockerInfo,
     Wifi(WifiConfig),
-    Enrollment(EnrollmentConfig)
+    Enrollment(EnrollmentConfig),
+    IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
 }
 
 pub fn from_args() -> Command { Command::from_args() }
