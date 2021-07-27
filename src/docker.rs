@@ -105,6 +105,8 @@ async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&s
             host_config: Some(host_config),
             env: env,
             cmd: cmd,
+            attach_stdout: Some(true),
+            attach_stderr: Some(true),
             ..Default::default()
         };
     
@@ -138,7 +140,7 @@ async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&s
                         print!("console: {}", log)
                     },
                     LogOutput::StdErr{ .. } => {
-                        eprintln!("{}", log);
+                        eprintln!("stderr: {}", log);
                         // save error string to 
                         stream_error_log = Some(log.to_string());
                         break;
@@ -189,10 +191,12 @@ pub fn set_enrollment_config(enrollment_config_file: &PathBuf, image_file: &Path
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
     binds.push(format!("{}:{}", input_image_file, target_input_image_file));
-    let target_input_enrollment_config_file = format!("/tpm/{}", input_enrollment_config_file);
+    let mut target_input_enrollment_config_file = format!("/tpm/{}", input_enrollment_config_file);
     binds.push(format!("{}:{}", input_enrollment_config_file, target_input_enrollment_config_file));
 
+    target_input_enrollment_config_file = "bla".to_string();
     docker_exec(Some(binds), Some(vec!["set_enrollment_config.sh", "-c", &target_input_enrollment_config_file, "-w", target_input_image_file.as_str()]))
+    //docker_exec(Some(binds), Some(vec!["set_enrollment_config.sh", "-c", &target_input_enrollment_config_file]))
 }
 
 pub fn set_iotedge_gateway_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf, edge_device_identity_full_chain_file: &PathBuf, edge_device_identity_key_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
@@ -230,10 +234,8 @@ pub fn set_iot_leaf_sas_config(config_file: &PathBuf, image_file: &PathBuf, root
     binds.push(format!("{}:{}", input_image_file, target_input_image_file));
     let target_input_config_file = format!("/tpm/{}", input_config_file);
     binds.push(format!("{}:{}", input_config_file, target_input_config_file));
-    let mut target_input_root_ca_file = format!("/tpm/{}", input_root_ca_file);
+    let target_input_root_ca_file = format!("/tpm/{}", input_root_ca_file);
     binds.push(format!("{}:{}", input_root_ca_file, target_input_root_ca_file));
-
-    target_input_root_ca_file = "bla".to_string();
 
     docker_exec(Some(binds), Some(vec!["set_iot_leaf_config.sh", "-c", &target_input_config_file, "-r", &target_input_root_ca_file]))
 }
