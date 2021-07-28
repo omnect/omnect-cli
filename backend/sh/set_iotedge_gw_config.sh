@@ -99,11 +99,8 @@ if [ ! -e /tmp/mount/rootA/etc/systemd/system/multi-user.target.wants/enrollment
 fi
 
 # set hostname
-hostname=$(grep "^hostname" ${c} | cut -d "=" -f2 | xargs)
-d_echo "set hostname to ${hostname}"
-echo "${hostname}" > /tmp/mount/etc/upper/hostname
-cp /tmp/mount/rootA/etc/hosts /tmp/mount/etc/upper/
-sed -i "s/^127.0.1.1\(.*\)/127.0.1.1 ${hostname}/" /tmp/mount/etc/upper/hosts
+get_hostname ${c}
+set_hostname
 
 # copy root ca cert
 mkdir -p /tmp/mount/data/var/secrets

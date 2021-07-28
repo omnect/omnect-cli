@@ -98,6 +98,10 @@ echo "${hostname}" > /tmp/mount/etc/upper/hostname
 cp /tmp/mount/rootA/etc/hosts /tmp/mount/etc/upper/
 sed -i "s/^127.0.1.1\(.*\)/127.0.1.1 ${hostname}/" /tmp/mount/etc/upper/hosts
 
+# set hostname
+get_hostname ${c}
+set_hostname
+
 # copy root ca cert
 mkdir -p /tmp/mount/data/local/share/ca-certificates/
 d_echo cp ${r} /tmp/mount/data/local/share/ca-certificates/$(basename ${r}).crt

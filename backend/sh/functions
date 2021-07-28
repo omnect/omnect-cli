@@ -60,3 +60,19 @@ function losetup_image_wic () {
     loopdev=$(losetup | grep ${w} | awk '{print $1}')
     d_echo loopdev=${loopdev}
 }
+
+function get_hostname () {
+    hostname=$(grep "^hostname" ${1})
+
+    # possibly remove inline comments
+    hostname=${hostname%%\#*}
+
+    hostname=$(echo ${hostname} | cut -d "=" -f2 | xargs)
+}
+
+function set_hostname () {
+    d_echo "set hostname to ${hostname}"
+    echo "${hostname}" > /tmp/mount/etc/upper/hostname
+    cp /tmp/mount/rootA/etc/hosts /tmp/mount/etc/upper/
+    sed -i "s/^127.0.1.1\(.*\)/127.0.1.1 ${hostname}/" /tmp/mount/etc/upper/hosts
+}

@@ -79,8 +79,5 @@ else
 fi
 
 # set hostname
-hostname=$(grep "^hostname" ${c} | cut -d "=" -f2 | xargs)
-d_echo "set hostname to ${hostname}"
-echo "${hostname}" > /tmp/mount/etc/upper/hostname
-cp /tmp/mount/rootA/etc/hosts /tmp/mount/etc/upper/
-sed -i "s/^127.0.1.1\(.*\)/127.0.1.1 ${hostname}/" /tmp/mount/etc/upper/hosts
+get_hostname ${c}
+set_hostname
