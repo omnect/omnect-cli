@@ -1,3 +1,4 @@
+use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Error, ErrorKind};
 use std::path::{Path, PathBuf};
@@ -5,17 +6,18 @@ use std::collections::HashMap;
 
 use bollard::Docker;
 use bollard::auth::DockerCredentials;
-use bollard::container::{Config, RemoveContainerOptions, LogOutput};
-use bollard::exec::{CreateExecOptions, StartExecOptions, StartExecResults};
+use bollard::container::{Config, RemoveContainerOptions, LogOutput, LogsOptions};
 use bollard::image::{CreateImageOptions, ListImagesOptions};
 use bollard::models::HostConfig;
 
 use futures_executor::block_on;
-use futures_util::{StreamExt,TryStreamExt};
+use futures_util::TryStreamExt;
 
 use path_absolutize::Absolutize;
 use once_cell::sync::Lazy;
 use uuid::Uuid;
+
+use tempfile::NamedTempFile;
 
 const DOCKER_REG_NAME: &'static str = "icsdm.azurecr.io";
 const DOCKER_IMAGE_NAME: &'static str = "ics-dm-cli-backend";
@@ -60,7 +62,7 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
 }
 
 #[tokio::main]
-async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&str>>) -> Result<(), Box<dyn std::error::Error>> {
+async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&str>>) -> Result<(), Box<dyn std::error::Error>> {
     block_on( async move {
         let docker = Docker::connect_with_local_defaults().unwrap();
         let mut filters = HashMap::new();
@@ -85,6 +87,14 @@ async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&s
             ).try_collect::<Vec<_>>().await?;
         }
 
+        let file = NamedTempFile::new()?;
+        let target_error_file_path = format!("/tmp/{}", file.as_ref().file_name().unwrap().to_str().unwrap());
+
+        if let Some(mut vec) = binds {
+            vec.push(format!("{}:{}", file.as_ref().to_str().unwrap(), target_error_file_path));
+            binds = Some(vec);
+        }
+
         let host_config = HostConfig {
             // privileged for losetup in the container
             // @todo check how to restrict rights with capabilities instead
@@ -105,58 +115,62 @@ async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&s
             tty: Some(true),
             host_config: Some(host_config),
             env: env,
-            ..Default::default()
-        };
-
-        // backend call
-        let exec_options = CreateExecOptions {
+            cmd: cmd,
             attach_stdout: Some(true),
             attach_stderr: Some(true),
-            cmd: cmd,
+            entrypoint: Some(vec!["entrypoint.sh", &target_error_file_path]),
             ..Default::default()
         };
 
+        // close temp file, but keep the path to it around
+        let path = file.into_temp_path();
+    
         let container = docker.create_container::<&str, &str>(None, container_config).await?;
 
         // by this block we ensure that docker.remove_container container is called
         // even if an error occured before
-        let container_exec_result = async {
+        let run_container_result = async {
             docker.start_container::<String>(&container.id, None).await?;
 
-            // non interactive
-            let exec = docker.create_exec(&container.id, exec_options).await?;
+            let logs_options = Some(LogsOptions {
+                follow: true,
+                stdout: true,
+                stderr: true,
+                tail: "all",
+                ..Default::default()
+            });
 
             let mut stream_error_log: Option<String> = None;
-            match docker.start_exec(&exec.id, None::<StartExecOptions>).await? {
-                StartExecResults::Attached { mut output, .. } => {
+            let mut stream = docker.logs(&container.id, logs_options);
 
-                    while let Some(Ok(log)) = output.next().await {
-                        match log {
-                            LogOutput::StdOut{ .. } => {
-                                // print stdoutset_enr
-                                print!("{}", log )
-                            },
-                            LogOutput::StdErr{ .. } => {
-                                // print stderr
-                                eprint!("{}", log );
-                                // save error string
-                                stream_error_log = Some(log.to_string());
-                            }
-                            _ => {}
-                        }
+            while let Some(log) = stream.try_next().await? {
+                match log {
+                    LogOutput::StdIn{ .. } => {
+                        print!("stdin: {}", log)
+                    },
+                    LogOutput::StdOut{ .. } => {
+                        print!("stdout: {}", log)
+                    },
+                    LogOutput::Console{ .. } => {
+                        print!("console: {}", log)
+                    },
+                    LogOutput::StdErr{ .. } => {
+                        eprintln!("stderr: {}", log);
+                        // save error string to 
+                        stream_error_log = Some(log.to_string());
+                        break;
                     }
                 }
-                _ => {}
             }
             Ok(stream_error_log)
         };
 
-        let mut docker_exec_result = Ok(());
+        let mut docker_run_result = Ok(());
 
-        match container_exec_result.await {
+        match run_container_result.await {
             // if result has error string convert it to error
-            Ok(Some(msg)) => docker_exec_result = Err(Box::<dyn std::error::Error>::from(msg)),
-            Err(e) => docker_exec_result = Err(e),
+            Ok(Some(msg)) => docker_run_result = Err(Box::<dyn std::error::Error>::from(msg)),
+            Err(e) => docker_run_result = Err(e),
             _ => {}
         };
 
@@ -166,19 +180,25 @@ async fn docker_exec(binds: Option<Vec<std::string::String>>, cmd: Option<Vec<&s
             }),
         ).await?;
 
-        docker_exec_result
+        let contents = fs::read_to_string(path)?;
+        
+        if !contents.is_empty() {
+            docker_run_result = Err(Box::<dyn std::error::Error>::from(contents))            
+        }
+        
+        docker_run_result
     })
 }
 
 pub fn set_wifi_config(config: &PathBuf, image: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let input_config_file = ensure_filepath(&config)?;
     let input_image_file = ensure_filepath(&image)?;
-    let mut binds : Vec<std::string::String> = Vec::new();
+    let mut binds: Vec<std::string::String> = Vec::new();
 
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
     binds.push(format!("{}:{}", input_image_file, target_input_image_file));
-    let target_input_config_file = format!("/tpm/{}", input_config_file);
+    let target_input_config_file = format!("/tmp/{}", input_config_file);
     binds.push(format!("{}:{}", input_config_file, target_input_config_file));
 
     docker_exec(Some(binds), Some(vec!["set_wifi_config.sh", "-i", &target_input_config_file, "-w", target_input_image_file.as_str()]))
@@ -192,7 +212,7 @@ pub fn set_enrollment_config(enrollment_config_file: &PathBuf, image_file: &Path
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
     binds.push(format!("{}:{}", input_image_file, target_input_image_file));
-    let target_input_enrollment_config_file = format!("/tpm/{}", input_enrollment_config_file);
+    let target_input_enrollment_config_file = format!("/tmp/{}", input_enrollment_config_file);
     binds.push(format!("{}:{}", input_enrollment_config_file, target_input_enrollment_config_file));
 
     docker_exec(Some(binds), Some(vec!["set_enrollment_config.sh", "-c", &target_input_enrollment_config_file, "-w", target_input_image_file.as_str()]))
@@ -209,13 +229,13 @@ pub fn set_iotedge_gateway_config(config_file: &PathBuf, image_file: &PathBuf, r
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
     binds.push(format!("{}:{}", input_image_file, target_input_image_file));
-    let target_input_config_file = format!("/tpm/{}", input_config_file);
+    let target_input_config_file = format!("/tmp/{}", input_config_file);
     binds.push(format!("{}:{}", input_config_file, target_input_config_file));
-    let target_input_root_ca_file = format!("/tpm/{}", input_root_ca_file);
+    let target_input_root_ca_file = format!("/tmp/{}", input_root_ca_file);
     binds.push(format!("{}:{}", input_root_ca_file, target_input_root_ca_file));
-    let target_input_edge_device_identity_full_chain_file = format!("/tpm/{}", input_edge_device_identity_full_chain_file);
+    let target_input_edge_device_identity_full_chain_file = format!("/tmp/{}", input_edge_device_identity_full_chain_file);
     binds.push(format!("{}:{}", input_edge_device_identity_full_chain_file, target_input_edge_device_identity_full_chain_file));
-    let target_input_edge_device_identity_key_file = format!("/tpm/{}", input_edge_device_identity_key_file);
+    let target_input_edge_device_identity_key_file = format!("/tmp/{}", input_edge_device_identity_key_file);
     binds.push(format!("{}:{}", input_edge_device_identity_key_file, target_input_edge_device_identity_key_file));
 
     docker_exec(Some(binds), Some(vec!["set_iotedge_gw_config.sh", "-c", &target_input_config_file, "-e", &target_input_edge_device_identity_full_chain_file, "-k", &target_input_edge_device_identity_key_file, "-r", &target_input_root_ca_file, "-w", target_input_image_file.as_str()]))
@@ -231,9 +251,9 @@ pub fn set_iot_leaf_sas_config(config_file: &PathBuf, image_file: &PathBuf, root
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
     binds.push(format!("{}:{}", input_image_file, target_input_image_file));
-    let target_input_config_file = format!("/tpm/{}", input_config_file);
+    let target_input_config_file = format!("/tmp/{}", input_config_file);
     binds.push(format!("{}:{}", input_config_file, target_input_config_file));
-    let target_input_root_ca_file = format!("/tpm/{}", input_root_ca_file);
+    let target_input_root_ca_file = format!("/tmp/{}", input_root_ca_file);
     binds.push(format!("{}:{}", input_root_ca_file, target_input_root_ca_file));
 
     docker_exec(Some(binds), Some(vec!["set_iot_leaf_config.sh", "-c", &target_input_config_file, "-r", &target_input_root_ca_file, "-w", target_input_image_file.as_str()]))
@@ -247,7 +267,7 @@ pub fn set_identity_config(config_file: &PathBuf, image_file: &PathBuf) -> Resul
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
     binds.push(format!("{}:{}", input_image_file, target_input_image_file));
-    let target_input_config_file = format!("/tpm/{}", input_config_file);
+    let target_input_config_file = format!("/tmp/{}", input_config_file);
     binds.push(format!("{}:{}", input_config_file, target_input_config_file));
 
     docker_exec(Some(binds), Some(vec!["set_identity_config.sh", "-c", &target_input_config_file, "-w", target_input_image_file.as_str()]))
@@ -261,7 +281,7 @@ pub fn set_iot_hub_device_update_config(iot_hub_device_update_config_file: &Path
     // input file binding
     let target_input_image_file = format!("/tmp/{}/{}", Uuid::new_v4(), TARGET_DEVICE_IMAGE);
     binds.push(format!("{}:{}", input_image_file, target_input_image_file));
-    let target_input_iot_hub_device_update_config_file = format!("/tpm/{}", input_iot_hub_device_update_config_file);
+    let target_input_iot_hub_device_update_config_file = format!("/tmp/{}", input_iot_hub_device_update_config_file);
     binds.push(format!("{}:{}", input_iot_hub_device_update_config_file, target_input_iot_hub_device_update_config_file));
 
     docker_exec(Some(binds), Some(vec!["copy_file_to_image.sh", "-i", &target_input_iot_hub_device_update_config_file, "-o", "/etc/adu/adu-conf.txt" , "-w", target_input_image_file.as_str()]))
