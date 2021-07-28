@@ -165,12 +165,12 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
             Ok(stream_error_log)
         };
 
-        let mut docker_exec_result = Ok(());
+        let mut docker_run_result = Ok(());
 
         match run_container_result.await {
             // if result has error string convert it to error
-            Ok(Some(msg)) => docker_exec_result = Err(Box::<dyn std::error::Error>::from(msg)),
-            Err(e) => docker_exec_result = Err(e),
+            Ok(Some(msg)) => docker_run_result = Err(Box::<dyn std::error::Error>::from(msg)),
+            Err(e) => docker_run_result = Err(e),
             _ => {}
         };
 
@@ -183,10 +183,10 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
         let contents = fs::read_to_string(path)?;
         
         if !contents.is_empty() {
-            docker_exec_result = Err(Box::<dyn std::error::Error>::from(contents))            
+            docker_run_result = Err(Box::<dyn std::error::Error>::from(contents))            
         }
         
-        docker_exec_result
+        docker_run_result
     })
 }
 
