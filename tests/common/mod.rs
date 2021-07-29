@@ -1,32 +1,29 @@
 use std::fs::{create_dir_all,remove_dir_all};
-use fs_extra::dir::copy;
-use fs_extra::dir::CopyOptions;
-
+use std::fs::copy;
+use std::path::PathBuf;
 
 const TMPDIR_FORMAT_STR: &'static str = "/tmp/ics-dm-cli-integration-tests/";
+const TESTDIR_FORMAT_STR: &'static str = "testfiles/";
 
-pub struct Testrunner<> {
+pub struct Testrunner {
     dirpath: std::string::String,
 }
 
-impl<> Testrunner<> {
+impl Testrunner {
     pub fn new(prefix: &str) -> Testrunner {
-        let dirpath = format!("{}{}",TMPDIR_FORMAT_STR, prefix);
+        let dirpath = format!("{}{}", TMPDIR_FORMAT_STR, prefix);
         create_dir_all(&dirpath).unwrap();
-        copy("testfiles", &dirpath, &CopyOptions {
-            overwrite: true,
-            ..Default::default()
-        }).unwrap_or_else(|err| {
-            // ignore all errors if dir cannot be deleted
-            println!("Problem copy: {}", err);
-            1
-        });
-
         Testrunner { dirpath }
+    }
+
+    pub fn to_pathbuf(&self, file: &str) -> PathBuf {
+        let path = PathBuf::from(format!("{}{}", self.dirpath, file));
+        copy(format!("{}{}", TESTDIR_FORMAT_STR, file), &path).unwrap();
+        path
     }
 }
 
-impl<> Drop for Testrunner<> {
+impl Drop for Testrunner {
     fn drop(&mut self) {
         // place your cleanup code here
         //remove_dir_all(format!("{}{}", TMPDIR_FORMAT_STR, self.prefix)).unwrap_or_else(|err| {
