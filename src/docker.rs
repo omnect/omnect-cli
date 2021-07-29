@@ -124,7 +124,7 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
 
         // close temp file, but keep the path to it around
         let path = file.into_temp_path();
-    
+
         let container = docker.create_container::<&str, &str>(None, container_config).await?;
 
         // by this block we ensure that docker.remove_container container is called
@@ -156,7 +156,7 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
                     },
                     LogOutput::StdErr{ .. } => {
                         eprintln!("stderr: {}", log);
-                        // save error string to 
+                        // save error string to
                         stream_error_log = Some(log.to_string());
                         break;
                     }
@@ -181,11 +181,11 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
         ).await?;
 
         let contents = fs::read_to_string(path)?;
-        
+
         if !contents.is_empty() {
-            docker_run_result = Err(Box::<dyn std::error::Error>::from(contents))            
+            docker_run_result = Err(Box::<dyn std::error::Error>::from(contents))
         }
-        
+
         docker_run_result
     })
 }
@@ -215,7 +215,11 @@ pub fn set_enrollment_config(enrollment_config_file: &PathBuf, image_file: &Path
     let target_input_enrollment_config_file = format!("/tmp/{}", input_enrollment_config_file);
     binds.push(format!("{}:{}", input_enrollment_config_file, target_input_enrollment_config_file));
 
-    docker_exec(Some(binds), Some(vec!["copy_file_to_image.sh", "-i", &target_input_enrollment_config_file, "-o", "upper/ics_dm/enrollment_static.conf", "-p", "etc", "-w", target_input_image_file.as_str(), "-g", "enrollment", "-m", "0664"]))
+    let mut command_vec = vec!["create_dir.sh", "-d", "upper/ics_dm", "-p", "etc", "-w", target_input_image_file.as_str(), "-g", "enrollment", "-m", "0775"];
+    let mut command2_vec = vec!["copy_file_to_image.sh", "-i", &target_input_enrollment_config_file, "-o", "upper/ics_dm/enrollment_static.conf", "-p", "etc", "-w", target_input_image_file.as_str(), "-g", "enrollment", "-m", "0664"];
+    command_vec.push("&&");
+    command_vec.append(&mut command2_vec);
+    docker_exec(Some(binds), Some(command_vec))
 }
 
 pub fn set_iotedge_gateway_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf, edge_device_identity_full_chain_file: &PathBuf, edge_device_identity_key_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {

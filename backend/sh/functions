@@ -6,35 +6,6 @@ function d_echo() {
     fi
 }
 
-function check_mount() {
-    tmp_mount=/tmp/check_mount
-    mkdir -p ${tmp_mount}
-    if [ $(mount -t devtmpfs none ${tmp_mount} &> /dev/null;echo $?) != "0" ]; then
-        echo "error: container has no mount privileges" 1>&2
-        exit 1
-    fi
-    umount ${tmp_mount}
-    rmdir ${tmp_mount}
-}
-
-function devtmpfs_mount() {
-    tmp_dir=/tmp/devtmpfs_mount
-    mkdir -p ${tmp_dir}
-    mount -t devtmpfs none ${tmp_dir}
-    mkdir -p ${tmp_dir}/pts
-    mount --move /dev/pts ${tmp_dir}/pts
-    umount /dev &>/dev/null || true
-    mount --move ${tmp_dir} /dev
-}
-
-# init - normaly we would do that in an entrypoint, but we cant do that with
-# the bollard framework if the entrypoint is non blocking
-if [ ! -e /tmp/check_passed ]; then
-    check_mount
-    devtmpfs_mount
-    touch /tmp/check_passed
-fi
-
 function search_part_loopdev () {
     for part in ${loopdev}p*
     do

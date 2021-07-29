@@ -3,6 +3,8 @@
 # include shared functions
 . /ics-dm-sh/functions
 
+d_echo ${0}
+
 # exit handler which makes sure we dont leave an undefined host state regarding loop devices
 function finish {
     set +o errexit
@@ -10,6 +12,8 @@ function finish {
     umount /tmp/mount/etc
     umount /tmp/mount/rootA
     losetup -d ${loopdev}
+    while losetup ${loopdev} &>/dev/null; do sleep 0.1; done
+    sync
 }
 trap finish EXIT
 
