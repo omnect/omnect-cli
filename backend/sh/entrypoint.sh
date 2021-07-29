@@ -49,4 +49,3 @@ fi
 # now run the requested CMD
 args="${@:2}"
 bash -ec "${args}"
-echo "return is $?"
