@@ -1,4 +1,4 @@
-use std::fs::{create_dir_all,remove_dir_all};
+use std::fs::{create_dir_all, remove_dir_all};
 use std::fs::copy;
 use std::path::PathBuf;
 
@@ -26,7 +26,6 @@ impl Testrunner {
 impl Drop for Testrunner {
     fn drop(&mut self) {
         // place your cleanup code here
-        //remove_dir_all(format!("{}{}", TMPDIR_FORMAT_STR, self.prefix)).unwrap_or_else(|err| {
         remove_dir_all(&self.dirpath).unwrap_or_else(|err| {
             // ignore all errors if dir cannot be deleted
             println!("Problem remove_dir_all: {}", err);
