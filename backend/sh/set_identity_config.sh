@@ -20,7 +20,7 @@ function usage() {
 set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
-while getopts ":c:w:" opt; do
+while getopts "c:w:" opt; do
     case "${opt}" in
         c)
             c=${OPTARG}
@@ -78,6 +78,5 @@ else
     echo "no binary found to apply config.toml" 1>&2; exit 1;
 fi
 
-# set hostname
-get_hostname ${c}
-set_hostname
+# config hostname
+config_hostname ${c}

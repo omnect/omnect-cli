@@ -76,3 +76,8 @@ function set_hostname () {
     cp /tmp/mount/rootA/etc/hosts /tmp/mount/etc/upper/
     sed -i "s/^127.0.1.1\(.*\)/127.0.1.1 ${hostname}/" /tmp/mount/etc/upper/hosts
 }
+
+function config_hostname () {
+    get_hostname ${1}
+    set_hostname
+}

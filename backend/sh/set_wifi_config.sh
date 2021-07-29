@@ -18,7 +18,7 @@ function usage() {
     echo "Usage: $0 -i input_file -w wic_image" 1>&2; exit 1;
 }
 
-while getopts ":i:w:" opt; do
+while getopts "i:w:" opt; do
     case "${opt}" in
         i)
             i=${OPTARG}

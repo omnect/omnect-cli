@@ -20,7 +20,7 @@ function usage() {
 set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
-while getopts ":c:e:k:r:w:" opt; do
+while getopts "c:e:k:r:w:" opt; do
     case "${opt}" in
         c)
             c=${OPTARG}
@@ -98,9 +98,8 @@ if [ ! -e /tmp/mount/rootA/etc/systemd/system/multi-user.target.wants/enrollment
     echo "iotedge config apply" >> /tmp/mount/rootA/usr/bin/ics_dm_first_boot.sh
 fi
 
-# set hostname
-get_hostname ${c}
-set_hostname
+# config hostname
+config_hostname ${c}
 
 # copy root ca cert
 mkdir -p /tmp/mount/data/var/secrets

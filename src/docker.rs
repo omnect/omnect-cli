@@ -219,7 +219,7 @@ pub fn set_enrollment_config(enrollment_config_file: &PathBuf, image_file: &Path
     let target_input_enrollment_config_file = format!("/tmp/{}", input_enrollment_config_file);
     binds.push(format!("{}:{}", input_enrollment_config_file, target_input_enrollment_config_file));
 
-    docker_exec(Some(binds), Some(vec!["set_enrollment_config.sh", "-c", &target_input_enrollment_config_file, "-w", target_input_image_file.as_str()]))
+    docker_exec(Some(binds), Some(vec!["copy_file_to_image.sh", "-i", &target_input_enrollment_config_file, "-o", "upper/ics_dm/enrollment_static.conf", "-p", "etc", "-w", target_input_image_file.as_str(), "-g", "enrollment", "-m", "0664"]))
 }
 
 pub fn set_iotedge_gateway_config(config_file: &PathBuf, image_file: &PathBuf, root_ca_file: &PathBuf, edge_device_identity_full_chain_file: &PathBuf, edge_device_identity_key_file: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
@@ -288,7 +288,7 @@ pub fn set_iot_hub_device_update_config(iot_hub_device_update_config_file: &Path
     let target_input_iot_hub_device_update_config_file = format!("/tmp/{}", input_iot_hub_device_update_config_file);
     binds.push(format!("{}:{}", input_iot_hub_device_update_config_file, target_input_iot_hub_device_update_config_file));
 
-    docker_exec(Some(binds), Some(vec!["copy_file_to_image.sh", "-i", &target_input_iot_hub_device_update_config_file, "-o", "/etc/adu/adu-conf.txt" , "-w", target_input_image_file.as_str()]))
+    docker_exec(Some(binds), Some(vec!["copy_file_to_image.sh", "-i", &target_input_iot_hub_device_update_config_file, "-o", "upper/adu/adu-conf.txt", "-p", "etc", "-w", target_input_image_file.as_str(), "-g", "adu", "-u", "adu", "-m", "0664"]))
 }
 
 #[tokio::main]
