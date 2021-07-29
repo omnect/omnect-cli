@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.2] Q3 2021
 
 - backend: fix setting hostname if config.toml has an inline comment
+- backend: fix setting permissions for enrollment and iot-hub-device-update handling
 
 ## [0.2.1] Q3 2021
 
