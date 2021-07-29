@@ -10,7 +10,7 @@ hostname = "my-ics-iotedge-gateway-device"                       # optional over
 
 ## Provisioning settings are preset to dps and tpm attestation. These settings
 ## are mandatory if the enrollment demo is part of your workflow.
-## If you have a setup without enrollment demo you can configure other 
+## If you have a setup without enrollment demo you can configure other
 ## provisioning methods:
 ## https://github.com/Azure/iot-identity-service/blob/main/aziotctl/config/unix/template.toml
 [provisioning]
