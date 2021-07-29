@@ -15,9 +15,9 @@ use futures_util::TryStreamExt;
 
 use path_absolutize::Absolutize;
 use once_cell::sync::Lazy;
-use tempfile::NamedTempFile;
-use tokio::sync::OnceCell;
 use uuid::Uuid;
+
+use tempfile::NamedTempFile;
 
 const DOCKER_REG_NAME: &'static str = "icsdm.azurecr.io";
 const DOCKER_IMAGE_NAME: &'static str = "ics-dm-cli-backend";
@@ -25,8 +25,6 @@ const DOCKER_IMAGE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 static DOCKER_IMAGE_ID: Lazy<String> = Lazy::new(|| format!("{}/{}:{}", DOCKER_REG_NAME, DOCKER_IMAGE_NAME, DOCKER_IMAGE_VERSION));
 
 const TARGET_DEVICE_IMAGE: &'static str = "image.wic";
-
-static DOCKER_PULL_CELL: OnceCell<std::result::Result<std::vec::Vec<bollard::service::CreateImageInfo>, bollard::errors::Error>> = OnceCell::const_new();
 
 fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
     let mut path = PathBuf::new();
@@ -78,17 +76,15 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
             })
         );
 
-        if image_list.await?.is_empty() {
-            DOCKER_PULL_CELL.get_or_init ( || {
-                docker.create_image(
-                    Some(CreateImageOptions {
-                        from_image: DOCKER_IMAGE_ID.as_str(),
-                        ..Default::default()
-                    }),
-                    None,
-                    Some(get_docker_cred().unwrap())
-                ).try_collect::<Vec<_>>()
-            }).await;
+        if true == image_list.await?.is_empty() {
+            docker.create_image(
+                Some(CreateImageOptions {
+                    from_image: DOCKER_IMAGE_ID.as_str(),
+                    ..Default::default()
+                }),
+                None,
+                Some(get_docker_cred()?)
+            ).try_collect::<Vec<_>>().await?;
         }
 
         let file = NamedTempFile::new()?;
@@ -128,7 +124,7 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
 
         // close temp file, but keep the path to it around
         let path = file.into_temp_path();
-
+    
         let container = docker.create_container::<&str, &str>(None, container_config).await?;
 
         // by this block we ensure that docker.remove_container container is called
@@ -160,7 +156,7 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
                     },
                     LogOutput::StdErr{ .. } => {
                         eprintln!("stderr: {}", log);
-                        // save error string to
+                        // save error string to 
                         stream_error_log = Some(log.to_string());
                         break;
                     }
@@ -185,11 +181,11 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
         ).await?;
 
         let contents = fs::read_to_string(path)?;
-
+        
         if !contents.is_empty() {
-            docker_run_result = Err(Box::<dyn std::error::Error>::from(contents))
+            docker_run_result = Err(Box::<dyn std::error::Error>::from(contents))            
         }
-
+        
         docker_run_result
     })
 }
