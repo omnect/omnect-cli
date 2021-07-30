@@ -27,9 +27,6 @@ function devtmpfs_mount() {
     mount --move ${tmp_dir} /dev
 }
 
-check_mount
-devtmpfs_mount
-
 err_file_path=${1}
 
 # save current rights of error file
@@ -41,6 +38,9 @@ chown root:root ${err_file_path}
 
 # redirect stderr to error file
 exec 2>${err_file_path}
+
+check_mount
+devtmpfs_mount
 
 if [ ! -z ${DEBUG} ]; then
     echo "${@:2}"
