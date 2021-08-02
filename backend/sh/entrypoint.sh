@@ -6,6 +6,27 @@ function finish {
 }
 trap finish EXIT
 
+function check_mount() {
+    tmp_mount=/tmp/check_mount
+    mkdir -p ${tmp_mount}
+    if [ $(mount -t devtmpfs none ${tmp_mount} &> /dev/null;echo $?) != "0" ]; then
+        echo "error: container has no mount privileges" 1>&2
+        exit 1
+    fi
+    umount ${tmp_mount}
+    rmdir ${tmp_mount}
+}
+
+function devtmpfs_mount() {
+    tmp_dir=/tmp/devtmpfs_mount
+    mkdir -p ${tmp_dir}
+    mount -t devtmpfs none ${tmp_dir}
+    mkdir -p ${tmp_dir}/pts
+    mount --move /dev/pts ${tmp_dir}/pts
+    umount /dev &>/dev/null || true
+    mount --move ${tmp_dir} /dev
+}
+
 err_file_path=${1}
 
 # save current rights of error file
@@ -18,5 +39,13 @@ chown root:root ${err_file_path}
 # redirect stderr to error file
 exec 2>${err_file_path}
 
+check_mount
+devtmpfs_mount
+
+if [ ! -z ${DEBUG} ]; then
+    echo "${@:2}"
+fi
+
 # now run the requested CMD
-"${@:2}"
+args="${@:2}"
+bash -ec "${args}"

@@ -3,11 +3,15 @@
 # include shared functions
 . /ics-dm-sh/functions
 
+d_echo ${0}
+
 # exit handler which makes sure we dont leave an undefined host state regarding loop devices
 function finish {
     set +o errexit
     umount /tmp/mount/etc
     losetup -d ${loopdev}
+    while losetup ${loopdev} &>/dev/null; do sleep 0.1; done
+    sync
 }
 trap finish EXIT
 
@@ -18,7 +22,7 @@ function usage() {
     echo "Usage: $0 -i input_file -w wic_image" 1>&2; exit 1;
 }
 
-while getopts ":i:w:" opt; do
+while getopts "i:w:" opt; do
     case "${opt}" in
         i)
             i=${OPTARG}

@@ -129,10 +129,13 @@ jobs:
           run:
             path: /usr/local/bin/entrypoint.sh
             args:
+              - -e
               - |
                 set +x
                 docker login -u ${DOCKER_USER} -p ${DOCKER_PASS} ${DOCKER_SERVER}
                 set -x
+                sync
+                docker pull ${DOCKER_SERVER}/ics-dm-cli-backend:$(cat source/tag)
                 sync
 
                 cd source
