@@ -3,14 +3,20 @@
 # -----------------------------------------------------------------------------
 ## Specifies the name of the building block
 bb_name: ics-dm-cli
+bb_registry_name: icsdm.azurecr.io
+
+## Docker registry used by ics-dm-cli to pull the backend image.
+# This should **not** be the registry in the current docker network, otherwise
+# the cli will work only inside this docker network (or the backend registry
+# has to be overwritten at runtime).
+# If `bb_registry_name` is not "registry:5000", then set it equal to
+# bb_registry_name
+ics_dm_cli_docker_reg_name: icsdm.azurecr.io
 
 ## Specifies insecure docker registries, format "host:port" or "ip:port"
 bb_insecure_registries: ["registry:5000"]
 ## Specify if 'latest' tags are built for `git_branch`
 bb_release_as_latest: true
-
-## Specifies the version used for bb-gitversion
-bb_gitversion_version: 0.8.4
 
 # Git config
 # -----------------------------------------------------------------------------

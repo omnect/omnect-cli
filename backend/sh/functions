@@ -9,7 +9,7 @@ function d_echo() {
 function search_part_loopdev () {
     for part in ${loopdev}p*
     do
-        d_echo try part=${part}
+        d_echo try part=${part} - $(e2label ${part} 2>&1)
         if [ "${part_pattern}" == "$(e2label ${part} 2>/dev/null)" ]; then
             partloopdev=${part}
             break

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] Q3 2021
+
+- frontend: enable overwriting of used default backend docker registry via
+  env var `ICS_DM_CLI_DOCKER_REG_NAME` at buildtime
+- frontend: enable overwriting of used backend docker registry via env var
+  `ICS_DM_CLI_DOCKER_REG_NAME` at runtime
+- frontend: start backend non-privileged with SYS_ADMIN capability + cgroup
+  device rules to enable usage of losetup
+- cicd: reuse crate.io index in test step from build step
+
 ## [0.2.2] Q3 2021
 
 - backend: fix setting hostname if config.toml has an inline comment
