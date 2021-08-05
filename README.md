@@ -132,6 +132,8 @@ systemctl status wpa_supplicant@wlan0
 
 # ToDo's
 - [ ] Make linked ICS_DeviceManagement Wiki public
+- [ ] Describe local build and overwriting backend docker registry via `ICS_DM_CLI_DOCKER_REG_NAME`
+      at buildtime and at runtime
 
 # License
 Licensed under either of

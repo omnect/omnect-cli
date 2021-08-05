@@ -21,9 +21,9 @@ resources:
   - name: ics-dm-cli-backend-image
     type: docker-image
     source:
-      repository: icsdm.azurecr.io/ics-dm-cli-backend
-      username: ((ics_dm_registry_user))
-      password: ((ics_dm_registry_password))
+      repository: ((bb_registry_name))/ics-dm-cli-backend
+      username: ((bb_registry_user))
+      password: ((bb_registry_password))
       insecure_registries: ((bb_insecure_registries))
 
   - name: rust-image
@@ -96,12 +96,14 @@ jobs:
           inputs:
             - name: source
           outputs:
+            - name: cargo_home
             - name: source
           run:
             path: /bin/bash
             args:
               - -exc
               - |
+                export CARGO_HOME=$(pwd)/cargo_home
                 cd source
                 cargo build --release --locked
                 chown ${GROUP_ID}:${USER_ID} target/release/ics-dm-cli
@@ -110,6 +112,7 @@ jobs:
           params:
             GROUP_ID: "1000"
             USER_ID: "1000"
+            ICS_DM_CLI_DOCKER_REG_NAME: "((ics_dm_cli_docker_reg_name))"
       - put: ics-dm-cli-backend-image
         params:
           build: source/backend
@@ -123,24 +126,26 @@ jobs:
         config:
           platform: linux
           inputs:
-            - name: source
-          outputs:
+            - name: cargo_home
             - name: source
           run:
             path: /usr/local/bin/entrypoint.sh
             args:
               - -e
               - |
+                export CARGO_HOME=$(pwd)/cargo_home
                 set +x
-                docker login -u ${DOCKER_USER} -p ${DOCKER_PASS} ${DOCKER_SERVER}
+                [[ ! -z "${DOCKER_PASS}" ]] && docker login -u ${DOCKER_USER} -p ${DOCKER_PASS} ${DOCKER_SERVER}
                 set -x
                 sync
                 docker pull ${DOCKER_SERVER}/ics-dm-cli-backend:$(cat source/tag)
                 sync
 
                 cd source
-                RUST_BACKTRACE=full cargo test --locked
+                cargo test --locked
           params:
-            DOCKER_USER: "((ics_dm_registry_user))"
-            DOCKER_PASS: "((ics_dm_registry_password))"
-            DOCKER_SERVER: "icsdm.azurecr.io"
+            DOCKER_USER: "((bb_registry_user))"
+            DOCKER_PASS: "((bb_registry_password))"
+            DOCKER_SERVER: "((bb_registry_name))"
+            INSECURE_REGISTRIES: "((bb_insecure_registries))"
+            ICS_DM_CLI_DOCKER_REG_NAME: "((bb_registry_name))"
