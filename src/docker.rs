@@ -15,28 +15,17 @@ use futures_executor::block_on;
 use futures_util::TryStreamExt;
 
 use path_absolutize::Absolutize;
-use once_cell::sync::Lazy;
 use uuid::Uuid;
-
 use tempfile::NamedTempFile;
 
-static DOCKER_REG_NAME: Lazy<String> = Lazy::new( || {
-    let reg_name = env::var_os("ICS_DM_CLI_DOCKER_REG_NAME");
-    if None != reg_name
-    {
-        reg_name.unwrap().to_str().unwrap().into()
-    }
-    else
-    {
-        include!("../gen/ICS_DM_CLI_DOCKER_REG_NAME.txt").to_string()
-    }
-});
-
-static DOCKER_IMAGE_NAME: &'static str = "ics-dm-cli-backend";
+const DOCKER_REG_NAME: &'static str = include!("../gen/ICS_DM_CLI_DOCKER_REG_NAME.txt");
+const DOCKER_IMAGE_NAME: &'static str = "ics-dm-cli-backend";
 const DOCKER_IMAGE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
-static DOCKER_IMAGE_ID: Lazy<String> = Lazy::new(|| format!("{}/{}:{}", DOCKER_REG_NAME.as_str(), DOCKER_IMAGE_NAME, DOCKER_IMAGE_VERSION));
-
 const TARGET_DEVICE_IMAGE: &'static str = "image.wic";
+
+lazy_static! {
+    static ref DOCKER_IMAGE_ID: String = format!("{}/{}:{}", DOCKER_REG_NAME, DOCKER_IMAGE_NAME, DOCKER_IMAGE_VERSION);
+}
 
 fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
     let mut path = PathBuf::new();
@@ -46,7 +35,7 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
     let json: serde_json::Value = serde_json::from_reader(reader)?;
-    let identitytoken = json["auths"][DOCKER_REG_NAME.as_str()]["identitytoken"].to_string().replace("\"","");
+    let identitytoken = json["auths"][DOCKER_REG_NAME]["identitytoken"].to_string().replace("\"","");
 
     if "null" != identitytoken {
         return Ok(DockerCredentials {
@@ -55,7 +44,7 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
         })
     }
 
-    let auth = json["auths"][DOCKER_REG_NAME.as_str()]["auth"].to_string().replace("\"","");
+    let auth = json["auths"][DOCKER_REG_NAME]["auth"].to_string().replace("\"","");
 
     if "null" != auth {
         let byte_auth = base64::decode_config(auth, base64::STANDARD)?;
