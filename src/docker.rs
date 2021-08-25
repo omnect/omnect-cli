@@ -18,13 +18,30 @@ use path_absolutize::Absolutize;
 use uuid::Uuid;
 use tempfile::NamedTempFile;
 
-const DOCKER_REG_NAME: &'static str = include!("../gen/ICS_DM_CLI_DOCKER_REG_NAME.txt");
 const DOCKER_IMAGE_NAME: &'static str = "ics-dm-cli-backend";
 const DOCKER_IMAGE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 const TARGET_DEVICE_IMAGE: &'static str = "image.wic";
 
 lazy_static! {
-    static ref DOCKER_IMAGE_ID: String = format!("{}/{}:{}", DOCKER_REG_NAME, DOCKER_IMAGE_NAME, DOCKER_IMAGE_VERSION);
+    // read at compile time
+    static ref DEFAULT_DOCKER_REG_NAME: &'static str = {
+        if let Some(def_reg_name) = option_env!("DEFAULT_DOCKER_REG_NAME") {
+            def_reg_name
+        }
+        else {
+            "icsdm.azurecr.io"
+        }
+    };
+    // read at run time
+    static ref DOCKER_REG_NAME: String = {
+        if let Some(reg_name) = env::var_os("ICS_DM_CLI_DOCKER_REG_NAME") {
+            reg_name.into_string().unwrap()
+        }
+        else {
+            (*DEFAULT_DOCKER_REG_NAME).to_string()
+        }
+    };
+    static ref DOCKER_IMAGE_ID: String = format!("{}/{}:{}", *DOCKER_REG_NAME, DOCKER_IMAGE_NAME, DOCKER_IMAGE_VERSION);
 }
 
 fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
@@ -35,7 +52,8 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
     let json: serde_json::Value = serde_json::from_reader(reader)?;
-    let identitytoken = json["auths"][DOCKER_REG_NAME]["identitytoken"].to_string().replace("\"","");
+    let reg_name = DOCKER_REG_NAME.as_str();
+    let identitytoken = json["auths"][reg_name]["identitytoken"].to_string().replace("\"","");
 
     if "null" != identitytoken {
         return Ok(DockerCredentials {
@@ -44,7 +62,7 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
         })
     }
 
-    let auth = json["auths"][DOCKER_REG_NAME]["auth"].to_string().replace("\"","");
+    let auth = json["auths"][reg_name]["auth"].to_string().replace("\"","");
 
     if "null" != auth {
         let byte_auth = base64::decode_config(auth, base64::STANDARD)?;
@@ -67,7 +85,11 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
     block_on( async move {
         let docker = Docker::connect_with_local_defaults().unwrap();
         let mut filters = HashMap::new();
-        filters.insert("reference", vec![DOCKER_IMAGE_ID.as_str()]);
+        let img_id = DOCKER_IMAGE_ID.as_str();
+
+        println!("backend image id: {}", img_id);
+        
+        filters.insert("reference", vec![img_id]);
 
         let image_list = docker.list_images(
             Some(ListImagesOptions {
@@ -80,7 +102,7 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
         if true == image_list.await?.is_empty() {
             docker.create_image(
                 Some(CreateImageOptions {
-                    from_image: DOCKER_IMAGE_ID.as_str(),
+                    from_image: img_id,
                     ..Default::default()
                 }),
                 None,
@@ -114,7 +136,7 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
         }
 
         let container_config = Config {
-            image: Some(DOCKER_IMAGE_ID.as_str()),
+            image: Some(img_id),
             tty: Some(true),
             host_config: Some(host_config),
             env: env,
