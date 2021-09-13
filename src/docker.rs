@@ -25,7 +25,7 @@ const TARGET_DEVICE_IMAGE: &'static str = "image.wic";
 lazy_static! {
     // read at compile time
     static ref DEFAULT_DOCKER_REG_NAME: &'static str = {
-        if let Some(def_reg_name) = option_env!("DEFAULT_DOCKER_REG_NAME") {
+        if let Some(def_reg_name) = option_env!("ICS_DM_CLI_DOCKER_REG_NAME") {
             def_reg_name
         }
         else {
