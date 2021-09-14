@@ -7,10 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.3] Q3 2021
 
-- frontend: enable overwriting of used default backend docker registry via
-  env var `ICS_DM_CLI_DOCKER_REG_NAME` at buildtime
-- frontend: enable overwriting of used backend docker registry via env var
-  `ICS_DM_CLI_DOCKER_REG_NAME` at runtime
+- frontend: 
+  - at buildtime: enable overwriting of used default backend docker registry via env var `ICS_DM_CLI_DOCKER_REG_NAME`
+  - at runtime: enable overwriting of used backend docker registry via env var `ICS_DM_CLI_DOCKER_REG_NAME`
 - frontend: start backend non-privileged with SYS_ADMIN capability + cgroup
   device rules to enable usage of losetup
 - cicd: reuse crate.io index in test step from build step

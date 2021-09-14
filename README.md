@@ -10,7 +10,7 @@ ics-dm-cli provides commands to inject various configurations into a flash image
 - Identity configuration
   - Inject general identity configuration for AIS (Azure Identity Service)
   - Inject an iotedge gateway identity configuration for AIS
-  - Inject an iotedge leaf identity configuration for AIS
+  - Inject an iot leaf identity configuration for AIS
 - Device Update for IoT Hub configuration
   - Inject `adu-conf.txt`
 
@@ -51,7 +51,7 @@ ics-dm-cli wifi set -c <path>/wpa_supplicant.conf -i <path>/image.wic
 Adapt [enrollment_static.conf.template](conf/enrollment_static.conf.template) to your needs.
 
 ```sh
-ics-dm-cli enrollment set -e <path>/enrollment_static.conf -i <path>/image.wic
+ics-dm-cli enrollment set -c <path>/enrollment_static.conf -i <path>/image.wic
 ```
 
 # Identity configuration

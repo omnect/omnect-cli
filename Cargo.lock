@@ -470,7 +470,7 @@ dependencies = [
  "fs_extra",
  "futures-executor",
  "futures-util",
- "once_cell",
+ "lazy_static",
  "path-absolutize",
  "serde_json",
  "structopt",
