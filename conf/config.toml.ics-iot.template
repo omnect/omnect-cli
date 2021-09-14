@@ -15,7 +15,7 @@ hostname = "my-ics-iot-device"                              # optional overwrite
 ## https://github.com/Azure/iot-identity-service/blob/main/aziotctl/config/unix/template.toml
 [provisioning]
 source = "dps"                           # don't change if using enrollment demo
-global_endpoint = "https://my-dps-endpoint.azure-devices-provisioning.net"
+global_endpoint = "https://global.azure-devices-provisioning.net"
 id_scope = "my-scope-id"
 
 [provisioning.attestation]
