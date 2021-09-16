@@ -66,7 +66,9 @@ mount_part
 
 # copy identity config
 aziot_gid=$(cat /tmp/mount/rootA/etc/group | grep aziot: | awk 'BEGIN { FS = ":" } ; { print $3 }')
-mkdir -p /tmp/mount/etc/upper/aziot/
+mkdir -p /tmp/mount/etc/upper/aziot
+chmod 0770 /tmp/mount/etc/upper/aziot
+chgrp ${aziot_gid} /tmp/mount/etc/upper/aziot
 d_echo cp ${c} /tmp/mount/etc/upper/aziot/config.toml
 cp ${c} /tmp/mount/etc/upper/aziot/config.toml
 chgrp ${aziot_gid} /tmp/mount/etc/upper/aziot/config.toml

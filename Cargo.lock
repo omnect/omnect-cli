@@ -462,7 +462,7 @@ dependencies = [
 
 [[package]]
 name = "ics-dm-cli"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "base64",
  "bollard",
@@ -470,7 +470,7 @@ dependencies = [
  "fs_extra",
  "futures-executor",
  "futures-util",
- "once_cell",
+ "lazy_static",
  "path-absolutize",
  "serde_json",
  "structopt",

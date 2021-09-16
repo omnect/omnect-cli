@@ -1,3 +1,4 @@
+use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Error, ErrorKind};
@@ -6,7 +7,7 @@ use std::collections::HashMap;
 
 use bollard::Docker;
 use bollard::auth::DockerCredentials;
-use bollard::container::{Config, RemoveContainerOptions, LogOutput, LogsOptions};
+use bollard::container::{Config, LogOutput, LogsOptions};
 use bollard::image::{CreateImageOptions, ListImagesOptions};
 use bollard::models::HostConfig;
 
@@ -14,17 +15,34 @@ use futures_executor::block_on;
 use futures_util::TryStreamExt;
 
 use path_absolutize::Absolutize;
-use once_cell::sync::Lazy;
 use uuid::Uuid;
-
 use tempfile::NamedTempFile;
 
-const DOCKER_REG_NAME: &'static str = "icsdm.azurecr.io";
 const DOCKER_IMAGE_NAME: &'static str = "ics-dm-cli-backend";
 const DOCKER_IMAGE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
-static DOCKER_IMAGE_ID: Lazy<String> = Lazy::new(|| format!("{}/{}:{}", DOCKER_REG_NAME, DOCKER_IMAGE_NAME, DOCKER_IMAGE_VERSION));
-
 const TARGET_DEVICE_IMAGE: &'static str = "image.wic";
+
+lazy_static! {
+    // read at compile time
+    static ref DEFAULT_DOCKER_REG_NAME: &'static str = {
+        if let Some(def_reg_name) = option_env!("ICS_DM_CLI_DOCKER_REG_NAME") {
+            def_reg_name
+        }
+        else {
+            "icsdm.azurecr.io"
+        }
+    };
+    // read at run time
+    static ref DOCKER_REG_NAME: String = {
+        if let Some(reg_name) = env::var_os("ICS_DM_CLI_DOCKER_REG_NAME") {
+            reg_name.into_string().unwrap()
+        }
+        else {
+            (*DEFAULT_DOCKER_REG_NAME).to_string()
+        }
+    };
+    static ref DOCKER_IMAGE_ID: String = format!("{}/{}:{}", *DOCKER_REG_NAME, DOCKER_IMAGE_NAME, DOCKER_IMAGE_VERSION);
+}
 
 fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
     let mut path = PathBuf::new();
@@ -34,7 +52,8 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
     let file = File::open(&path)?;
     let reader = BufReader::new(file);
     let json: serde_json::Value = serde_json::from_reader(reader)?;
-    let identitytoken = json["auths"][DOCKER_REG_NAME]["identitytoken"].to_string().replace("\"","");
+    let reg_name = DOCKER_REG_NAME.as_str();
+    let identitytoken = json["auths"][reg_name]["identitytoken"].to_string().replace("\"","");
 
     if "null" != identitytoken {
         return Ok(DockerCredentials {
@@ -43,7 +62,7 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
         })
     }
 
-    let auth = json["auths"][DOCKER_REG_NAME]["auth"].to_string().replace("\"","");
+    let auth = json["auths"][reg_name]["auth"].to_string().replace("\"","");
 
     if "null" != auth {
         let byte_auth = base64::decode_config(auth, base64::STANDARD)?;
@@ -66,7 +85,11 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
     block_on( async move {
         let docker = Docker::connect_with_local_defaults().unwrap();
         let mut filters = HashMap::new();
-        filters.insert("reference", vec![DOCKER_IMAGE_ID.as_str()]);
+        let img_id = DOCKER_IMAGE_ID.as_str();
+
+        println!("backend image id: {}", img_id);
+
+        filters.insert("reference", vec![img_id]);
 
         let image_list = docker.list_images(
             Some(ListImagesOptions {
@@ -79,7 +102,7 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
         if true == image_list.await?.is_empty() {
             docker.create_image(
                 Some(CreateImageOptions {
-                    from_image: DOCKER_IMAGE_ID.as_str(),
+                    from_image: img_id,
                     ..Default::default()
                 }),
                 None,
@@ -96,9 +119,12 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
         }
 
         let host_config = HostConfig {
-            // privileged for losetup in the container
-            // @todo check how to restrict rights with capabilities instead
-            privileged: Some(true),
+            auto_remove: Some(true),
+            // we need cap_add + device_cgroup_rules to enable losetup inside the container
+            cap_add: Some(vec!["SYS_ADMIN".to_string()]),
+            // first rule: allow mknod,read/write of /dev/loopX, second rule: allow read/write of /dev/loopXpY
+            device_cgroup_rules: Some(vec!["b 7:* rmw".to_string(), "b 259:* rw".to_string()]),
+            security_opt: Some(vec!["seccomp=unconfined".to_string(),"apparmor=unconfined".to_string()]),
             binds: binds,
             ..Default::default()
         };
@@ -111,7 +137,7 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
         }
 
         let container_config = Config {
-            image: Some(DOCKER_IMAGE_ID.as_str()),
+            image: Some(img_id),
             tty: Some(true),
             host_config: Some(host_config),
             env: env,
@@ -173,12 +199,6 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
             Err(e) => docker_run_result = Err(e),
             _ => {}
         };
-
-        docker.remove_container(&container.id, Some(RemoveContainerOptions {
-                force: true,
-                ..Default::default()
-            }),
-        ).await?;
 
         let contents = fs::read_to_string(path)?;
 
