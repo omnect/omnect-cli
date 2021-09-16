@@ -88,7 +88,7 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
         let img_id = DOCKER_IMAGE_ID.as_str();
 
         println!("backend image id: {}", img_id);
-        
+
         filters.insert("reference", vec![img_id]);
 
         let image_list = docker.list_images(
@@ -124,6 +124,7 @@ async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Option<Ve
             cap_add: Some(vec!["SYS_ADMIN".to_string()]),
             // first rule: allow mknod,read/write of /dev/loopX, second rule: allow read/write of /dev/loopXpY
             device_cgroup_rules: Some(vec!["b 7:* rmw".to_string(), "b 259:* rw".to_string()]),
+            security_opt: Some(vec!["seccomp=unconfined".to_string(),"apparmor=unconfined".to_string()]),
             binds: binds,
             ..Default::default()
         };
