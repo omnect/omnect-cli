@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - cicd: reuse crate.io index in test step from build step
 - conf: simplified iot-identity config templates
 - backend: fix permissions on /etc/aziot when injecting files into this directory
+- backend: don't run docker container privileged
 
 ## [0.2.2] Q3 2021
 
