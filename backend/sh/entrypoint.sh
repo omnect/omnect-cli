@@ -27,6 +27,13 @@ function devtmpfs_mount() {
     mount --move ${tmp_dir} /dev
 }
 
+# function has to run after devtmpfs_mount
+function check_loop_control() {
+    if [ ! -c /dev/loop-control ]; then
+        mknod /dev/loop-control c 10 237
+    fi
+}
+
 err_file_path=${1}
 
 # save current rights of error file
@@ -41,6 +48,7 @@ exec 2>${err_file_path}
 
 check_mount
 devtmpfs_mount
+check_loop_control
 
 if [ ! -z ${DEBUG} ]; then
     echo "${@:2}"
