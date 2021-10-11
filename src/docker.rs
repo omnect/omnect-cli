@@ -280,6 +280,8 @@ pub fn prepare_binds(files: Vec<&PathBuf>) -> Result<(Vec<String>, Vec<String>),
     let mut bind_files: Vec<String> = vec![];
     let tmp_folder = Uuid::new_v4();
 
+    // validate input files
+    // create temporary bind paths
     files.iter().try_for_each(|&f| -> Result<(), Error>{
         let path = ensure_filepath(&f)?;
         let bind_path = format!("/tmp/{}/{}", tmp_folder, Uuid::new_v4());
