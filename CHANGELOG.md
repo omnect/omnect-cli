@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.5] Q4 2021
 
-- refactored cmd handling
+- refactored command input file handling
+- refactored docker_exec file bind handling
 
 ## [0.2.4] Q3 2021
 

@@ -284,7 +284,7 @@ pub fn prepare_binds(files: Vec<&PathBuf>) -> Result<(Vec<String>, Vec<String>),
     // create temporary bind paths
     files.iter().try_for_each(|&f| -> Result<(), Error>{
         let path = ensure_filepath(&f)?;
-        let bind_path = format!("/tmp/{}/{}", tmp_folder, Uuid::new_v4());
+        let bind_path = format!("/tmp/{}/{}", tmp_folder, f.file_name().unwrap().to_str().unwrap());
         bind_files.push(bind_path.clone());
         binds.push(format!("{}:{}", path, bind_path));
         Ok(())
