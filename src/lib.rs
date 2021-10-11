@@ -22,7 +22,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         },
         Command::Wifi(WifiSet {config, image}) =>
         {
-            docker::set_wifi_config(&config, &image)?;
+            docker::set_wifi_config(&config, &image)?
         },
         Command::Enrollment(EnrollmentSet {enrollment_config, image}) =>
         {
