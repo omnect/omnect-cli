@@ -278,12 +278,13 @@ pub async fn docker_version() -> Result<(), Error> {
 pub fn prepare_binds(files: Vec<&PathBuf>) -> Result<(Vec<String>, Vec<String>), Box<dyn std::error::Error>> {
     let mut binds: Vec<String> = vec![];
     let mut bind_files: Vec<String> = vec![];
+    let tmp_folder = Uuid::new_v4();
 
     files.iter().try_for_each(|&f| -> Result<(), Error>{
-        let i = ensure_filepath(&f)?;
-        let x = format!("/tmp/{}/{}", Uuid::new_v4(), i);
-        bind_files.push(x.clone());
-        binds.push(format!("{}:{}", i, x));
+        let path = ensure_filepath(&f)?;
+        let bind_path = format!("/tmp/{}/{}", tmp_folder, Uuid::new_v4());
+        bind_files.push(bind_path.clone());
+        binds.push(format!("{}:{}", path, bind_path));
         Ok(())
     })?;
     
