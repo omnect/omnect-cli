@@ -1,0 +1,8 @@
+{
+    "dpsConnectionString": "HostName=",
+    "iothubConnectionString": "HostName=",
+    "tags": {
+        "test1": "val1",
+        "test2": "val2"
+    }
+}

@@ -1,5 +1,5 @@
-use std::fs::{create_dir_all, remove_dir_all};
 use std::fs::copy;
+use std::fs::{create_dir_all, remove_dir_all};
 use std::path::PathBuf;
 
 const TMPDIR_FORMAT_STR: &'static str = "/tmp/ics-dm-cli-integration-tests/";
@@ -17,7 +17,7 @@ impl Testrunner {
     }
 
     pub fn to_pathbuf(&self, file: &str) -> PathBuf {
-        let path = PathBuf::from(format!("{}{}", self.dirpath, file));
+        let path = PathBuf::from(format!("{}/{}", self.dirpath, file));
         copy(format!("{}{}", TESTDIR_FORMAT_STR, file), &path).unwrap();
         path
     }
