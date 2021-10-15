@@ -14,6 +14,7 @@ use bollard::Docker;
 use futures_executor::block_on;
 use futures_util::TryStreamExt;
 
+use super::validators::identity::{validate_identity, IdentityType};
 use path_absolutize::Absolutize;
 use tempfile::NamedTempFile;
 use uuid::Uuid;
@@ -253,7 +254,7 @@ pub fn set_enrollment_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    crate::validators::enrollment::validate_enrollment(&config_file)?;
+    super::validators::enrollment::validate_enrollment(&config_file)?;
     let (binds, files) = prepare_binds(vec![config_file, image_file])?;
 
     docker_exec(
@@ -295,6 +296,9 @@ pub fn set_iotedge_gateway_config(
     edge_device_identity_full_chain_file: &PathBuf,
     edge_device_identity_key_file: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    validate_identity(IdentityType::Gateway, &config_file)?
+        .iter()
+        .for_each(|x| println!("{}", x));
     let (binds, files) = prepare_binds(vec![
         config_file,
         edge_device_identity_full_chain_file,
@@ -326,6 +330,9 @@ pub fn set_iot_leaf_sas_config(
     image_file: &PathBuf,
     root_ca_file: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    validate_identity(IdentityType::Leaf, &config_file)?
+        .iter()
+        .for_each(|x| println!("{}", x));
     let (binds, files) = prepare_binds(vec![config_file, root_ca_file, image_file])?;
 
     docker_exec(
@@ -346,6 +353,9 @@ pub fn set_identity_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    validate_identity(IdentityType::Standalone, &config_file)?
+        .iter()
+        .for_each(|x| println!("{}", x));
     let (binds, files) = prepare_binds(vec![config_file, image_file])?;
 
     docker_exec(

@@ -6,7 +6,7 @@ use validator::Validate;
 
 lazy_static! {
     static ref RE_CONNECTION_STRING: regex::Regex = regex::Regex::new(
-        "((HostName=[^;]*;?)|(SharedAccessKeyName=[^;]*;?)|(SharedAccessKey=[^;]*;?))+"
+        "^((HostName=[^;]*;?)|(SharedAccessKeyName=[^;]*;?)|(SharedAccessKey=[^;]*;?))+$"
     )
     .unwrap();
 }

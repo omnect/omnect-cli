@@ -1,0 +1,10 @@
+hostname= "test"
+local_gateway_hostname = "test"
+
+[provisioning]
+source = "manual"
+iothub_hostname = "my-iothub.azure-devices.net"
+device_id = "my-device-id"
+
+[provisioning.authentication]
+method = "sas"

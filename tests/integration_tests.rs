@@ -78,10 +78,27 @@ fn check_set_enrollment_config_unknown_key() {
 }
 
 #[test]
+fn check_set_enrollment_config_invalid_connection_string() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let enrollment_config_file_path =
+        tr.to_pathbuf("enrollment_static_invalid_connection_string.json");
+    let image_path = tr.to_pathbuf("image.wic");
+
+    assert_ne!(
+        None,
+        docker::set_enrollment_config(&enrollment_config_file_path, &image_path)
+            .unwrap_err()
+            .to_string()
+            .find("Enrollment validation failed")
+    );
+}
+
+#[test]
 fn check_set_identity_gateway_config() {
     let tr = Testrunner::new("check_set_identity_gateway_config");
 
-    let config_file_path = tr.to_pathbuf("config.toml");
+    let config_file_path = tr.to_pathbuf("identity_config_gateway.toml");
     let image_path = tr.to_pathbuf("image.wic");
     let root_ca_file_path = tr.to_pathbuf("root.ca.cert.pem");
     let edge_device_identity_full_chain_file_path = tr.to_pathbuf("full-chain.cert.pem");
@@ -104,7 +121,7 @@ fn check_set_identity_gateway_config() {
 fn check_set_identity_leaf_config() {
     let tr = Testrunner::new("check_set_identity_leaf_config");
 
-    let config_file_path = tr.to_pathbuf("config.toml");
+    let config_file_path = tr.to_pathbuf("identity_config_leaf.toml");
     let image_path = tr.to_pathbuf("image.wic");
     let root_ca_file_path = tr.to_pathbuf("root.ca.cert.pem");
 
@@ -118,7 +135,7 @@ fn check_set_identity_leaf_config() {
 fn check_set_identity_config() {
     let tr = Testrunner::new("check_set_identity_config");
 
-    let config_file_path = tr.to_pathbuf("config.toml");
+    let config_file_path = tr.to_pathbuf("identity_config_dps_tpm.toml");
     let image_path = tr.to_pathbuf("image.wic");
 
     assert_eq!(
