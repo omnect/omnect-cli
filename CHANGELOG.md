@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] Q4 2021
+
+- added detection of image file type (to see whether it is compressed)
+- add transparent decompression and recompression for xz, gzip and bzip2
+
 ## [0.2.7] Q4 2021
 
 - added validation to identity config

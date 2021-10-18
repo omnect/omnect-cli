@@ -240,24 +240,29 @@ async fn docker_exec(
 
 pub fn set_wifi_config(
     config_file: &PathBuf,
-    image: &PathBuf,
+    image_file: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (binds, files) = prepare_binds(vec![config_file, image])?;
+    let new_image_file = super::validators::image::validate_image(image_file)?;
+    let (binds, files) = prepare_binds(vec![config_file, image_file])?;
 
-    docker_exec(
+    let ret_val = docker_exec(
         Some(binds),
         Some(vec!["set_wifi_config.sh", "-i", &files[0], "-w", &files[1]]),
-    )
+    );
+
+    super::validators::image::postprocess_image(image_file, &new_image_file)?;
+    ret_val
 }
 
 pub fn set_enrollment_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let new_image_file = super::validators::image::validate_image(image_file)?;
     super::validators::enrollment::validate_enrollment(&config_file)?;
-    let (binds, files) = prepare_binds(vec![config_file, image_file])?;
+    let (binds, files) = prepare_binds(vec![config_file, &new_image_file])?;
 
-    docker_exec(
+    let ret_val = docker_exec(
         Some(binds),
         Some(vec![
             "create_dir.sh",
@@ -286,7 +291,10 @@ pub fn set_enrollment_config(
             "-m",
             "0664",
         ]),
-    )
+    );
+
+    super::validators::image::postprocess_image(image_file, &new_image_file)?;
+    ret_val
 }
 
 pub fn set_iotedge_gateway_config(
@@ -296,6 +304,7 @@ pub fn set_iotedge_gateway_config(
     edge_device_identity_full_chain_file: &PathBuf,
     edge_device_identity_key_file: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let new_image_file = super::validators::image::validate_image(image_file)?;
     validate_identity(IdentityType::Gateway, &config_file)?
         .iter()
         .for_each(|x| println!("{}", x));
@@ -307,7 +316,7 @@ pub fn set_iotedge_gateway_config(
         image_file,
     ])?;
 
-    docker_exec(
+    let ret_val = docker_exec(
         Some(binds),
         Some(vec![
             "set_iotedge_gw_config.sh",
@@ -322,7 +331,9 @@ pub fn set_iotedge_gateway_config(
             "-w",
             &files[4],
         ]),
-    )
+    );
+    super::validators::image::postprocess_image(image_file, &new_image_file)?;
+    ret_val
 }
 
 pub fn set_iot_leaf_sas_config(
@@ -330,12 +341,13 @@ pub fn set_iot_leaf_sas_config(
     image_file: &PathBuf,
     root_ca_file: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let new_image_file = super::validators::image::validate_image(image_file)?;
     validate_identity(IdentityType::Leaf, &config_file)?
         .iter()
         .for_each(|x| println!("{}", x));
     let (binds, files) = prepare_binds(vec![config_file, root_ca_file, image_file])?;
 
-    docker_exec(
+    let ret_val = docker_exec(
         Some(binds),
         Some(vec![
             "set_iot_leaf_config.sh",
@@ -346,19 +358,22 @@ pub fn set_iot_leaf_sas_config(
             "-w",
             &files[2],
         ]),
-    )
+    );
+    super::validators::image::postprocess_image(image_file, &new_image_file)?;
+    ret_val
 }
 
 pub fn set_identity_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let new_image_file = super::validators::image::validate_image(image_file)?;
     validate_identity(IdentityType::Standalone, &config_file)?
         .iter()
         .for_each(|x| println!("{}", x));
     let (binds, files) = prepare_binds(vec![config_file, image_file])?;
 
-    docker_exec(
+    let ret_val = docker_exec(
         Some(binds),
         Some(vec![
             "set_identity_config.sh",
@@ -367,16 +382,19 @@ pub fn set_identity_config(
             "-w",
             &files[1],
         ]),
-    )
+    );
+    super::validators::image::postprocess_image(image_file, &new_image_file)?;
+    ret_val
 }
 
 pub fn set_iot_hub_device_update_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let new_image_file = super::validators::image::validate_image(image_file)?;
     let (binds, files) = prepare_binds(vec![config_file, image_file])?;
 
-    docker_exec(
+    let ret_val = docker_exec(
         Some(binds),
         Some(vec![
             "copy_file_to_image.sh",
@@ -395,7 +413,9 @@ pub fn set_iot_hub_device_update_config(
             "-m",
             "0664",
         ]),
-    )
+    );
+    super::validators::image::postprocess_image(image_file, &new_image_file)?;
+    ret_val
 }
 
 #[tokio::main]
