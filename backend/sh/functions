@@ -68,7 +68,7 @@ function detach_loopdev () {
             sleep 0.1;
         done
         if losetup ${loopdev} &>/dev/null; then
-            error "Can not detach ${loopdev}. Possible reason: host system has automounted ${loopdev}."
+            error "Cannot detach ${loopdev}. Possible reason: host system has auto mounted ${loopdev}."
         fi
     else
         d_echo "${loopdev} is not attached."
