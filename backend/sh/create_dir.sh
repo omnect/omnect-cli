@@ -12,9 +12,7 @@ function finish {
     if [ ! -z "${g}" ] || [ ! -z "${u}" ]; then
         umount /tmp/mount/rootA
     fi
-    losetup -d ${loopdev}
-    while losetup ${loopdev} &>/dev/null; do sleep 0.1; done
-    sync
+    detach_loopdev
 }
 trap finish EXIT
 
@@ -63,7 +61,7 @@ d_echo "p = ${p}"
 d_echo "u = ${u}"
 d_echo "w = ${w}"
 
-[[ ! -f ${w} ]] && echo "error: input device image not found" 1>&2 && exit 1
+[[ ! -f ${w} ]] && error "input device image not found" && exit 1
 
 # set up loop device to be able to mount image.wic
 losetup_image_wic
