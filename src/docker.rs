@@ -276,7 +276,7 @@ pub fn set_enrollment_config(
             "-i",
             &files[0],
             "-o",
-            "upper/ics_dm/enrollment_static.conf",
+            "upper/ics_dm/enrollment_static.json",
             "-p",
             "etc",
             "-w",
