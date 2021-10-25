@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.0] Q4 2021
 
 - added detection of image file type (to see whether it is compressed)
+  - this is based on libmagic and requires libmagic-dev installed on the build system 
 - add transparent decompression and recompression for xz, gzip and bzip2
 
 ## [0.3.0] Q4 2021
