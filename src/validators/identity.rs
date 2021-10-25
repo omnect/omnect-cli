@@ -50,46 +50,25 @@ pub enum IdentityType {
     Leaf,
     Gateway,
 }
-const WARN_STANDALONE_MISSING_PROVISIONING: &'static str =
-    "Warning: for a standalone device, a provisioning section should be specified.";
-const WARN_STANDALONE_MISSING_DPS_PARAMS: &'static str =
-    "Warning: for provisioning source dps, global_endpoint and id_scope are required.";
-const WARN_STANDALONE_DPS_EXPECTED: &'static str = "Warning: provisioning source should be dps";
-const WARN_STANDALONE_MISSING_ATTESTATION: &'static str =
-    "Warning: for a standalone device, an attestation section should be present in the provisioning section.";
-const WARN_STANDALONE_TPM_EXPECTED: &'static str =
-    "Warning: for a standalone device, currently only tpm attestation is supported.";
-const WARN_LEAF_GATEWAY_HOSTNAME_EXPECTED: &'static str =
-    "Warning: for a leaf device, a local_gateway_hostname entry should be specified.";
-const WARN_LEAF_MISSING_PROVISIONING: &'static str =
-    "Warning: for a leaf device, a provisioning section should be specified.";
-const WARN_LEAF_MISSING_MANUAL_PARAMS: &'static str =
+const WARN_MISSING_PROVISIONING: &'static str =
+    "Warning: a provisioning section should be specified.";
+const WARN_MISSING_DPS_PARAMS: &'static str =
+    "Warning: for provisioning source dps, global_endpoint and id_scope should be specified.";
+const WARN_MISSING_MANUAL_PARAMS: &'static str =
     "Warning: for provisioning source manual, iothub_hostname and device_id are required.";
-const WARN_LEAF_MANUAL_EXPECTED: &'static str =
-    "Warning: for a leaf device, provisioning source should be manual";
-const WARN_LEAF_MISSING_AUTHENTICATION: &'static str =
-    "Warning: for a leaf device, an authentication section should be present in the provisioning section.";
-const WARN_LEAF_SAS_EXPECTED: &'static str =
-    "Warning: for a leaf device, currently only sas authentication is supported.";
-const WARN_LEAF_MISSING_DEVICE_ID_PK: &'static str =
-    "Warning: for sas authentication, a device_id_pk entry should be specified.";
-const WARN_LEAF_VALUE_OR_URI_EXPECTED: &'static str =
-    "Warning: for sas authentication, the device_id_pk map should contain either a 'value' or an 'uri' entry.";
-const WARN_GATEWAY_MISSING_PROVISIONING: &'static str =
-    "Warning: for a gateway device, a provisioning section should be specified.";
-const WARN_GATEWAY_MISSING_DPS_PARAMS: &'static str =
-    "Warning: for provisioning source dps, global_endpoint and id_scope are required.";
-const WARN_GATEWAY_DPS_EXPECTED: &'static str =
-    "Warning: for a gateway device, provisioning source should be dps";
-const WARN_GATEWAY_MISSING_ATTESTATION: &'static str =
-    "Warning: for a gateway device, an attestation section should be present in the provisioning section.";
-const WARN_GATEWAY_TPM_EXPECTED: &'static str =
-    "Warning: for a gateway device, currently only tpm attestation is supported.";
-const WARN_GATEWAY_MISSING_EDGE_CA: &'static str =
-    "Warning: for a gateway device, an edge_ca section should be specified.";
+const WARN_MISSING_AUTHENTICATION: &'static str =
+    "Warning: for provisioning source manual, an authentication section should be present in the provisioning section.";
+const WARN_MISSING_ATTESTATION: &'static str =
+    "Warning: for provisioning source dps an attestation section should be present in the provisioning section.";
+const WARN_ATTESTATION_VALID_METHOD_EXPECTED: &'static str =
+    "Warning: the attestation method should be tpm, x509 or symmetric_key.";
+const WARN_INVALID_SOURCE: &'static str =
+    "Warning: the provisioning source should be dps or manual.";
+const WARN_AUTHENTICATION_VALID_METHOD_EXPECTED: &'static str =
+    "Warning: the authentication method should be sas.";
 
 pub fn validate_identity(
-    id_type: IdentityType,
+    _id_type: IdentityType,
     config_file_name: &std::path::PathBuf,
 ) -> Result<Vec<&'static str>, Box<dyn std::error::Error>> {
     let mut out = Vec::<&'static str>::new();
@@ -109,111 +88,46 @@ pub fn validate_identity(
         }
         Ok(body) => body,
     };
-    match id_type {
-        IdentityType::Standalone => match body.provisioning {
-            None => {
-                out.push(WARN_STANDALONE_MISSING_PROVISIONING);
-            }
-            Some(p) => {
-                match p.source.as_str() {
-                    "dps" => {
-                        if p.global_endpoint == None || p.id_scope == None {
-                            out.push(WARN_STANDALONE_MISSING_DPS_PARAMS);
-                        }
-                    }
-                    _ => {
-                        out.push(WARN_STANDALONE_DPS_EXPECTED);
-                    }
+
+    match body.provisioning {
+        None => {
+            out.push(WARN_MISSING_PROVISIONING);
+        }
+        Some(p) => match p.source.as_str() {
+            "dps" => {
+                if p.global_endpoint == None || p.id_scope == None {
+                    out.push(WARN_MISSING_DPS_PARAMS);
                 }
                 match p.attestation {
                     None => {
-                        out.push(WARN_STANDALONE_MISSING_ATTESTATION);
+                        out.push(WARN_MISSING_ATTESTATION);
                     }
                     Some(a) => {
-                        if a.method != "tpm" {
-                            out.push(WARN_STANDALONE_TPM_EXPECTED);
+                        if a.method != "tpm" && a.method != "x509" && a.method != "symmetric_key" {
+                            out.push(WARN_ATTESTATION_VALID_METHOD_EXPECTED);
                         }
                     }
                 }
+            }
+            "manual" => {
+                if p.iothub_hostname == None || p.device_id == None {
+                    out.push(WARN_MISSING_MANUAL_PARAMS);
+                }
+                match p.authentication {
+                    None => {
+                        out.push(WARN_MISSING_AUTHENTICATION);
+                    }
+                    Some(a) => {
+                        if a.method != "sas" {
+                            out.push(WARN_AUTHENTICATION_VALID_METHOD_EXPECTED);
+                        }
+                    }
+                }
+            }
+            &_ => {
+                out.push(WARN_INVALID_SOURCE);
             }
         },
-        IdentityType::Leaf => {
-            if body.local_gateway_hostname == None {
-                out.push(WARN_LEAF_GATEWAY_HOSTNAME_EXPECTED);
-            }
-            match body.provisioning {
-                None => {
-                    out.push(WARN_LEAF_MISSING_PROVISIONING);
-                }
-                Some(p) => {
-                    match p.source.as_str() {
-                        "manual" => {
-                            if p.iothub_hostname == None || p.device_id == None {
-                                out.push(WARN_LEAF_MISSING_MANUAL_PARAMS);
-                            }
-                        }
-                        _ => {
-                            out.push(WARN_LEAF_MANUAL_EXPECTED);
-                        }
-                    }
-                    match p.authentication {
-                        None => {
-                            out.push(WARN_LEAF_MISSING_AUTHENTICATION);
-                        }
-                        Some(a) => match a.method.as_str() {
-                            "sas" => match a.device_id_pk {
-                                None => {
-                                    out.push(WARN_LEAF_MISSING_DEVICE_ID_PK);
-                                }
-                                Some(pk) => {
-                                    if pk.get("value") == None && pk.get("uri") == None {
-                                        out.push(WARN_LEAF_VALUE_OR_URI_EXPECTED);
-                                    }
-                                }
-                            },
-                            _ => {
-                                out.push(WARN_LEAF_SAS_EXPECTED);
-                            }
-                        },
-                    }
-                }
-            }
-        }
-        IdentityType::Gateway => {
-            match body.provisioning {
-                None => {
-                    out.push(WARN_GATEWAY_MISSING_PROVISIONING);
-                }
-                Some(p) => {
-                    match p.source.as_str() {
-                        "dps" => {
-                            if p.global_endpoint == None || p.id_scope == None {
-                                out.push(WARN_GATEWAY_MISSING_DPS_PARAMS);
-                            }
-                        }
-                        _ => {
-                            out.push(WARN_GATEWAY_DPS_EXPECTED);
-                        }
-                    }
-                    match p.attestation {
-                        None => {
-                            out.push(WARN_GATEWAY_MISSING_ATTESTATION);
-                        }
-                        Some(a) => {
-                            if a.method != "tpm" {
-                                out.push(WARN_GATEWAY_TPM_EXPECTED);
-                            }
-                        }
-                    }
-                }
-            }
-            match body.edge_ca {
-                None => {
-                    out.push(WARN_GATEWAY_MISSING_EDGE_CA);
-                }
-                Some(_e) => {}
-            }
-        }
     }
     Ok(out)
 }
@@ -244,8 +158,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(1, result.len());
-        assert_ne!(None, result[0].find("provisioning section"));
-        assert_ne!(None, result[0].find("for a standalone device"));
+        assert_ne!(
+            None,
+            result[0].find("provisioning section should be specified")
+        );
     }
 
     #[test]
@@ -257,9 +173,9 @@ mod tests {
         .unwrap();
         assert_eq!(2, result.len());
         assert_ne!(None, result[0].find("for provisioning source dps"));
+        assert_ne!(None, result[1].find("for provisioning source dps"));
         assert_ne!(None, result[0].find("global_endpoint and id_scope"));
         assert_ne!(None, result[1].find("attestation section"));
-        assert_ne!(None, result[1].find("for a standalone device"));
     }
 
     #[test]
@@ -270,9 +186,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(2, result.len());
-        assert_ne!(None, result[0].find("should be dps"));
-        assert_ne!(None, result[1].find("attestation section"));
-        assert_ne!(None, result[1].find("for a standalone device"));
+        assert_ne!(None, result[0].find("for provisioning source manual"));
+        assert_ne!(None, result[1].find("for provisioning source manual"));
+        assert_ne!(None, result[0].find("iothub_hostname and device_id"));
+        assert_ne!(None, result[1].find("authentication section"));
     }
 
     #[test]
@@ -293,8 +210,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(1, result.len());
-        assert_ne!(None, result[0].find("only tpm"));
-        assert_ne!(None, result[0].find("for a standalone device"));
+        assert_ne!(
+            None,
+            result[0].find("attestation method should be tpm, x509 or symmetric_key")
+        );
     }
 
     #[test]
@@ -318,11 +237,11 @@ mod tests {
             &std::path::PathBuf::from("testfiles/identity_config_minimal.toml"),
         )
         .unwrap();
-        assert_eq!(2, result.len());
-        assert_ne!(None, result[0].find("for a leaf device"));
-        assert_ne!(None, result[0].find("local_gateway_hostname"));
-        assert_ne!(None, result[1].find("for a leaf device"));
-        assert_ne!(None, result[1].find("provisioning section"));
+        assert_eq!(1, result.len());
+        assert_ne!(
+            None,
+            result[0].find("provisioning section should be specified")
+        );
     }
 
     #[test]
@@ -332,13 +251,11 @@ mod tests {
             &std::path::PathBuf::from("testfiles/identity_config_dps.toml"),
         )
         .unwrap();
-        assert_eq!(3, result.len());
-        assert_ne!(None, result[0].find("for a leaf device"));
-        assert_ne!(None, result[0].find("local_gateway_hostname"));
-        assert_ne!(None, result[1].find("should be manual"));
-        assert_ne!(None, result[1].find("for a leaf device"));
-        assert_ne!(None, result[2].find("authentication section"));
-        assert_ne!(None, result[2].find("for a leaf device"));
+        assert_eq!(2, result.len());
+        assert_ne!(None, result[0].find("for provisioning source dps"));
+        assert_ne!(None, result[0].find("global_endpoint and id_scope"));
+        assert_ne!(None, result[1].find("for provisioning source dps"));
+        assert_ne!(None, result[1].find("attestation section"));
     }
 
     #[test]
@@ -348,13 +265,11 @@ mod tests {
             &std::path::PathBuf::from("testfiles/identity_config_manual.toml"),
         )
         .unwrap();
-        assert_eq!(3, result.len());
-        assert_ne!(None, result[0].find("for a leaf device"));
-        assert_ne!(None, result[0].find("local_gateway_hostname"));
-        assert_ne!(None, result[1].find("iothub_hostname and device_id"));
+        assert_eq!(2, result.len());
+        assert_ne!(None, result[0].find("for provisioning source manual"));
+        assert_ne!(None, result[0].find("iothub_hostname and device_id"));
         assert_ne!(None, result[1].find("for provisioning source manual"));
-        assert_ne!(None, result[2].find("authentication section"));
-        assert_ne!(None, result[2].find("for a leaf device"));
+        assert_ne!(None, result[1].find("authentication section"));
     }
 
     #[test]
@@ -364,9 +279,7 @@ mod tests {
             &std::path::PathBuf::from("testfiles/identity_config_manual_sas.toml"),
         )
         .unwrap();
-        assert_eq!(1, result.len());
-        assert_ne!(None, result[0].find("device_id_pk"));
-        assert_ne!(None, result[0].find("for sas authentication"));
+        assert_eq!(0, result.len());
     }
 
     #[test]
@@ -377,8 +290,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(1, result.len());
-        assert_ne!(None, result[0].find("only sas authentication"));
-        assert_ne!(None, result[0].find("for a leaf device"));
+        assert_ne!(
+            None,
+            result[0].find("the authentication method should be sas")
+        );
     }
 
     #[test]
@@ -412,11 +327,11 @@ mod tests {
             &std::path::PathBuf::from("testfiles/identity_config_minimal.toml"),
         )
         .unwrap();
-        assert_eq!(2, result.len());
-        assert_ne!(None, result[0].find("for a gateway device"));
-        assert_ne!(None, result[0].find("provisioning section"));
-        assert_ne!(None, result[1].find("for a gateway device"));
-        assert_ne!(None, result[1].find("edge_ca"));
+        assert_eq!(1, result.len());
+        assert_ne!(
+            None,
+            result[0].find("provisioning section should be specified")
+        );
     }
 
     #[test]
@@ -426,13 +341,11 @@ mod tests {
             &std::path::PathBuf::from("testfiles/identity_config_dps.toml"),
         )
         .unwrap();
-        assert_eq!(3, result.len());
+        assert_eq!(2, result.len());
         assert_ne!(None, result[0].find("for provisioning source dps"));
         assert_ne!(None, result[0].find("global_endpoint and id_scope"));
-        assert_ne!(None, result[1].find("for a gateway device"));
+        assert_ne!(None, result[1].find("for provisioning source dps"));
         assert_ne!(None, result[1].find("attestation section"));
-        assert_ne!(None, result[2].find("for a gateway device"));
-        assert_ne!(None, result[2].find("edge_ca"));
     }
 
     #[test]
@@ -442,12 +355,11 @@ mod tests {
             &std::path::PathBuf::from("testfiles/identity_config_manual.toml"),
         )
         .unwrap();
-        assert_eq!(3, result.len());
-        assert_ne!(None, result[0].find("should be dps"));
-        assert_ne!(None, result[1].find("for a gateway device"));
-        assert_ne!(None, result[1].find("attestation section"));
-        assert_ne!(None, result[2].find("for a gateway device"));
-        assert_ne!(None, result[2].find("edge_ca"));
+        assert_eq!(2, result.len());
+        assert_ne!(None, result[0].find("provisioning source manual"));
+        assert_ne!(None, result[0].find("iothub_hostname and device_id"));
+        assert_ne!(None, result[1].find("provisioning source manual"));
+        assert_ne!(None, result[1].find("authentication section"));
     }
 
     #[test]
@@ -457,9 +369,7 @@ mod tests {
             &std::path::PathBuf::from("testfiles/identity_config_dps_tpm.toml"),
         )
         .unwrap();
-        assert_eq!(1, result.len());
-        assert_ne!(None, result[0].find("for a gateway device"));
-        assert_ne!(None, result[0].find("edge_ca"));
+        assert_eq!(0, result.len());
     }
 
     #[test]
@@ -469,11 +379,11 @@ mod tests {
             &std::path::PathBuf::from("testfiles/identity_config_dps_sas.toml"),
         )
         .unwrap();
-        assert_eq!(2, result.len());
-        assert_ne!(None, result[0].find("for a gateway device"));
-        assert_ne!(None, result[0].find("only tpm"));
-        assert_ne!(None, result[1].find("for a gateway device"));
-        assert_ne!(None, result[1].find("edge_ca"));
+        assert_eq!(1, result.len());
+        assert_ne!(
+            None,
+            result[0].find("attestation method should be tpm, x509 or symmetric_key")
+        );
     }
 
     #[test]

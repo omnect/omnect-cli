@@ -48,6 +48,7 @@ ics-dm-cli wifi set -c <path>/wpa_supplicant.conf -i <path>/image.wic
 
 # Enrollment configuration
 ## Inject enrollment configuration
+This is an optional step to configure the [enrollment demo](https://github.com/ICS-DeviceManagement/enrollment) in case it is part of your image.
 Adapt [enrollment_static.json.template](conf/enrollment_static.json.template) to your needs.
 
 ```sh

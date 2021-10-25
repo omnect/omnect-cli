@@ -11,9 +11,7 @@ function finish {
     umount /tmp/mount/data
     umount /tmp/mount/etc
     umount /tmp/mount/rootA
-    losetup -d ${loopdev}
-    while losetup ${loopdev} &>/dev/null; do sleep 0.1; done
-    sync
+    detach_loopdev
 }
 trap finish EXIT
 
@@ -46,8 +44,8 @@ fi
 d_echo "c = ${c}"
 d_echo "w = ${w}"
 
-[[ ! -f ${w} ]] && echo "error: input device image not found" 1>&2 && exit 1
-[[ ! -f ${c} ]] && echo "error: input file \"${c}\" not found" 1>&2 && exit 1
+[[ ! -f ${w} ]] && error "input device image not found"     && exit 1
+[[ ! -f ${c} ]] && error "input file \"${c}\" not found"    && exit 1
 
 # set up loop device to be able to mount image.wic
 losetup_image_wic
@@ -81,7 +79,7 @@ if [ -e /tmp/mount/rootA/usr/bin/iotedge ]; then
 elif [ -e /tmp/mount/rootA/usr/bin/aziotctl ]; then
     echo "aziotctl config apply" >> /tmp/mount/rootA/usr/bin/ics_dm_first_boot.sh
 else
-    echo "no binary found to apply config.toml" 1>&2; exit 1;
+    error "no binary found to apply config.toml"; exit 1;
 fi
 
 # config hostname

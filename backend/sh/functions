@@ -6,6 +6,10 @@ function d_echo() {
     fi
 }
 
+function error() {
+    echo "error: ${@}" 1>&2
+}
+
 function search_part_loopdev () {
     for part in ${loopdev}p*
     do
@@ -21,7 +25,7 @@ function search_part_loopdev () {
 function mount_part () {
     search_part_loopdev
 
-    [[ -z "${partloopdev}" ]] && echo "error: couldnt set up loopdev for input device image (part_pattern: ${part_pattern})" 1>&2 && exit 1
+    [[ -z "${partloopdev}" ]] && error "couldnt set up loopdev for input device image (part_pattern: ${part_pattern})" && exit 1
     mkdir -p /tmp/mount/${part_pattern}
     mount -o loop ${partloopdev} /tmp/mount/${part_pattern}
 }
@@ -51,4 +55,22 @@ function set_hostname () {
 function config_hostname () {
     get_hostname ${1}
     set_hostname
+}
+
+function detach_loopdev () {
+    if [ "x" != "x${loopdev}" ]; then
+        losetup -d ${loopdev}
+        sync
+        i=0;
+        while losetup ${loopdev} &>/dev/null && [[ i -le 10 ]]; do
+            d_echo "zZz";
+            i=$((i+1));
+            sleep 0.1;
+        done
+        if losetup ${loopdev} &>/dev/null; then
+            error "Cannot detach ${loopdev}. Possible reason: host system has auto mounted ${loopdev}."
+        fi
+    else
+        d_echo "${loopdev} is not attached."
+    fi
 }
