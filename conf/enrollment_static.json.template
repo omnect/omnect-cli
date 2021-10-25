@@ -1,0 +1,8 @@
+{
+  "dpsConnectionString": "HostName=my-dps.azure-devices-provisioning.net;SharedAccessKeyName=provisioningserviceowner;SharedAccessKey=************************************",
+  "iothubConnectionString": "HostName=my-iothub.azure-devices-provisioning.net;SharedAccessKeyName=provisioningserviceowner;SharedAccessKey=************************************",
+  "tags": {
+    "machine": "my-machine",
+    "ADUGroup": "my-adugroup"
+  }
+}

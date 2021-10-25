@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] Q4 2021
+
+- added validation to identity config
+- cargo update to fix assertion in tokio when system clock is not monotonic (for example inside a VM)
+- add /etc/hosts to rootA partition in testfiles/image.wic
+- added validation to enrollment config
+- applied rustfmt
+
 ## [0.2.6] Q4 2021
 
 - backend: fix possible deadlock in finish handler
