@@ -1,9 +1,3 @@
 .vscode
-target
-tests/testfiles/config.toml
-tests/testfiles/device-ca.key.pem
-tests/testfiles/enrollment_static.conf
-tests/testfiles/full-chain.cert.pem
-tests/testfiles/image.wic
-tests/testfiles/root.ca.cert.pem
-tests/testfiles/wpa_supplicant.conf
+/local
+/target

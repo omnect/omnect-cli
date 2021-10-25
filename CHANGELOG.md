@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - added validation to enrollment config
 - applied rustfmt
 
+## [0.2.6] Q4 2021
+
+- backend: fix possible deadlock in finish handler
+
 ## [0.2.5] Q4 2021
 
 - refactored command input file handling

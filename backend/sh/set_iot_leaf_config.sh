@@ -11,9 +11,7 @@ function finish {
     umount /tmp/mount/data
     umount /tmp/mount/etc
     umount /tmp/mount/rootA
-    losetup -d ${loopdev}
-    while losetup ${loopdev} &>/dev/null; do sleep 0.1; done
-    sync
+    detach_loopdev
 }
 trap finish EXIT
 
@@ -62,11 +60,11 @@ d_echo "k = ${k}"
 d_echo "r = ${r}"
 d_echo "w = ${w}"
 
-[[ ! -f ${w} ]] && echo "error: input device image not found" 1>&2 && exit 1
-#[[ ! -f ${d} ]] && echo "error: input file \"${d}\" not found" 1>&2 && exit 1
-[[ ! -f ${c} ]] && echo "error: input file \"${c}\" not found" 1>&2 && exit 1
-#[[ ! -f ${k} ]] && echo "error: input file \"${k}\" not found" 1>&2 && exit 1
-[[ ! -f ${r} ]] && echo "error: input file \"${r}\" not found" 1>&2 && exit 1
+[[ ! -f ${w} ]] && error "input device image not found"     && exit 1
+#[[ ! -f ${d} ]] && error "input file \"${d}\" not found"   && exit 1
+[[ ! -f ${c} ]] && error "input file \"${c}\" not found"    && exit 1
+#[[ ! -f ${k} ]] && error "input file \"${k}\" not found"   && exit 1
+[[ ! -f ${r} ]] && error "input file \"${r}\" not found"    && exit 1
 
 # set up loop device to be able to mount image.wic
 losetup_image_wic
