@@ -136,7 +136,7 @@ async fn decompress(
     let mut source = File::open(image_file_name).await?;
     let mut decompressor = generator.decompressor(&mut destination);
     tokio::io::copy(&mut source, &mut decompressor).await?;
-    Ok(new_image_file);
+    Ok(new_image_file)
 }
 
 #[tokio::main]
@@ -149,7 +149,7 @@ async fn compress(
     let mut source = File::open(uncompressed_file_name).await?;
     let mut decompressor = generator.compressor(&mut destination);
     tokio::io::copy(&mut source, &mut decompressor).await?;
-    Ok(());
+    Ok(())
 }
 
 pub fn postprocess_image(
