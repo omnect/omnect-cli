@@ -91,7 +91,10 @@ const COMPRESSION_TABLE: [CompressionAlternative; 3] = [
     },
 ];
 
-pub fn validate_image(image_file_name: &PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
+pub fn validate_and_decompress_image(
+    image_file_name: &PathBuf,
+    action: impl FnOnce(&PathBuf) -> Result<(), Box<dyn std::error::Error>>,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("Detecting magic for {}", image_file_name.to_string_lossy());
     let detector = Magic::open(Default::default());
     let detector = match detector {
@@ -115,13 +118,46 @@ pub fn validate_image(image_file_name: &PathBuf) -> Result<PathBuf, Box<dyn std:
     let magic = detector.file(&image_file_name)?;
     for elem in COMPRESSION_TABLE {
         if magic.find(elem.marker) != None {
-            println!("Compressed file found, decompressing...");
+            println!("Compressed image file found, decompressing...");
             let new_image_file = decompress(image_file_name, elem.extension, elem.generator)?;
             println!("Decompressed to {}", new_image_file.to_string_lossy());
-            return Ok(new_image_file);
+            let mut success = action(&new_image_file);
+            match success {
+                Ok(_n) => {
+                    println!(
+                        "Recompressing image to {}",
+                        image_file_name.to_string_lossy()
+                    );
+                    match compress(image_file_name, &new_image_file, elem.generator) {
+                        Ok(_e) => {
+                            println!("Compression complete.");
+                        }
+                        Err(e) => {
+                            success = Err(Box::new(Error::new(
+                                ErrorKind::Other,
+                                format!("Recompressing failed with error {}", e.to_string()),
+                            )));
+                        }
+                    }
+                }
+                _ => {}
+            }
+            match remove_file(new_image_file) {
+                Err(e) => {
+                    success = Err(Box::new(Error::new(
+                        ErrorKind::Other,
+                        format!(
+                            "Deleting temporary file failed with error {}",
+                            e.to_string()
+                        ),
+                    )));
+                }
+                _ => {}
+            }
+            return success;
         }
     }
-    Ok(image_file_name.to_path_buf())
+    action(image_file_name)
 }
 
 #[tokio::main]
@@ -152,42 +188,42 @@ async fn compress(
     Ok(())
 }
 
-pub fn postprocess_image(
-    original_file_name: &PathBuf,
-    unpacked_file_name: &PathBuf,
-) -> Result<(), Box<dyn std::error::Error>> {
-    if original_file_name == unpacked_file_name {
-        return Ok(());
-    }
-    for elem in COMPRESSION_TABLE {
-        if unpacked_file_name.to_string_lossy().find(elem.extension) != None {
-            println!("Uncompressed file found, compressing...");
-            match compress(original_file_name, unpacked_file_name, elem.generator) {
-                Ok(_e) => {
-                    println!("Compressed to {}", original_file_name.to_string_lossy());
-                    match remove_file(unpacked_file_name) {
-                        Err(e) => {
-                            return Err(Box::new(Error::new(
-                                ErrorKind::Other,
-                                format!(
-                                    "Deleting temporary file failed with error {}",
-                                    e.to_string()
-                                ),
-                            )));
-                        }
-                        Ok(_) => {
-                            return Ok(());
-                        }
-                    }
-                }
-                Err(e) => {
-                    return Err(Box::new(Error::new(
-                        ErrorKind::Other,
-                        format!("Recompressing failed with error {}", e.to_string()),
-                    )));
-                }
-            }
-        }
-    }
-    Ok(())
-}
+// pub fn postprocess_image(
+//     original_file_name: &PathBuf,
+//     unpacked_file_name: &PathBuf,
+// ) -> Result<(), Box<dyn std::error::Error>> {
+//     if original_file_name == unpacked_file_name {
+//         return Ok(());
+//     }
+//     for elem in COMPRESSION_TABLE {
+//         if unpacked_file_name.to_string_lossy().find(elem.extension) != None {
+//             println!("Uncompressed file found, compressing...");
+//             match compress(original_file_name, unpacked_file_name, elem.generator) {
+//                 Ok(_e) => {
+//                     println!("Compressed to {}", original_file_name.to_string_lossy());
+//                     match remove_file(unpacked_file_name) {
+//                         Err(e) => {
+//                             return Err(Box::new(Error::new(
+//                                 ErrorKind::Other,
+//                                 format!(
+//                                     "Deleting temporary file failed with error {}",
+//                                     e.to_string()
+//                                 ),
+//                             )));
+//                         }
+//                         Ok(_) => {
+//                             return Ok(());
+//                         }
+//                     }
+//                 }
+//                 Err(e) => {
+//                     return Err(Box::new(Error::new(
+//                         ErrorKind::Other,
+//                         format!("Recompressing failed with error {}", e.to_string()),
+//                     )));
+//                 }
+//             }
+//         }
+//     }
+//     Ok(())
+// }
