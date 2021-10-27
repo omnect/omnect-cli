@@ -25,14 +25,16 @@ resources:
       username: ((bb_registry_user))
       password: ((bb_registry_password))
       insecure_registries: ((bb_insecure_registries))
+    check_every: never
 
   - name: rust-image
     type: docker-image
     source:
-      repository: rust
-      username: ((docker_io_registry_user))
-      password: ((docker_io_registry_password))
-      tag: slim-buster
+      repository: icsdm.azurecr.io/rust
+      username: ((ics_dm_registry_user))
+      password: ((ics_dm_registry_password))
+      tag: latest
+    check_every: never
 
   - name: concourse-rust-dnd
     type: docker-image
@@ -41,6 +43,7 @@ resources:
       username: ((ics_dm_registry_user))
       password: ((ics_dm_registry_password))
       tag: latest
+    check_every: never
 
   - name: send-an-email
     type: email
@@ -57,32 +60,63 @@ resources:
         login_auth: ((email_smtp_login_auth))
       from:  ((email_from))
       to: ((email_to))
+    check_every: never
+
+email_success_notification: &email_success_notification
+  put: send-an-email
+  params:
+    subject_text: "ci ${BUILD_PIPELINE_NAME}: build ${BUILD_ID} successfully finished"
+    body_text: |
+      Yeah!
+      Build ID: "${BUILD_ID}"
+      Build Name: "${BUILD_NAME}"
+      Build Job Name: "${BUILD_JOB_NAME}"
+      Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
+      ATC External URL: "${ATC_EXTERNAL_URL}"
+
+email_failure_notification: &email_failure_notification
+  put: send-an-email
+  params:
+    subject_text: "ci ${BUILD_PIPELINE_NAME}: build ${BUILD_ID} failed!"
+    body_text: |
+      Oh no!
+      Build ID: "${BUILD_ID}"
+      Build Name: "${BUILD_NAME}"
+      Build Job Name: "${BUILD_JOB_NAME}"
+      Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
+      ATC External URL: "${ATC_EXTERNAL_URL}"
+
+email_error_notification: &email_error_notification
+  put: send-an-email
+  params:
+    subject_text: "ci ${BUILD_PIPELINE_NAME}: build ${BUILD_ID} error!"
+    body_text: |
+      Oh no!
+      Build ID: "${BUILD_ID}"
+      Build Name: "${BUILD_NAME}"
+      Build Job Name: "${BUILD_JOB_NAME}"
+      Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
+      ATC External URL: "${ATC_EXTERNAL_URL}"
+
+email_abort_notification: &email_abort_notification
+  put: send-an-email
+  params:
+    subject_text: "ci ${BUILD_PIPELINE_NAME}: build ${BUILD_ID} aborted!"
+    body_text: |
+      Oh no!
+      Build ID: "${BUILD_ID}"
+      Build Name: "${BUILD_NAME}"
+      Build Job Name: "${BUILD_JOB_NAME}"
+      Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
+      ATC External URL: "${ATC_EXTERNAL_URL}"
 
 jobs:
   - name: build-and-deploy-ics-dm-cli
     public: true
-    on_failure:
-      put: send-an-email
-      params:
-        subject_text: "ci ${BUILD_PIPELINE_NAME}: build ${BUILD_ID} failed!"
-        body_text: |
-          Oh no!
-          Build ID: "${BUILD_ID}"
-          Build Name: "${BUILD_NAME}"
-          Build Job Name: "${BUILD_JOB_NAME}"
-          Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
-          ATC External URL: "${ATC_EXTERNAL_URL}"
-    on_success:
-      put: send-an-email
-      params:
-        subject_text: "ci ${BUILD_PIPELINE_NAME}: build ${BUILD_ID} successfully finished"
-        body_text: |
-          Yeah!
-          Build ID: "${BUILD_ID}"
-          Build Name: "${BUILD_NAME}"
-          Build Job Name: "${BUILD_JOB_NAME}"
-          Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
-          ATC External URL: "${ATC_EXTERNAL_URL}"
+    on_failure: *email_failure_notification
+    on_success: *email_success_notification
+    on_abort: *email_abort_notification
+    on_error: *email_error_notification
     plan:
       - in_parallel:
         - get: source
