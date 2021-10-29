@@ -1,6 +1,6 @@
 [package]
 name = "ics-dm-cli"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Marcel Lilienthal <134974+mlilien@users.noreply.github.com>",
            "Jan Zachmann <jan.zachmann@conplement.de>"]
 edition = "2018"
@@ -12,7 +12,7 @@ structopt = "0.3.21"
 bollard = "0.11.0"
 futures-util = "0.3.15"
 futures-executor = "0.3.15"
-tokio = { version = "1.12.*", features = ["macros"] }
+tokio = { version = "1.12.*", features = ["macros", "io-std", "io-util", "fs"] }
 serde_json = "1.0.59"
 validator = { version = "0.12", features = ["derive"] }
 serde = "1.0.*"
@@ -27,3 +27,5 @@ tempfile = "3.2.0"
 lazy_static = "1.4.0"
 stdext = "0.3.*"
 toml = "0.5.*"
+filemagic = "0.12"
+async-compression = { version = "0.3.8", features = ["tokio", "bzip2", "gzip", "xz"] }
