@@ -50,22 +50,20 @@ pub enum IdentityType {
     Leaf,
     Gateway,
 }
-const WARN_MISSING_PROVISIONING: &'static str =
-    "Warning: a provisioning section should be specified.";
+const WARN_MISSING_PROVISIONING: &'static str = "A provisioning section should be specified.";
 const WARN_MISSING_DPS_PARAMS: &'static str =
-    "Warning: for provisioning source dps, global_endpoint and id_scope should be specified.";
+    "For provisioning source dps, global_endpoint and id_scope should be specified.";
 const WARN_MISSING_MANUAL_PARAMS: &'static str =
-    "Warning: for provisioning source manual, iothub_hostname and device_id are required.";
+    "For provisioning source manual, iothub_hostname and device_id are required.";
 const WARN_MISSING_AUTHENTICATION: &'static str =
-    "Warning: for provisioning source manual, an authentication section should be present in the provisioning section.";
+    "For provisioning source manual, an authentication section should be present in the provisioning section.";
 const WARN_MISSING_ATTESTATION: &'static str =
-    "Warning: for provisioning source dps an attestation section should be present in the provisioning section.";
+    "For provisioning source dps an attestation section should be present in the provisioning section.";
 const WARN_ATTESTATION_VALID_METHOD_EXPECTED: &'static str =
-    "Warning: the attestation method should be tpm, x509 or symmetric_key.";
-const WARN_INVALID_SOURCE: &'static str =
-    "Warning: the provisioning source should be dps or manual.";
+    "The attestation method should be tpm, x509 or symmetric_key.";
+const WARN_INVALID_SOURCE: &'static str = "The provisioning source should be dps or manual.";
 const WARN_AUTHENTICATION_VALID_METHOD_EXPECTED: &'static str =
-    "Warning: the authentication method should be sas.";
+    "The authentication method should be sas.";
 
 pub fn validate_identity(
     _id_type: IdentityType,
@@ -136,8 +134,14 @@ pub fn validate_identity(
 mod tests {
     use super::*;
 
+    lazy_static! {
+        static ref LOG: () =
+            env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
+                .init();
+    }
     #[test]
     fn identity_config_standalone_empty() {
+        lazy_static::initialize(&LOG);
         assert_ne!(
             None,
             validate_identity(
@@ -152,6 +156,7 @@ mod tests {
 
     #[test]
     fn identity_config_standalone_minimal() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             &std::path::PathBuf::from("testfiles/identity_config_minimal.toml"),
@@ -166,34 +171,37 @@ mod tests {
 
     #[test]
     fn identity_config_standalone_dps() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             &std::path::PathBuf::from("testfiles/identity_config_dps.toml"),
         )
         .unwrap();
         assert_eq!(2, result.len());
-        assert_ne!(None, result[0].find("for provisioning source dps"));
-        assert_ne!(None, result[1].find("for provisioning source dps"));
+        assert_ne!(None, result[0].find("provisioning source dps"));
+        assert_ne!(None, result[1].find("provisioning source dps"));
         assert_ne!(None, result[0].find("global_endpoint and id_scope"));
         assert_ne!(None, result[1].find("attestation section"));
     }
 
     #[test]
     fn identity_config_standalone_manual() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             &std::path::PathBuf::from("testfiles/identity_config_manual.toml"),
         )
         .unwrap();
         assert_eq!(2, result.len());
-        assert_ne!(None, result[0].find("for provisioning source manual"));
-        assert_ne!(None, result[1].find("for provisioning source manual"));
+        assert_ne!(None, result[0].find("provisioning source manual"));
+        assert_ne!(None, result[1].find("provisioning source manual"));
         assert_ne!(None, result[0].find("iothub_hostname and device_id"));
         assert_ne!(None, result[1].find("authentication section"));
     }
 
     #[test]
     fn identity_config_standalone_dps_tpm() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             &std::path::PathBuf::from("testfiles/identity_config_dps_tpm.toml"),
@@ -204,6 +212,7 @@ mod tests {
 
     #[test]
     fn identity_config_standalone_dps_sas() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             &std::path::PathBuf::from("testfiles/identity_config_dps_sas.toml"),
@@ -218,6 +227,7 @@ mod tests {
 
     #[test]
     fn identity_config_leaf_empty() {
+        lazy_static::initialize(&LOG);
         assert_ne!(
             None,
             validate_identity(
@@ -232,6 +242,7 @@ mod tests {
 
     #[test]
     fn identity_config_leaf_minimal() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
             &std::path::PathBuf::from("testfiles/identity_config_minimal.toml"),
@@ -246,34 +257,37 @@ mod tests {
 
     #[test]
     fn identity_config_leaf_dps() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
             &std::path::PathBuf::from("testfiles/identity_config_dps.toml"),
         )
         .unwrap();
         assert_eq!(2, result.len());
-        assert_ne!(None, result[0].find("for provisioning source dps"));
+        assert_ne!(None, result[0].find("provisioning source dps"));
         assert_ne!(None, result[0].find("global_endpoint and id_scope"));
-        assert_ne!(None, result[1].find("for provisioning source dps"));
+        assert_ne!(None, result[1].find("provisioning source dps"));
         assert_ne!(None, result[1].find("attestation section"));
     }
 
     #[test]
     fn identity_config_leaf_manual() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
             &std::path::PathBuf::from("testfiles/identity_config_manual.toml"),
         )
         .unwrap();
         assert_eq!(2, result.len());
-        assert_ne!(None, result[0].find("for provisioning source manual"));
+        assert_ne!(None, result[0].find("provisioning source manual"));
         assert_ne!(None, result[0].find("iothub_hostname and device_id"));
-        assert_ne!(None, result[1].find("for provisioning source manual"));
+        assert_ne!(None, result[1].find("provisioning source manual"));
         assert_ne!(None, result[1].find("authentication section"));
     }
 
     #[test]
     fn identity_config_leaf_manual_sas() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
             &std::path::PathBuf::from("testfiles/identity_config_manual_sas.toml"),
@@ -284,20 +298,19 @@ mod tests {
 
     #[test]
     fn identity_config_leaf_manual_tpm() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
             &std::path::PathBuf::from("testfiles/identity_config_manual_tpm.toml"),
         )
         .unwrap();
         assert_eq!(1, result.len());
-        assert_ne!(
-            None,
-            result[0].find("the authentication method should be sas")
-        );
+        assert_ne!(None, result[0].find("authentication method should be sas"));
     }
 
     #[test]
     fn identity_config_leaf_no_warn() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
             &std::path::PathBuf::from("conf/config.toml.ics-iot-leaf.template"),
@@ -308,6 +321,7 @@ mod tests {
 
     #[test]
     fn identity_config_gateway_empty() {
+        lazy_static::initialize(&LOG);
         assert_ne!(
             None,
             validate_identity(
@@ -322,6 +336,7 @@ mod tests {
 
     #[test]
     fn identity_config_gateway_minimal() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
             &std::path::PathBuf::from("testfiles/identity_config_minimal.toml"),
@@ -336,20 +351,22 @@ mod tests {
 
     #[test]
     fn identity_config_gateway_dps() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
             &std::path::PathBuf::from("testfiles/identity_config_dps.toml"),
         )
         .unwrap();
         assert_eq!(2, result.len());
-        assert_ne!(None, result[0].find("for provisioning source dps"));
+        assert_ne!(None, result[0].find("provisioning source dps"));
         assert_ne!(None, result[0].find("global_endpoint and id_scope"));
-        assert_ne!(None, result[1].find("for provisioning source dps"));
+        assert_ne!(None, result[1].find("provisioning source dps"));
         assert_ne!(None, result[1].find("attestation section"));
     }
 
     #[test]
     fn identity_config_gateway_manual() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
             &std::path::PathBuf::from("testfiles/identity_config_manual.toml"),
@@ -364,6 +381,7 @@ mod tests {
 
     #[test]
     fn identity_config_gateway_dps_tpm() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
             &std::path::PathBuf::from("testfiles/identity_config_dps_tpm.toml"),
@@ -374,6 +392,7 @@ mod tests {
 
     #[test]
     fn identity_config_gateway_dps_sas() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
             &std::path::PathBuf::from("testfiles/identity_config_dps_sas.toml"),
@@ -388,6 +407,7 @@ mod tests {
 
     #[test]
     fn identity_config_gateway_no_warn() {
+        lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
             &std::path::PathBuf::from("conf/config.toml.ics-iotedge-gateway.template"),

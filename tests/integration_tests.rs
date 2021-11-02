@@ -2,6 +2,8 @@ mod common;
 use common::Testrunner;
 use ics_dm_cli::docker;
 use stdext::function_name;
+#[macro_use]
+extern crate lazy_static;
 
 #[test]
 fn check_set_wifi_config() {
