@@ -222,7 +222,7 @@ async fn docker_exec(
                         info!("stdout: {}", line_without_nl)
                     }
                     LogOutput::Console { .. } => {
-                        info!("console: {}", line_without_nl)
+                        debug!("console: {}", line_without_nl)
                     }
                     LogOutput::StdErr { .. } => {
                         error!("stderr: {}", line_without_nl);
