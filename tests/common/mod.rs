@@ -7,8 +7,11 @@ const TMPDIR_FORMAT_STR: &'static str = "/tmp/ics-dm-cli-integration-tests/";
 const TESTDIR_FORMAT_STR: &'static str = "testfiles/";
 
 lazy_static! {
-    static ref LOG: () =
-        Builder::from_env(Env::default().default_filter_or("debug,bollard::read=info")).init();
+    static ref LOG: () = if cfg!(debug_assertions) {
+        Builder::from_env(Env::default().default_filter_or("debug,bollard::read=info")).init()
+    } else {
+        Builder::from_env(Env::default().default_filter_or("info")).init()
+    };
 }
 
 pub struct Testrunner {
