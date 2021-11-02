@@ -1,3 +1,4 @@
+use log::{debug, error, info, warn};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -94,7 +95,7 @@ async fn docker_exec(
         let mut filters = HashMap::new();
         let img_id = DOCKER_IMAGE_ID.as_str();
 
-        println!("backend image id: {}", img_id);
+        info!("backend image id: {}", img_id);
 
         filters.insert("reference", vec![img_id]);
 
@@ -105,6 +106,7 @@ async fn docker_exec(
         }));
 
         if true == image_list.await?.is_empty() {
+            debug!("Image not already present, creating it.");
             docker
                 .create_image(
                     Some(CreateImageOptions {
@@ -116,6 +118,7 @@ async fn docker_exec(
                 )
                 .try_collect::<Vec<_>>()
                 .await?;
+            debug!("Image created.");
         }
 
         let file = NamedTempFile::new()?;
@@ -132,6 +135,8 @@ async fn docker_exec(
             ));
             binds = Some(vec);
         }
+
+        debug!("Using binds: {:?}", binds);
 
         let host_config = HostConfig {
             auto_remove: Some(true),
@@ -175,16 +180,20 @@ async fn docker_exec(
         // close temp file, but keep the path to it around
         let path = file.into_temp_path();
 
+        debug!("Creating container instance.");
         let container = docker
             .create_container::<&str, &str>(None, container_config)
             .await?;
+        debug!("Created container instance.");
 
         // by this block we ensure that docker.remove_container container is called
         // even if an error occured before
         let run_container_result = async {
+            debug!("Starting container instance.");
             docker
                 .start_container::<String>(&container.id, None)
                 .await?;
+            debug!("Started container instance.");
 
             let logs_options = Some(LogsOptions {
                 follow: true,
@@ -198,18 +207,25 @@ async fn docker_exec(
             let mut stream = docker.logs(&container.id, logs_options);
 
             while let Some(log) = stream.try_next().await? {
+                let mut line_without_nl = format!("{}", log);
+                if line_without_nl.ends_with('\n') {
+                    line_without_nl.pop();
+                }
+                if line_without_nl.ends_with('\r') {
+                    line_without_nl.pop();
+                }
                 match log {
                     LogOutput::StdIn { .. } => {
-                        print!("stdin: {}", log)
+                        info!("stdin: {}", line_without_nl)
                     }
                     LogOutput::StdOut { .. } => {
-                        print!("stdout: {}", log)
+                        info!("stdout: {}", line_without_nl)
                     }
                     LogOutput::Console { .. } => {
-                        print!("console: {}", log)
+                        info!("console: {}", line_without_nl)
                     }
                     LogOutput::StdErr { .. } => {
-                        eprintln!("stderr: {}", log);
+                        error!("stderr: {}", line_without_nl);
                         // save error string to
                         stream_error_log = Some(log.to_string());
                         break;
@@ -232,6 +248,12 @@ async fn docker_exec(
 
         if !contents.is_empty() {
             docker_run_result = Err(Box::<dyn std::error::Error>::from(contents))
+        }
+        match docker_run_result {
+            Ok(()) => {
+                debug!("Command ran successfully.");
+            }
+            _ => {} // Error will be printed by caller.
         }
 
         docker_run_result
@@ -309,7 +331,7 @@ pub fn set_iotedge_gateway_config(
 ) -> Result<(), Box<dyn std::error::Error>> {
     validate_identity(IdentityType::Gateway, &config_file)?
         .iter()
-        .for_each(|x| println!("{}", x));
+        .for_each(|x| warn!("{}", x));
 
     super::validators::image::validate_and_decompress_image(
         image_file,
@@ -349,7 +371,7 @@ pub fn set_iot_leaf_sas_config(
 ) -> Result<(), Box<dyn std::error::Error>> {
     validate_identity(IdentityType::Leaf, &config_file)?
         .iter()
-        .for_each(|x| println!("{}", x));
+        .for_each(|x| warn!("{}", x));
 
     super::validators::image::validate_and_decompress_image(
         image_file,
@@ -378,7 +400,7 @@ pub fn set_identity_config(
 ) -> Result<(), Box<dyn std::error::Error>> {
     validate_identity(IdentityType::Standalone, &config_file)?
         .iter()
-        .for_each(|x| println!("{}", x));
+        .for_each(|x| warn!("{}", x));
 
     super::validators::image::validate_and_decompress_image(
         image_file,
@@ -437,7 +459,7 @@ pub async fn docker_version() -> Result<(), Error> {
     block_on(async move {
         let docker = Docker::connect_with_local_defaults().unwrap();
         let version = docker.version().await.unwrap();
-        println!("docker version: {:#?}", version);
+        info!("docker version: {:#?}", version);
     });
     Ok(())
 }

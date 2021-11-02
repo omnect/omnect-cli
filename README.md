@@ -107,6 +107,9 @@ ics-dm-cli iot-hub-device-update set -c <path>/adu-conf.txt -i <path>/image.wic
 
 
 # Troubleshooting
+
+If anything goes wrong, setting RUST_LOG=debug enables output of debug information.
+
 ## No credential store support
 `ics-dm-cli` needs to pull a docker image `icsdm.azurecr.io/ics-dm-cli-backend` as backend for some cli
 commands. If you use a docker environment with credential store you have to
