@@ -1,3 +1,4 @@
+use log::debug;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -41,7 +42,7 @@ pub fn validate_enrollment(
     };
     match body.validate() {
         Ok(_) => {
-            println!("Enrollment config validated.");
+            debug!("Enrollment config validated.");
         }
         Err(e) => {
             return Err(Box::new(Error::new(

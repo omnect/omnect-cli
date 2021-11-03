@@ -1,3 +1,4 @@
+use env_logger::{Builder, Env};
 use std::fs::copy;
 use std::fs::{create_dir_all, remove_dir_all};
 use std::path::PathBuf;
@@ -5,12 +6,21 @@ use std::path::PathBuf;
 const TMPDIR_FORMAT_STR: &'static str = "/tmp/ics-dm-cli-integration-tests/";
 const TESTDIR_FORMAT_STR: &'static str = "testfiles/";
 
+lazy_static! {
+    static ref LOG: () = if cfg!(debug_assertions) {
+        Builder::from_env(Env::default().default_filter_or("debug,bollard::read=info")).init()
+    } else {
+        Builder::from_env(Env::default().default_filter_or("info")).init()
+    };
+}
+
 pub struct Testrunner {
     dirpath: std::string::String,
 }
 
 impl Testrunner {
     pub fn new(prefix: &str) -> Testrunner {
+        lazy_static::initialize(&LOG);
         let dirpath = format!("{}{}", TMPDIR_FORMAT_STR, prefix);
         create_dir_all(&dirpath).unwrap();
         Testrunner { dirpath }

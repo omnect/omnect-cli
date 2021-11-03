@@ -1,4 +1,5 @@
 use filemagic::Magic;
+use log::{debug, info};
 use std::fs::remove_file;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
@@ -95,7 +96,7 @@ pub fn validate_and_decompress_image(
     image_file_name: &PathBuf,
     action: impl FnOnce(&PathBuf) -> Result<(), Box<dyn std::error::Error>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Detecting magic for {}", image_file_name.to_string_lossy());
+    debug!("Detecting magic for {}", image_file_name.to_string_lossy());
     let detector = Magic::open(Default::default());
     let detector = match detector {
         Err(e) => {
@@ -118,19 +119,19 @@ pub fn validate_and_decompress_image(
     let magic = detector.file(&image_file_name)?;
     for elem in COMPRESSION_TABLE {
         if magic.find(elem.marker) != None {
-            println!("Compressed image file found, decompressing...");
+            info!("Compressed image file found, decompressing...");
             let new_image_file = decompress(image_file_name, elem.extension, elem.generator)?;
-            println!("Decompressed to {}", new_image_file.to_string_lossy());
+            debug!("Decompressed to {}", new_image_file.to_string_lossy());
             let mut success = action(&new_image_file);
             match success {
                 Ok(_n) => {
-                    println!(
+                    info!(
                         "Recompressing image to {}",
                         image_file_name.to_string_lossy()
                     );
                     match compress(image_file_name, &new_image_file, elem.generator) {
                         Ok(_e) => {
-                            println!("Compression complete.");
+                            debug!("Compression complete.");
                         }
                         Err(e) => {
                             success = Err(Box::new(Error::new(
