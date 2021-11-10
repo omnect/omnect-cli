@@ -4,6 +4,7 @@ use std::fs::remove_file;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 
 trait CompressionGenerator {
     fn compressor<'a>(
@@ -126,10 +127,11 @@ pub fn validate_and_decompress_image(
             match success {
                 Ok(_n) => {
                     info!(
-                        "Recompressing image to {}",
+                        "Recompressing image from {} to {}",
+                        new_image_file.to_string_lossy(),
                         image_file_name.to_string_lossy()
                     );
-                    match compress(image_file_name, &new_image_file, elem.generator) {
+                    match compress(&new_image_file, image_file_name, elem.generator) {
                         Ok(_e) => {
                             debug!("Compression complete.");
                         }
@@ -172,7 +174,9 @@ async fn decompress(
     let mut destination = File::create(new_image_file.clone()).await?;
     let mut source = File::open(image_file_name).await?;
     let mut decompressor = generator.decompressor(&mut destination);
-    tokio::io::copy(&mut source, &mut decompressor).await?;
+    let bytes_written = tokio::io::copy(&mut source, &mut decompressor).await?;
+    debug!("Decompress: copied {} bytes.", bytes_written);
+    decompressor.shutdown().await?;
     Ok(new_image_file)
 }
 
@@ -184,7 +188,9 @@ async fn compress(
 ) -> Result<(), tokio::io::Error> {
     let mut destination = File::create(compressed_file_name.clone()).await?;
     let mut source = File::open(uncompressed_file_name).await?;
-    let mut decompressor = generator.compressor(&mut destination);
-    tokio::io::copy(&mut source, &mut decompressor).await?;
+    let mut compressor = generator.compressor(&mut destination);
+    let bytes_written = tokio::io::copy(&mut source, &mut compressor).await?;
+    debug!("Compress: copied {} bytes.", bytes_written);
+    compressor.shutdown().await?;
     Ok(())
 }
