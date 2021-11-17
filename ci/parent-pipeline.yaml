@@ -2,9 +2,9 @@ resource_types:
   - name: email
     type: docker-image
     source:
-      repository: ((bb_docker_namespace))/clone/pcfseceng/email-resource
-      username: ((ics_dm_registry_user))
-      password: ((ics_dm_registry_password))
+      repository: ((bb_registry_name))/clone/pcfseceng/email-resource
+      username: ((bb_registry_user))
+      password: ((bb_registry_password))
       insecure_registries: ((bb_insecure_registries))
       tag: 1.0.19
 
