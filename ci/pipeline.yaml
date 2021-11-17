@@ -2,10 +2,11 @@ resource_types:
   - name: email
     type: docker-image
     source:
-      repository: icsdm.azurecr.io/clone/pcfseceng/email-resource
-      username: ((ics_dm_registry_user))
-      password: ((ics_dm_registry_password))
+      repository: ((bb_registry_name))/clone/pcfseceng/email-resource
+      username: ((bb_registry_user))
+      password: ((bb_registry_password))
       tag: 1.0.19
+      insecure_registries: ((bb_insecure_registries))
 
 resources:
   - name: source
@@ -30,18 +31,20 @@ resources:
   - name: rust-image
     type: docker-image
     source:
-      repository: icsdm.azurecr.io/rust
-      username: ((ics_dm_registry_user))
-      password: ((ics_dm_registry_password))
+      repository: ((bb_registry_name))/rust
+      username: ((bb_registry_user))
+      password: ((bb_registry_password))
       tag: latest
+      insecure_registries: ((bb_insecure_registries))
 
   - name: concourse-rust-dnd
     type: docker-image
     source:
-      repository: icsdm.azurecr.io/concourse-rust-dnd
-      username: ((ics_dm_registry_user))
-      password: ((ics_dm_registry_password))
+      repository: ((bb_registry_name))/concourse-rust-dnd
+      username: ((bb_registry_user))
+      password: ((bb_registry_password))
       tag: latest
+      insecure_registries: ((bb_insecure_registries))
 
   - name: send-an-email
     type: email
@@ -136,15 +139,17 @@ jobs:
               - -exc
               - |
                 export CARGO_HOME=$(pwd)/cargo_home
+                chmod -R o+w source
+                chmod -R o+w cargo_home
                 cd source
-                cargo build --release --locked
+                /usr/local/bin/entrypoint.sh cargo build --release --locked;
                 chown ${GROUP_ID}:${USER_ID} target/release/ics-dm-cli
                 mv target/release/ics-dm-cli backend
                 backend/ics-dm-cli --version | awk '{print $2}' > tag
           params:
             GROUP_ID: "1000"
             USER_ID: "1000"
-            ICS_DM_CLI_DOCKER_REG_NAME: "((ics_dm_cli_docker_reg_name))"
+            ICS_DM_CLI_DOCKER_REG_NAME: "((bb_registry_name))"
       - put: ics-dm-cli-backend-image
         params:
           build: source/backend

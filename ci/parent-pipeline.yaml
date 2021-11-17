@@ -1,0 +1,109 @@
+resource_types:
+  - name: email
+    type: docker-image
+    source:
+      repository: ((bb_docker_namespace))/clone/pcfseceng/email-resource
+      username: ((ics_dm_registry_user))
+      password: ((ics_dm_registry_password))
+      insecure_registries: ((bb_insecure_registries))
+      tag: 1.0.19
+
+resources:
+  - name: source
+    type: git
+    source:
+      uri: ((git_source))
+      private_key: ((privatekey))
+      branch: ((git_branch))
+      skip_ssl_verification: ((git_skip_ssl_verification))
+
+
+  - name: send-an-email
+    type: email
+    source:
+      smtp:
+        host: ((email_smtp_host_url))
+        port: ((email_smtp_port))
+        anonymous: ((email_smtp_anonymous))
+        username: ((email_smtp_user))
+        password: ((email_smtp_pw))
+        skip_ssl_validation: ((email_smtp_skip_ssl_validation))
+        ca_cert: ((email_smtp_ca_cert))
+        host_origin: ((email_smtp_host_origin))
+        login_auth: ((email_smtp_login_auth))
+      from:  ((email_from))
+      to: ((email_to))
+      
+email_success_notification: &email_success_notification
+  put: send-an-email
+  params:
+    subject_text: "ci ${BUILD_PIPELINE_NAME}: build ${BUILD_ID} successfully finished"
+    body_text: |
+      Yeah!
+      Build ID: "${BUILD_ID}"
+      Build Name: "${BUILD_NAME}"
+      Build Job Name: "${BUILD_JOB_NAME}"
+      Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
+      ATC External URL: "${ATC_EXTERNAL_URL}"
+
+email_failure_notification: &email_failure_notification
+  put: send-an-email
+  params:
+    subject_text: "ci ${BUILD_PIPELINE_NAME}: build ${BUILD_ID} failed!"
+    body_text: |
+      Oh no!
+      Build ID: "${BUILD_ID}"
+      Build Name: "${BUILD_NAME}"
+      Build Job Name: "${BUILD_JOB_NAME}"
+      Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
+      ATC External URL: "${ATC_EXTERNAL_URL}"
+
+email_error_notification: &email_error_notification
+  put: send-an-email
+  params:
+    subject_text: "ci ${BUILD_PIPELINE_NAME}: build ${BUILD_ID} error!"
+    body_text: |
+      Oh no!
+      Build ID: "${BUILD_ID}"
+      Build Name: "${BUILD_NAME}"
+      Build Job Name: "${BUILD_JOB_NAME}"
+      Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
+      ATC External URL: "${ATC_EXTERNAL_URL}"
+
+email_abort_notification: &email_abort_notification
+  put: send-an-email
+  params:
+    subject_text: "ci ${BUILD_PIPELINE_NAME}: build ${BUILD_ID} aborted!"
+    body_text: |
+      Oh no!
+      Build ID: "${BUILD_ID}"
+      Build Name: "${BUILD_NAME}"
+      Build Job Name: "${BUILD_JOB_NAME}"
+      Build Pipeline Name: "${BUILD_PIPELINE_NAME}"
+      ATC External URL: "${ATC_EXTERNAL_URL}"
+
+jobs:
+- name: configure-self
+  on_failure: *email_failure_notification
+  on_success: *email_success_notification
+  on_abort: *email_abort_notification
+  on_error: *email_error_notification
+
+  plan:
+  - get: source
+    trigger: true
+  - set_pipeline: self
+    file: source/ci/parent-pipeline.yaml
+    var_files: [source/ci/config.yaml]
+- name: configure-pipelines
+  on_failure: *email_failure_notification
+  on_success: *email_success_notification
+  on_abort: *email_abort_notification
+  on_error: *email_error_notification
+  plan:
+  - get: source
+    trigger: true
+    passed: [configure-self]
+  - set_pipeline: build-iotedge-template
+    file: source/ci/pipeline.yaml
+    var_files: [source/ci/config.yaml]
