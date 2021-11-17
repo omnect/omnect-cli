@@ -1,6 +1,6 @@
 [package]
 name = "ics-dm-cli"
-version = "0.5.1"
+version = "0.6.0"
 authors = ["Marcel Lilienthal <134974+mlilien@users.noreply.github.com>",
            "Jan Zachmann <jan.zachmann@conplement.de>"]
 edition = "2018"
