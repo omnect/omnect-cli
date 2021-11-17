@@ -10,6 +10,9 @@ bb_insecure_registries: ["registry:5000"]
 ## Specify if 'latest' tags are built for `git_branch`
 bb_release_as_latest: true
 
+## Specifies the name of the child pipeline
+bb_child_pipeline_name: ics-dm-cli
+
 # Git config
 # -----------------------------------------------------------------------------
 ## Specify the git repository to work with

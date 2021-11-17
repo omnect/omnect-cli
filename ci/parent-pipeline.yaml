@@ -104,6 +104,6 @@ jobs:
   - get: source
     trigger: true
     passed: [configure-self]
-  - set_pipeline: build-iotedge-template
+  - set_pipeline: ((bb_child_pipeline_name))
     file: source/ci/pipeline.yaml
     var_files: [source/ci/config.yaml]
