@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] Q4 2021
+
+- cicd: added parent pipeline to get rid of using $fly for pipeline update
+- cicd: adapt to new rust builder image 
+
 ## [0.5.1] Q4 2021
 
 - fix bug where when a compressed image is used, the modifications done are not correctly written to the image.:"
