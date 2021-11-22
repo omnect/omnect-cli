@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# for now we use static lookup for partion numbers (may break if we have
+# systems whith different partition schemas, e.g. dos vs gpt)
+rootA=2
+factory=5
+cert=6
+etc=7
+data=8
+
 function d_echo() {
     if [ ! -z ${DEBUG} ]; then
         echo "${@}"
@@ -10,67 +18,63 @@ function error() {
     echo "error: ${@}" 1>&2
 }
 
-function search_part_loopdev () {
-    for part in ${loopdev}p*
-    do
-        d_echo try part=${part} - $(e2label ${part} 2>&1)
-        if [ "${part_pattern}" == "$(e2label ${part} 2>/dev/null)" ]; then
-            partloopdev=${part}
-            break
-        fi
-    done
-    d_echo partloopdev=${partloopdev}
+function uuid_gen() {
+    uuid=$(uuidgen)
+    d_echo uuid=${uuid}
+    mkdir -p /tmp/${uuid}
 }
 
-function mount_part () {
-    search_part_loopdev
+function read_in_partition() {
+    d_echo read_in_partition ${p}
+    part_offset_begin=$(fdisk -l ${w} | grep ${w}${!p} | awk '{print $2}')
+    part_count=$(fdisk -l ${w} | grep ${w}${!p} | awk '{print $4}')
+    d_echo part_offset_begin=${part_offset_begin}
+    d_echo part_count=${part_count}
 
-    [[ -z "${partloopdev}" ]] && error "couldnt set up loopdev for input device image (part_pattern: ${part_pattern})" && exit 1
-    mkdir -p /tmp/mount/${part_pattern}
-    mount -o loop ${partloopdev} /tmp/mount/${part_pattern}
+    d_echo "dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset_begin} count=${part_count}"
+    dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset_begin} count=${part_count} 2>&1
+    sync
 }
 
-function losetup_image_wic () {
-    losetup -fP ${w}
-    loopdev=$(losetup | grep ${w} | awk '{print $1}')
-    d_echo loopdev=${loopdev}
+function write_back_partition() {
+    d_echo write_back_partition ${p}
+    d_echo "dd if=/tmp/${uuid}/${p}.img of=${w} bs=512 seek=${part_offset_begin} count=${part_count} conv=notrunc"
+    dd if=/tmp/${uuid}/${p}.img of=${w} bs=512 seek=${part_offset_begin} count=${part_count} conv=notrunc 2>&1
+    sync
 }
 
-function get_hostname () {
+function read_in_rootA() {
+    d_echo read_in_rootA
+    local _part_offset_begin=$(fdisk -l ${w} | grep ${w}${rootA} | awk '{print $2}')
+    local _part_count=$(fdisk -l ${w} | grep ${w}${rootA} | awk '{print $4}')
+    d_echo "dd if=${w} of=/tmp/${uuid}/rootA.img bs=512 skip=${_part_offset_begin} count=${_part_count}"
+    dd if=${w} of=/tmp/${uuid}/rootA.img bs=512 skip=${_part_offset_begin} count=${_part_count} 2>&1
+    sync
+}
+
+function copy_file_from_rootA () {
+    e2cp /tmp/uuid/rootA.img:${1} /tmp/uuid/$(basename ${1})
+}
+
+function config_hostname () {
     hostname=$(grep "^hostname" ${1})
 
     # possibly remove inline comments
     hostname=${hostname%%\#*}
 
     hostname=$(echo ${hostname} | cut -d "=" -f2 | xargs)
-}
+    echo "${hostname}" > /tmp/${uuid}/hostname
 
-function set_hostname () {
-    d_echo "set hostname to ${hostname}"
-    echo "${hostname}" > /tmp/mount/etc/upper/hostname
-    cp /tmp/mount/rootA/etc/hosts /tmp/mount/etc/upper/
-    sed -i "s/^127.0.1.1\(.*\)/127.0.1.1 ${hostname}/" /tmp/mount/etc/upper/hosts
-}
+    read_in_rootA
+    e2cp /tmp/${uuid}/rootA.img:/etc/hosts /tmp/${uuid}/hosts
+    sed -i "s/^127.0.1.1\(.*\)/127.0.1.1 ${hostname}/" /tmp/${uuid}/hosts
 
-function config_hostname () {
-    get_hostname ${1}
-    set_hostname
-}
-
-function detach_loopdev () {
-    if [ "x" != "x${loopdev}" ]; then
-        losetup -d ${loopdev}
-        sync
-        i=0;
-        while losetup ${loopdev} &>/dev/null && [[ i -le 10 ]]; do
-            d_echo "zZz";
-            i=$((i+1));
-            sleep 0.1;
-        done
-        if losetup ${loopdev} &>/dev/null; then
-            error "Cannot detach ${loopdev}. Possible reason: host system has auto mounted ${loopdev}."
-        fi
-    else
-        d_echo "${loopdev} is not attached."
+    if [ "${p}" != "etc" ]; then
+        error "can not configure hostname"
+        exit 1
     fi
+
+    e2mkdir /tmp/${uuid}/${p}.img:/upper/etc
+    e2cp /tmp/${uuid}/hostname /tmp/${uuid}/${p}.img:/upper/etc/hostname
+    e2cp /tmp/${uuid}/hosts /tmp/${uuid}/${p}.img:/upper/etc/hosts
 }

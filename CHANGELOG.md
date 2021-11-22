@@ -5,10 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] Q4 2021
+
+- rewrite backend scripts to use e2tool, so we don't need privileged docker context
+- ics_dm_first_boot.sh is now created in factory partition
+- testfiles/image.wic: added cert and factory partition
+
 ## [0.6.0] Q4 2021
 
 - cicd: added parent pipeline to get rid of using $fly for pipeline update
-- cicd: adapt to new rust builder image 
+- cicd: adapt to new rust builder image
 
 ## [0.5.1] Q4 2021
 
@@ -21,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.0] Q4 2021
 
 - added detection of image file type (to see whether it is compressed)
-  - this is based on libmagic and requires libmagic-dev installed on the build system 
+  - this is based on libmagic and requires libmagic-dev installed on the build system
 - add transparent decompression and recompression for xz, gzip and bzip2
 
 ## [0.3.0] Q4 2021

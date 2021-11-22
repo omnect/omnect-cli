@@ -5,16 +5,6 @@
 
 d_echo ${0}
 
-# exit handler which makes sure we dont leave an undefined host state regarding loop devices
-function finish {
-    set +o errexit
-    umount /tmp/mount/data
-    umount /tmp/mount/etc
-    umount /tmp/mount/rootA
-    detach_loopdev
-}
-trap finish EXIT
-
 function usage() {
     echo "Usage: $0  -c identity_config -r root_cert [-d device_cert] [-k device_cert_key] -w wic_image" 1>&2; exit 1;
 }
@@ -66,49 +56,37 @@ d_echo "w = ${w}"
 #[[ ! -f ${k} ]] && error "input file \"${k}\" not found"   && exit 1
 [[ ! -f ${r} ]] && error "input file \"${r}\" not found"    && exit 1
 
-# set up loop device to be able to mount image.wic
-losetup_image_wic
+uuid_gen
 
-# search and mount "etc" partion
-part_pattern="etc"
-mount_part
-
-# search and mount "data" partion
-part_pattern="data"
-mount_part
-
-# search and mount "rootA" partion
-part_pattern="rootA"
-mount_part
+p=etc
+read_in_partition
 
 # copy identity config
-aziot_gid=$(cat /tmp/mount/rootA/etc/group | grep aziot: | awk 'BEGIN { FS = ":" } ; { print $3 }')
-mkdir -p /tmp/mount/etc/upper/aziot
-chmod 0770 /tmp/mount/etc/upper/aziot
-chgrp ${aziot_gid} /tmp/mount/etc/upper/aziot
-d_echo cp ${c} /tmp/mount/etc/upper/aziot/config.toml
-cp ${c} /tmp/mount/etc/upper/aziot/config.toml
-chgrp ${aziot_gid} /tmp/mount/etc/upper/aziot/config.toml
-chmod a+r,g+w /tmp/mount/etc/upper/aziot/config.toml
+d_echo e2cp ${c} /tmp/${uuid}/${p}.img:/upper/aziot/config.toml
+e2mkdir /tmp/${uuid}/${p}.img:/upper/aziot
+e2cp ${c} /tmp/${uuid}/${p}.img:/upper/aziot/config.toml
 
-# activate identity config on first boot
-# here it is okay to alter a file in the root partition
-echo "aziotctl config apply" >> /tmp/mount/rootA/usr/bin/ics_dm_first_boot.sh
-
-# set hostname
-hostname=$(grep "^hostname" ${c} | cut -d "=" -f2 | xargs)
-d_echo "set hostname to ${hostname}"
-echo "${hostname}" > /tmp/mount/etc/upper/hostname
-cp /tmp/mount/rootA/etc/hosts /tmp/mount/etc/upper/
-sed -i "s/^127.0.1.1\(.*\)/127.0.1.1 ${hostname}/" /tmp/mount/etc/upper/hosts
-
-# config hostname
 config_hostname ${c}
+write_back_partition
+
+# create/append to ics_dm_first_boot.sh in factory partition
+# activate identity config on first boot
+p=factory
+read_in_partition
+# for the following cp redirect stderr -> stdout, since it is possible that this file doesnt exist
+e2cp /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh /tmp/${uuid}/icsd_dm_first_boot.sh 2>&1
+echo "aziotctl config apply" >>  /tmp/${uuid}/ics_dm_first_boot.sh
+e2cp /tmp/${uuid}/ics_dm_first_boot.sh /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh
+write_back_partition
 
 # copy root ca cert
-mkdir -p /tmp/mount/data/local/share/ca-certificates/
-d_echo cp ${r} /tmp/mount/data/local/share/ca-certificates/$(basename ${r}).crt
-cp ${r} /tmp/mount/data/local/share/ca-certificates/$(basename ${r}).crt
+# @todo refine how we use cert parition
+p=data
+read_in_partition
+d_echo e2cp ${r} /tmp/${uuid}/${p}.img:/local/share/ca-certificates/$(basename ${r}).crt
+e2mkdir /tmp/${uuid}/${p}.img:/local/share/ca-certificates
+e2cp ${r} /tmp/${uuid}/${p}.img:/local/share/ca-certificates/$(basename ${r}).crt
+write_back_partition
 # Just a remark: copying the root ca cert isn't sufficient. The device has
 # to call update-ca-certificates on first boot ... we handle that in
 # ics-dm-first-boot.service

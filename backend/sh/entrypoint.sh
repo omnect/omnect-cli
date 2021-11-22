@@ -1,38 +1,16 @@
 #!/bin/bash
 
+# include shared functions
+. /ics-dm-sh/functions
+
 # restore saved permissions for error file
 function finish {
     chown ${uid}:${gid} ${err_file_path}
+    echo "entrypoint return=${return}"
+    cat ${err_file_path}
+    sync
 }
 trap finish EXIT
-
-function check_mount() {
-    tmp_mount=/tmp/check_mount
-    mkdir -p ${tmp_mount}
-    if [ $(mount -t devtmpfs none ${tmp_mount} &> /dev/null;echo $?) != "0" ]; then
-        echo "error: container has no mount privileges" 1>&2
-        exit 1
-    fi
-    umount ${tmp_mount}
-    rmdir ${tmp_mount}
-}
-
-function devtmpfs_mount() {
-    tmp_dir=/tmp/devtmpfs_mount
-    mkdir -p ${tmp_dir}
-    mount -t devtmpfs none ${tmp_dir}
-    mkdir -p ${tmp_dir}/pts
-    mount --move /dev/pts ${tmp_dir}/pts
-    umount /dev &>/dev/null || true
-    mount --move ${tmp_dir} /dev
-}
-
-# function has to run after devtmpfs_mount
-function check_loop_control() {
-    if [ ! -c /dev/loop-control ]; then
-        mknod /dev/loop-control c 10 237
-    fi
-}
 
 err_file_path=${1}
 
@@ -46,14 +24,9 @@ chown root:root ${err_file_path}
 # redirect stderr to error file
 exec 2>${err_file_path}
 
-check_mount
-devtmpfs_mount
-check_loop_control
-
-if [ ! -z ${DEBUG} ]; then
-    echo "${@:2}"
-fi
+d_echo "${@:2}"
 
 # now run the requested CMD
 args="${@:2}"
 bash -ec "${args}"
+return=${?}

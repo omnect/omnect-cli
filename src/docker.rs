@@ -140,20 +140,6 @@ async fn docker_exec(
 
         let host_config = HostConfig {
             auto_remove: Some(true),
-            // we need cap_add + device_cgroup_rules to enable losetup inside the container
-            cap_add: Some(vec!["SYS_ADMIN".to_string()]),
-            // first cgroup rule: allow mknod,read/write of /dev/loop-control
-            // second cgroup rule:  allow mknod,read/write of /dev/loopX
-            // third cgroup rule: allow read/write of /dev/loopXpY
-            device_cgroup_rules: Some(vec![
-                "c 10:237 rmw".to_string(),
-                "b 7:* rmw".to_string(),
-                "b 259:* rw".to_string(),
-            ]),
-            security_opt: Some(vec![
-                "seccomp=unconfined".to_string(),
-                "apparmor=unconfined".to_string(),
-            ]),
             binds: binds,
             ..Default::default()
         };
@@ -291,31 +277,15 @@ pub fn set_enrollment_config(
             docker_exec(
                 Some(binds),
                 Some(vec![
-                    "create_dir.sh",
-                    "-d",
-                    "upper/ics_dm",
-                    "-p",
-                    "etc",
-                    "-w",
-                    &files[1],
-                    "-g",
-                    "enrollment",
-                    "-m",
-                    "0775",
-                    "&&",
                     "copy_file_to_image.sh",
                     "-i",
                     &files[0],
                     "-o",
-                    "upper/ics_dm/enrollment_static.json",
+                    "/upper/ics_dm/enrollment_static.json",
                     "-p",
                     "etc",
                     "-w",
                     &files[1],
-                    "-g",
-                    "enrollment",
-                    "-m",
-                    "0664",
                 ]),
             )
         },
@@ -437,17 +407,11 @@ pub fn set_iot_hub_device_update_config(
                     "-i",
                     &files[0],
                     "-o",
-                    "upper/adu/adu-conf.txt",
+                    "/upper/adu/adu-conf.txt",
                     "-p",
                     "etc",
                     "-w",
                     &files[1],
-                    "-g",
-                    "adu",
-                    "-u",
-                    "adu",
-                    "-m",
-                    "0664",
                 ]),
             )
         },
