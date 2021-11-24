@@ -24,27 +24,24 @@ function uuid_gen() {
 
 function read_in_partition() {
     d_echo read_in_partition ${p}
-    part_offset_begin=$(fdisk -l ${w} | grep ${w}${!p} | awk '{print $2}')
-    part_count=$(fdisk -l ${w} | grep ${w}${!p} | awk '{print $4}')
-
-    d_echo "dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset_begin} count=${part_count}"
-    dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset_begin} count=${part_count} 2>&1
+    part_offset=($(fdisk -l ${w} | grep ${w}${!p} | awk '{print $2 " " $4}'))
+    d_echo "dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset[0]} count=${part_offset[1]}"
+    dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset[0]} count=${part_offset[1]} 2>&1
     sync
 }
 
 function write_back_partition() {
     d_echo write_back_partition ${p}
-    d_echo "dd if=/tmp/${uuid}/${p}.img of=${w} bs=512 seek=${part_offset_begin} count=${part_count} conv=notrunc"
-    dd if=/tmp/${uuid}/${p}.img of=${w} bs=512 seek=${part_offset_begin} count=${part_count} conv=notrunc 2>&1
+    d_echo "dd if=/tmp/${uuid}/${p}.img of=${w} bs=512 seek=${part_offset[0]} count=${part_offset[1]} conv=notrunc"
+    dd if=/tmp/${uuid}/${p}.img of=${w} bs=512 seek=${part_offset[0]} count=${part_offset[1]} conv=notrunc 2>&1
     sync
 }
 
 function read_in_rootA() {
     d_echo read_in_rootA
-    local _part_offset_begin=$(fdisk -l ${w} | grep ${w}${rootA} | awk '{print $2}')
-    local _part_count=$(fdisk -l ${w} | grep ${w}${rootA} | awk '{print $4}')
-    d_echo "dd if=${w} of=/tmp/${uuid}/rootA.img bs=512 skip=${_part_offset_begin} count=${_part_count}"
-    dd if=${w} of=/tmp/${uuid}/rootA.img bs=512 skip=${_part_offset_begin} count=${_part_count} 2>&1
+    local _part_offset=($(fdisk -l ${w} | grep ${w}${rootA} | awk '{print $2 " " $4}'))
+    d_echo "dd if=${w} of=/tmp/${uuid}/rootA.img bs=512 skip=${_part_offset[0]} count=${_part_offset[1]}"
+    dd if=${w} of=/tmp/${uuid}/rootA.img bs=512 skip=${_part_offset[0]} count=${_part_offset[1]} 2>&1
     sync
 }
 
