@@ -83,8 +83,8 @@ read_in_partition
 
 e2mkdir /tmp/${uuid}/${p}.img:/ca
 e2mkdir /tmp/${uuid}/${p}.img:/priv
-d_echo e2cp -P 644 ${r} /tmp/${uuid}/${p}.img:/ca/trust-bundle.pem
-e2cp -P 644 ${r} /tmp/${uuid}/${p}.img:/ca/trust-bundle.pem
+d_echo e2cp -P 644 ${r} /tmp/${uuid}/${p}.img:/ca/trust-bundle.pem.crt
+e2cp -P 644 ${r} /tmp/${uuid}/${p}.img:/ca/trust-bundle.pem.crt
 d_echo e2cp -P 644 ${e} /tmp/${uuid}/${p}.img:/priv/edge-ca.pem
 e2cp -P 644 ${e} /tmp/${uuid}/${p}.img:/priv/edge-ca.pem
 d_echo e2cp -P 644 ${k} /tmp/${uuid}/${p}.img:/priv/edge-ca.key.pem
