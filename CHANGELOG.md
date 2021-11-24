@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - rewrite backend scripts to use e2tool, so we don't need privileged docker context
 - ics_dm_first_boot.sh is now created in factory partition
 - testfiles/image.wic: added cert and factory partition
+- identity, enrollment and adu config get written to factory partition
+- certificates get written to cert partition
 
 ## [0.6.0] Q4 2021
 

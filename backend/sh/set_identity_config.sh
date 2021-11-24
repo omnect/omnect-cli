@@ -39,21 +39,14 @@ d_echo "w = ${w}"
 
 uuid_gen
 
-p=etc
+p=factory
 read_in_partition
 
 # copy identity config
-d_echo "e2cp ${c} /tmp/${uuid}/${p}.img:/upper/aziot/config.toml"
-e2mkdir /tmp/${uuid}/${p}.img:/upper/aziot/
-e2cp ${c} /tmp/${uuid}/${p}.img:/upper/aziot/config.toml
-
-config_hostname ${c}
-write_back_partition
+copy_identity_config
 
 # create/append to ics_dm_first_boot.sh in factory partition
 # activate identity config on first boot depending on device variant (edge / non edge)
-p=factory
-read_in_partition
 # for the following cp redirect stderr -> stdout, since it is possible that this file doesnt exist
 e2cp /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh /tmp/${uuid}/icsd_dm_first_boot.sh 2>&1
 e2cp /tmp/${uuid}/rootA.img:/usr/lib/os-release /tmp/${uuid}/os-release
@@ -63,4 +56,5 @@ else
     echo "aziotctl config apply" >> /tmp/${uuid}/ics_dm_first_boot.sh
 fi
 e2cp /tmp/${uuid}/ics_dm_first_boot.sh /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh
+
 write_back_partition

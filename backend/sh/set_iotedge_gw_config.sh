@@ -63,36 +63,31 @@ d_echo "w = ${w}"
 
 uuid_gen
 
-p=etc
+p=factory
 read_in_partition
 
-# copy identity config
-d_echo "e2cp ${c} /tmp/${uuid}/${p}.img:/upper/aziot/config.toml"
-e2mkdir /tmp/${uuid}/${p}.img:/upper/aziot
-e2cp ${c} /tmp/${uuid}/${p}.img:/upper/aziot/config.toml
-
-config_hostname ${c}
-write_back_partition
+copy_identity_config
 
 # create/append to ics_dm_first_boot.sh in factory partition
 # activate identity config on first boot if enrollment demo is not installed
-p=factory
-read_in_partition
 # for the following cp redirect stderr -> stdout, since it is possible that this file doesnt exist
 e2cp /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh /tmp/${uuid}/icsd_dm_first_boot.sh 2>&1
 echo "iotedge config apply" >>  /tmp/${uuid}/ics_dm_first_boot.sh
 e2cp /tmp/${uuid}/ics_dm_first_boot.sh /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh
+
 write_back_partition
 
 # copy root ca cert,  device cert and key
-# @todo refine how we use cert parition
-p=data
+p=cert
 read_in_partition
-d_echo e2cp ${r} /tmp/${uuid}/${p}.img:/var/secrets/trust-bundle.pem
-e2mkdir /tmp/${uuid}/${p}.img:/var/secrets
-e2cp -P 644 ${r} /tmp/${uuid}/${p}.img:/var/secrets/trust-bundle.pem
-d_echo e2cp ${e} /tmp/${uuid}/${p}.img:/var/secrets/edge-ca.pem
-e2cp -P 644 ${e} /tmp/${uuid}/${p}.img:/var/secrets/edge-ca.pem
-d_echo e2cp ${k} /tmp/${uuid}/${p}.img:/var/secrets/edge-ca.key.pem
-e2cp -P 644  ${k} /tmp/${uuid}/${p}.img:/var/secrets/edge-ca.key.pem
+
+e2mkdir /tmp/${uuid}/${p}.img:/ca
+e2mkdir /tmp/${uuid}/${p}.img:/priv
+d_echo e2cp -P 644 ${r} /tmp/${uuid}/${p}.img:/ca/trust-bundle.pem
+e2cp -P 644 ${r} /tmp/${uuid}/${p}.img:/ca/trust-bundle.pem
+d_echo e2cp -P 644 ${e} /tmp/${uuid}/${p}.img:/priv/edge-ca.pem
+e2cp -P 644 ${e} /tmp/${uuid}/${p}.img:/priv/edge-ca.pem
+d_echo e2cp -P 644 ${k} /tmp/${uuid}/${p}.img:/priv/edge-ca.key.pem
+e2cp -P 644  ${k} /tmp/${uuid}/${p}.img:/priv/edge-ca.key.pem
+
 write_back_partition

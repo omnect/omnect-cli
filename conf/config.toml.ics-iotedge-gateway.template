@@ -26,12 +26,12 @@ method = "tpm"                           # don't change if using enrollment demo
 # Trust bundle cert
 # ===================================================================================
 
-trust_bundle_cert = "file:///var/secrets/trust-bundle.pem"        # don't change path
+trust_bundle_cert = "file:///mnt/cert/ca/trust-bundle.pem"        # don't change path
 
 # ===================================================================================
 # Edge CA certificate
 # ===================================================================================
 
 [edge_ca]
-cert = "file:///var/secrets/edge-ca.pem"                          # don't change path
-pk = "file:///var/secrets/edge-ca.key.pem"                        # don't change path
+cert = "file:///mnt/cert/priv/edge-ca.pem"                        # don't change path
+pk = "file:///mnt/cert/priv/edge-ca.key.pem"                      # don't change path

@@ -7,7 +7,6 @@
 function finish {
     chown ${uid}:${gid} ${err_file_path}
     echo "entrypoint return=${return}"
-    cat ${err_file_path}
     sync
 }
 trap finish EXIT
