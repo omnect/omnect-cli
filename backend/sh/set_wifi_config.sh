@@ -5,14 +5,6 @@
 
 d_echo ${0}
 
-# exit handler which makes sure we dont leave an undefined host state regarding loop devices
-function finish {
-    set +o errexit
-    umount /tmp/mount/etc
-    detach_loopdev
-}
-trap finish EXIT
-
 set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
@@ -45,18 +37,21 @@ d_echo "w = ${w}"
 [[ ! -f ${w} ]] && error "input device image not found"   && exit 1
 [[ ! -f ${i} ]] && error "input file \"${i}\" not found"  && exit 1
 
-# set up loop device to be able to mount image.wic
-losetup_image_wic
+uuid_gen
 
-# search and mount "etc" partion
-part_pattern="etc"
-mount_part
+p=factory
+read_in_partition
 
 # copy wpa_supplicant conf
-mkdir -p /tmp/mount/etc/upper/wpa_supplicant
-d_echo "cp ${i} /tmp/mount/etc/upper/wpa_supplicant/wpa_supplicant-wlan0.conf"
-cp ${i} /tmp/mount/etc/upper/wpa_supplicant/wpa_supplicant-wlan0.conf
+d_echo "e2cp ${i} /tmp/${uuid}/${p}.img:/etc/wpa_supplicant/wpa_supplicant-wlan0.conf"
+e2mkdir /tmp/${uuid}/${p}.img:/etc/wpa_supplicant
+e2cp -P 644 ${i} /tmp/${uuid}/${p}.img:/etc/wpa_supplicant/wpa_supplicant-wlan0.conf
 
-# enable wpa_supplicant service
-mkdir -p /tmp/mount/etc/upper/systemd/system/multi-user.target.wants
-ln -sf /lib/systemd/system/wpa_supplicant@.service /tmp/mount/etc/upper/systemd/system/multi-user.target.wants/wpa_supplicant@wlan0.service
+# enable wpa_supplicant
+# create/append to ics_dm_first_boot.sh in factory partition
+# for the following cp redirect stderr -> stdout, since it is possible that this file doesnt exist
+e2cp /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh /tmp/${uuid}/icsd_dm_first_boot.sh 2>&1
+echo "systemctl enable wpa_supplicant@wlan0.service && systemctl start wpa_supplicant@wlan0.service" >> /tmp/${uuid}/ics_dm_first_boot.sh
+e2cp /tmp/${uuid}/ics_dm_first_boot.sh /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh
+
+write_back_partition
