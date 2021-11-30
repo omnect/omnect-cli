@@ -6,14 +6,17 @@
 d_echo ${0}
 
 function usage() {
-    echo "Usage: $0  -c identity_config -w wic_image" 1>&2; exit 1;
+    echo "Usage: $0  -c identity_config -w wic_image [-b output_bmap_file]" 1>&2; exit 1;
 }
 
 set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
-while getopts "c:w:" opt; do
+while getopts "b:c:w:" opt; do
     case "${opt}" in
+        b)
+            b=${OPTARG}
+            ;;
         c)
             c=${OPTARG}
             ;;
@@ -31,6 +34,7 @@ if [ -z "${c}" ] || [ -z "${w}" ]; then
     usage
 fi
 
+d_echo "b = ${b}"
 d_echo "c = ${c}"
 d_echo "w = ${w}"
 
@@ -58,3 +62,7 @@ fi
 e2cp /tmp/${uuid}/ics_dm_first_boot.sh /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh
 
 write_back_partition
+
+if [ "0" != "${b}0" ]; then
+    bmaptool create -o ${b} ${w}
+fi

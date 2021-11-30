@@ -7,11 +7,14 @@
 function finish {
     chown ${uid}:${gid} ${err_file_path}
     echo "entrypoint return=${return}"
+    errors=$(cat ${err_file_path})
+    [ -n "${errors}" ] && echo "errors:\n ${errors}"
     sync
 }
 trap finish EXIT
 
 err_file_path=${1}
+echo "err_file_path=${err_file_path}"
 
 # save current rights of error file
 uid=$(stat -c '%u' ${err_file_path})
