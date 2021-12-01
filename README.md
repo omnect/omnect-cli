@@ -105,7 +105,6 @@ ics-dm-cli identity set-iot-leaf-sas-config -c <path>/iot_config.toml -i <path>/
 ics-dm-cli iot-hub-device-update set -c <path>/adu-conf.txt -i <path>/image.wic
 ```
 
-
 # Troubleshooting
 
 If anything goes wrong, setting RUST_LOG=debug enables output of debug information.
