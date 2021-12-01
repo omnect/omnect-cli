@@ -17,15 +17,21 @@ use std::io::{Error, ErrorKind};
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     match cli::from_args() {
         Command::DockerInfo => docker::docker_version()?,
-        Command::Wifi(WifiSet { config, image, generate_bmap }) => docker::set_wifi_config(&config, &image, generate_bmap)?,
+        Command::Wifi(WifiSet {
+            config,
+            image,
+            generate_bmap,
+        }) => docker::set_wifi_config(&config, &image, generate_bmap)?,
         Command::Enrollment(EnrollmentSet {
             enrollment_config,
             image,
             generate_bmap,
         }) => docker::set_enrollment_config(&enrollment_config, &image, generate_bmap)?,
-        Command::Identity(SetConfig { config, image, generate_bmap }) => {
-            docker::set_identity_config(&config, &image, generate_bmap)?
-        }
+        Command::Identity(SetConfig {
+            config,
+            image,
+            generate_bmap,
+        }) => docker::set_identity_config(&config, &image, generate_bmap)?,
         Command::Identity(SetIotedgeGatewayConfig {
             config,
             image,
@@ -50,8 +56,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         Command::IotHubDeviceUpdate(IotHubDeviceUpdateSet {
             iot_hub_device_update_config,
             image,
-            generate_bmap
-        }) => docker::set_iot_hub_device_update_config(&iot_hub_device_update_config, &image, generate_bmap)?,
+            generate_bmap,
+        }) => docker::set_iot_hub_device_update_config(
+            &iot_hub_device_update_config,
+            &image,
+            generate_bmap,
+        )?,
         _ => Err(Error::new(ErrorKind::Other, "Not implemented"))?,
     }
 

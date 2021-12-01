@@ -180,7 +180,8 @@ fn check_set_identity_leaf_config() {
 
     assert_eq!(
         true,
-        docker::set_iot_leaf_sas_config(&config_file_path, &image_path, &root_ca_file_path, false).is_ok()
+        docker::set_iot_leaf_sas_config(&config_file_path, &image_path, &root_ca_file_path, false)
+            .is_ok()
     );
 }
 
@@ -194,7 +195,8 @@ fn check_set_identity_leaf_config_bmap() {
 
     assert_eq!(
         true,
-        docker::set_iot_leaf_sas_config(&config_file_path, &image_path, &root_ca_file_path, true).is_ok()
+        docker::set_iot_leaf_sas_config(&config_file_path, &image_path, &root_ca_file_path, true)
+            .is_ok()
     );
 }
 
@@ -236,7 +238,6 @@ fn check_set_iot_hub_device_update_config() {
         docker::set_iot_hub_device_update_config(&adu_config_file_path, &image_path, false).is_ok()
     );
 }
-
 
 //#[test]
 fn check_set_iot_hub_device_update_config_bmap() {
