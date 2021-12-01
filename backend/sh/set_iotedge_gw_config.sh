@@ -6,14 +6,17 @@
 d_echo ${0}
 
 function usage() {
-    echo "Usage: $0 -c identity_config -e edge_device_cert -k edge_device_cert_key -r root_cert -w wic_image" 1>&2; exit 1;
+    echo "Usage: $0 -c identity_config -e edge_device_cert -k edge_device_cert_key -r root_cert -w wic_image [-b output_bmap_file]" 1>&2; exit 1;
 }
 
 set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
-while getopts "c:e:k:r:w:" opt; do
+while getopts "b:c:e:k:r:w:" opt; do
     case "${opt}" in
+        b)
+            b=${OPTARG}
+            ;;
         c)
             c=${OPTARG}
             ;;
@@ -40,6 +43,7 @@ if [ -z "${c}" ] || [ -z "${e}" ] || [ -z "${k}" ] || [ -z "${r}" ] || [ -z "${w
     usage
 fi
 
+d_echo "b = ${b}"
 d_echo "c = ${c}"
 d_echo "e = ${e}"
 d_echo "k = ${k}"
@@ -91,3 +95,7 @@ d_echo e2cp -P 644 ${k} /tmp/${uuid}/${p}.img:/priv/edge-ca.key.pem
 e2cp -P 644  ${k} /tmp/${uuid}/${p}.img:/priv/edge-ca.key.pem
 
 write_back_partition
+
+if [ "0" != "${b}0" ]; then
+    bmaptool create -o ${b} ${w}
+fi

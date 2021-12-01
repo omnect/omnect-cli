@@ -18,6 +18,7 @@ FROM debian:bullseye-slim
 COPY --from=builder /usr/local/bin/* /usr/local/bin/
 
 RUN apt-get update && apt-get install -y \
+        bmap-tools \
         fdisk \
         uuid-runtime \
     && rm -rf /var/lib/apt/lists/*

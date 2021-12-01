@@ -6,14 +6,17 @@
 d_echo ${0}
 
 function usage() {
-    echo "Usage: $0  -c identity_config -r root_cert [-d device_cert] [-k device_cert_key] -w wic_image" 1>&2; exit 1;
+    echo "Usage: $0  -c identity_config -r root_cert [-d device_cert] [-k device_cert_key] -w wic_image [-b output_bmap_file]" 1>&2; exit 1;
 }
 
 set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
-while getopts "c:d:k:r:w:" opt; do
+while getopts "b:c:d:k:r:w:" opt; do
     case "${opt}" in
+        b)
+            b=${OPTARG}
+            ;;
         c)
             c=${OPTARG}
             ;;
@@ -44,6 +47,7 @@ if [ -z "${c}" ] || [ -z "${r}" ] || [ -z "${w}" ]; then
     usage
 fi
 
+d_echo "b = ${b}"
 d_echo "c = ${c}"
 d_echo "d = ${d}"
 d_echo "k = ${k}"
@@ -81,3 +85,7 @@ e2mkdir /tmp/${uuid}/${p}.img:/ca
 e2cp ${r} /tmp/${uuid}/${p}.img:/ca/$(basename ${r}).crt
 
 write_back_partition
+
+if [ "0" != "${b}0" ]; then
+    bmaptool create -o ${b} ${w}
+fi

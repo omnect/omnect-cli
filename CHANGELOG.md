@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.0] Q4 2021
 
-- move cicd pipelines to new repository
+- optionally create bmap file for commands 'enrollment', 'identity',
+  'iot-hub-device-update' and 'wiki'
 
 ## [0.7.0] Q4 2021
 

@@ -12,17 +12,21 @@ pub enum IdentityConfig {
         #[structopt(short = "c", long = "config")]
         #[structopt(parse(from_os_str))]
         config: std::path::PathBuf,
-        /// path to uncompressed image file
+        /// path to wic image file
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]
-        image: std::path::PathBuf
+        image: std::path::PathBuf,
+
+        /// optional: generate bmap file
+        #[structopt(short = "b", long = "generate-bmap-file")]
+        generate_bmap: bool,
     },
     SetIotedgeGatewayConfig {
         /// path to config file
         #[structopt(short = "c", long = "config")]
         #[structopt(parse(from_os_str))]
         config: std::path::PathBuf,
-        /// path to uncompressed image file
+        /// path to wic image file
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]
         image: std::path::PathBuf,
@@ -38,13 +42,17 @@ pub enum IdentityConfig {
         #[structopt(short = "k", long = "device_identity_key")]
         #[structopt(parse(from_os_str))]
         device_identity_key: std::path::PathBuf,
+
+        /// optional: generate bmap file
+        #[structopt(short = "b", long = "generate-bmap-file")]
+        generate_bmap: bool,
     },
     SetIotLeafSasConfig {
         /// path to config file
         #[structopt(short = "c", long = "config")]
         #[structopt(parse(from_os_str))]
         config: std::path::PathBuf,
-        /// path to uncompressed image file
+        /// path to wic image file
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]
         image: std::path::PathBuf,
@@ -52,12 +60,16 @@ pub enum IdentityConfig {
         #[structopt(short = "r", long = "root_ca")]
         #[structopt(parse(from_os_str))]
         root_ca: std::path::PathBuf,
+
+        /// optional: generate bmap file
+        #[structopt(short = "b", long = "generate-bmap-file")]
+        generate_bmap: bool,
     },
     Info {
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]
         image: std::path::PathBuf,
-    }
+    },
 }
 
 #[derive(StructOpt, Debug, PartialEq)]
@@ -69,16 +81,20 @@ pub enum WifiConfig {
         #[structopt(short = "c", long = "config")]
         #[structopt(parse(from_os_str))]
         config: std::path::PathBuf,
-         /// path to uncompressed image file
+        /// path to wic image file
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]
         image: std::path::PathBuf,
+
+        /// optional: generate bmap file
+        #[structopt(short = "b", long = "generate-bmap-file")]
+        generate_bmap: bool,
     },
     Info {
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]
         image: std::path::PathBuf,
-    }
+    },
 }
 
 #[derive(StructOpt, Debug, PartialEq)]
@@ -90,16 +106,20 @@ pub enum EnrollmentConfig {
         #[structopt(short = "c", long = "enrollment-config")]
         #[structopt(parse(from_os_str))]
         enrollment_config: std::path::PathBuf,
-         /// path to uncompressed image file
+        /// path to wic image file
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]
         image: std::path::PathBuf,
+
+        /// optional: generate bmap file
+        #[structopt(short = "b", long = "generate-bmap-file")]
+        generate_bmap: bool,
     },
     Info {
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]
         image: std::path::PathBuf,
-    }
+    },
 }
 
 #[derive(StructOpt, Debug, PartialEq)]
@@ -111,18 +131,21 @@ pub enum IotHubDeviceUpdateConfig {
         #[structopt(short = "c", long = "config")]
         #[structopt(parse(from_os_str))]
         iot_hub_device_update_config: std::path::PathBuf,
-         /// path to uncompressed image file
+        /// path to wic image file
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]
         image: std::path::PathBuf,
+
+        /// optional: generate bmap file
+        #[structopt(short = "b", long = "generate-bmap-file")]
+        generate_bmap: bool,
     },
     Info {
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]
         image: std::path::PathBuf,
-    }
+    },
 }
-
 
 #[derive(StructOpt, Debug, PartialEq)]
 #[structopt(about = ABOUT)]
@@ -135,4 +158,6 @@ pub enum Command {
     IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
 }
 
-pub fn from_args() -> Command { Command::from_args() }
+pub fn from_args() -> Command {
+    Command::from_args()
+}
