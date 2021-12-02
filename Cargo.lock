@@ -569,7 +569,7 @@ dependencies = [
 
 [[package]]
 name = "ics-dm-cli"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "async-compression",
  "base64",
