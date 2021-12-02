@@ -249,16 +249,19 @@ async fn docker_exec(
 pub fn set_wifi_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
+    generate_bmap: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     super::validators::image::validate_and_decompress_image(
         image_file,
         move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
-            let (binds, files) = prepare_binds(vec![config_file, image_file])?;
+            let (binds, files) = prepare_binds(vec![config_file, image_file], generate_bmap)?;
+            let cmd = prepare_command(
+                &files,
+                vec!["set_wifi_config.sh", "-i", &files[0], "-w", &files[1]],
+                generate_bmap,
+            )?;
 
-            docker_exec(
-                Some(binds),
-                Some(vec!["set_wifi_config.sh", "-i", &files[0], "-w", &files[1]]),
-            )
+            docker_exec(Some(binds), Some(cmd))
         },
     )
 }
@@ -266,17 +269,17 @@ pub fn set_wifi_config(
 pub fn set_enrollment_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
+    generate_bmap: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     super::validators::enrollment::validate_enrollment(&config_file)?;
 
     super::validators::image::validate_and_decompress_image(
         image_file,
         move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
-            let (binds, files) = prepare_binds(vec![config_file, &image_file])?;
-
-            docker_exec(
-                Some(binds),
-                Some(vec![
+            let (binds, files) = prepare_binds(vec![config_file, &image_file], generate_bmap)?;
+            let cmd = prepare_command(
+                &files,
+                vec![
                     "copy_file_to_image.sh",
                     "-i",
                     &files[0],
@@ -286,8 +289,11 @@ pub fn set_enrollment_config(
                     "factory",
                     "-w",
                     &files[1],
-                ]),
-            )
+                ],
+                generate_bmap,
+            )?;
+
+            docker_exec(Some(binds), Some(cmd))
         },
     )
 }
@@ -298,6 +304,7 @@ pub fn set_iotedge_gateway_config(
     root_ca_file: &PathBuf,
     edge_device_identity_full_chain_file: &PathBuf,
     edge_device_identity_key_file: &PathBuf,
+    generate_bmap: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     validate_identity(IdentityType::Gateway, &config_file)?
         .iter()
@@ -306,17 +313,19 @@ pub fn set_iotedge_gateway_config(
     super::validators::image::validate_and_decompress_image(
         image_file,
         move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
-            let (binds, files) = prepare_binds(vec![
-                config_file,
-                edge_device_identity_full_chain_file,
-                edge_device_identity_key_file,
-                root_ca_file,
-                image_file,
-            ])?;
-
-            docker_exec(
-                Some(binds),
-                Some(vec![
+            let (binds, files) = prepare_binds(
+                vec![
+                    config_file,
+                    edge_device_identity_full_chain_file,
+                    edge_device_identity_key_file,
+                    root_ca_file,
+                    image_file,
+                ],
+                generate_bmap,
+            )?;
+            let cmd = prepare_command(
+                &files,
+                vec![
                     "set_iotedge_gw_config.sh",
                     "-c",
                     &files[0],
@@ -328,8 +337,11 @@ pub fn set_iotedge_gateway_config(
                     &files[3],
                     "-w",
                     &files[4],
-                ]),
-            )
+                ],
+                generate_bmap,
+            )?;
+
+            docker_exec(Some(binds), Some(cmd))
         },
     )
 }
@@ -338,6 +350,7 @@ pub fn set_iot_leaf_sas_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
     root_ca_file: &PathBuf,
+    generate_bmap: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     validate_identity(IdentityType::Leaf, &config_file)?
         .iter()
@@ -346,11 +359,11 @@ pub fn set_iot_leaf_sas_config(
     super::validators::image::validate_and_decompress_image(
         image_file,
         move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
-            let (binds, files) = prepare_binds(vec![config_file, root_ca_file, image_file])?;
-
-            docker_exec(
-                Some(binds),
-                Some(vec![
+            let (binds, files) =
+                prepare_binds(vec![config_file, root_ca_file, image_file], generate_bmap)?;
+            let cmd = prepare_command(
+                &files,
+                vec![
                     "set_iot_leaf_config.sh",
                     "-c",
                     &files[0],
@@ -358,8 +371,10 @@ pub fn set_iot_leaf_sas_config(
                     &files[1],
                     "-w",
                     &files[2],
-                ]),
-            )
+                ],
+                generate_bmap,
+            )?;
+            docker_exec(Some(binds), Some(cmd))
         },
     )
 }
@@ -367,6 +382,7 @@ pub fn set_iot_leaf_sas_config(
 pub fn set_identity_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
+    generate_bmap: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     validate_identity(IdentityType::Standalone, &config_file)?
         .iter()
@@ -375,18 +391,13 @@ pub fn set_identity_config(
     super::validators::image::validate_and_decompress_image(
         image_file,
         move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
-            let (binds, files) = prepare_binds(vec![config_file, image_file])?;
-
-            docker_exec(
-                Some(binds),
-                Some(vec![
-                    "set_identity_config.sh",
-                    "-c",
-                    &files[0],
-                    "-w",
-                    &files[1],
-                ]),
-            )
+            let (binds, files) = prepare_binds(vec![config_file, image_file], generate_bmap)?;
+            let cmd = prepare_command(
+                &files,
+                vec!["set_identity_config.sh", "-c", &files[0], "-w", &files[1]],
+                generate_bmap,
+            )?;
+            docker_exec(Some(binds), Some(cmd))
         },
     )
 }
@@ -394,15 +405,15 @@ pub fn set_identity_config(
 pub fn set_iot_hub_device_update_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
+    generate_bmap: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     super::validators::image::validate_and_decompress_image(
         image_file,
         move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
-            let (binds, files) = prepare_binds(vec![config_file, image_file])?;
-
-            docker_exec(
-                Some(binds),
-                Some(vec![
+            let (binds, files) = prepare_binds(vec![config_file, image_file], generate_bmap)?;
+            let cmd = prepare_command(
+                &files,
+                vec![
                     "copy_file_to_image.sh",
                     "-i",
                     &files[0],
@@ -412,8 +423,11 @@ pub fn set_iot_hub_device_update_config(
                     "factory",
                     "-w",
                     &files[1],
-                ]),
-            )
+                ],
+                generate_bmap,
+            )?;
+
+            docker_exec(Some(binds), Some(cmd))
         },
     )
 }
@@ -428,8 +442,22 @@ pub async fn docker_version() -> Result<(), Error> {
     Ok(())
 }
 
+pub fn prepare_command<'a>(
+    bind_files: &'a Vec<String>,
+    cmd: Vec<&'a str>,
+    generate_bmap: bool,
+) -> Result<Vec<&'a str>, Box<dyn std::error::Error>> {
+    let mut _cmd = cmd;
+    if generate_bmap {
+        let mut command_append = vec!["-b", bind_files.last().unwrap()];
+        _cmd.append(&mut command_append);
+    }
+    Ok(_cmd.to_vec())
+}
+
 pub fn prepare_binds(
     files: Vec<&PathBuf>,
+    generate_bmap: bool,
 ) -> Result<(Vec<String>, Vec<String>), Box<dyn std::error::Error>> {
     let mut binds: Vec<String> = vec![];
     let mut bind_files: Vec<String> = vec![];
@@ -448,6 +476,20 @@ pub fn prepare_binds(
         binds.push(format!("{}:{}", path, bind_path));
         Ok(())
     })?;
+
+    if generate_bmap {
+        let bmap_path = format!("{}.bmap", files.last().unwrap().to_str().unwrap());
+        let bmap_pathbuf = PathBuf::from(&bmap_path);
+        File::create(bmap_pathbuf.clone())?;
+        let bmap_bind_path = format!(
+            "/tmp/{}/{}",
+            tmp_folder,
+            bmap_pathbuf.file_name().unwrap().to_str().unwrap()
+        );
+        bind_files.push(bmap_bind_path.clone());
+        binds.push(format!("{}:{}", bmap_path, bmap_bind_path));
+    }
+
     Ok((binds, bind_files))
 }
 

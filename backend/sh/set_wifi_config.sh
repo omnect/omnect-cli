@@ -9,11 +9,14 @@ set -o errexit   # abort on nonzero exitstatus
 set -o pipefail  # don't hide errors within pipes
 
 function usage() {
-    echo "Usage: $0 -i input_file -w wic_image" 1>&2; exit 1;
+    echo "Usage: $0 -i input_file -w wic_image [-b output_bmap_file]" 1>&2; exit 1;
 }
 
-while getopts "i:w:" opt; do
+while getopts "b:i:w:" opt; do
     case "${opt}" in
+        b)
+            b=${OPTARG}
+            ;;
         i)
             i=${OPTARG}
             ;;
@@ -31,6 +34,7 @@ if [ -z "${i}" ] || [ -z "${w}" ]; then
     usage
 fi
 
+d_echo "b = ${b}"
 d_echo "i = ${i}"
 d_echo "w = ${w}"
 
@@ -55,3 +59,7 @@ echo "systemctl enable wpa_supplicant@wlan0.service && systemctl start wpa_suppl
 e2cp /tmp/${uuid}/ics_dm_first_boot.sh /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh
 
 write_back_partition
+
+if [ "0" != "${b}0" ]; then
+    bmaptool create -o ${b} ${w}
+fi
