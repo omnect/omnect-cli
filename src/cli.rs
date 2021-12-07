@@ -150,12 +150,38 @@ pub enum IotHubDeviceUpdateConfig {
 #[derive(StructOpt, Debug, PartialEq)]
 #[structopt(about = ABOUT)]
 #[structopt(after_help = COPYRIGHT)]
+pub enum BootConfig {
+    Set {
+        /// path to config file
+        #[structopt(short = "c", long = "config")]
+        #[structopt(parse(from_os_str))]
+        boot_script: std::path::PathBuf,
+        /// path to wic image file
+        #[structopt(short = "i", long = "image")]
+        #[structopt(parse(from_os_str))]
+        image: std::path::PathBuf,
+
+        /// optional: generate bmap file
+        #[structopt(short = "b", long = "generate-bmap-file")]
+        generate_bmap: bool,
+    },
+    Info {
+        #[structopt(short = "i", long = "image")]
+        #[structopt(parse(from_os_str))]
+        image: std::path::PathBuf,
+    },
+}
+
+#[derive(StructOpt, Debug, PartialEq)]
+#[structopt(about = ABOUT)]
+#[structopt(after_help = COPYRIGHT)]
 pub enum Command {
     Identity(IdentityConfig),
     DockerInfo,
     Wifi(WifiConfig),
     Enrollment(EnrollmentConfig),
     IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
+    Boot(BootConfig),
 }
 
 pub fn from_args() -> Command {

@@ -11,6 +11,7 @@ use cli::IdentityConfig::SetConfig;
 use cli::IdentityConfig::SetIotLeafSasConfig;
 use cli::IdentityConfig::SetIotedgeGatewayConfig;
 use cli::IotHubDeviceUpdateConfig::Set as IotHubDeviceUpdateSet;
+use cli::BootConfig::Set as BootSet;
 use cli::WifiConfig::Set as WifiSet;
 use std::io::{Error, ErrorKind};
 
@@ -59,6 +60,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             generate_bmap,
         }) => docker::set_iot_hub_device_update_config(
             &iot_hub_device_update_config,
+            &image,
+            generate_bmap,
+        )?,
+        Command::Boot(BootSet {
+            boot_script,
+            image,
+            generate_bmap,
+        }) => docker::set_boot_config(
+            &boot_script,
             &image,
             generate_bmap,
         )?,
