@@ -54,9 +54,15 @@ uuid_gen
 read_in_partition
 
 # copy file
-d_echo "e2cp ${i} /tmp/${uuid}/${p}.img:${o}"
-e2mkdir /tmp/${uuid}/${p}.img:$(dirname ${o})
-e2cp ${i} /tmp/${uuid}/${p}.img:${o}
+if [ "${p}" != "boot" ]; then
+    d_echo "e2cp ${i} /tmp/${uuid}/${p}.img:${o}"
+    e2mkdir /tmp/${uuid}/${p}.img:$(dirname ${o})
+    e2cp ${i} /tmp/${uuid}/${p}.img:${o}
+else 
+    d_echo "mcopy ${i} /tmp/${uuid}/${p}.img:${o}"
+    mmd /tmp/${uuid}/${p}.img:$(dirname ${o})
+    mcopy ${i} /tmp/${uuid}/${p}.img:${o}
+fi
 
 write_back_partition
 

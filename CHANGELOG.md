@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.0] Q4 2021
 
 - added inject boot script command
+- added mtools to be able to cope to boot partition
 
 ## [0.8.1] Q4 2021
 

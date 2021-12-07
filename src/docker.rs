@@ -409,7 +409,8 @@ pub fn set_boot_config(
             cmd_exec(
                 vec![boot_script, image_file],
                 |files| -> String {
-                    format!("copy_file_to_image.sh, -i, {0}, -o, /boot/boot.scr, -p, factory, -w {1}",
+                    format!(
+                        "copy_file_to_image.sh, -i, {0}, -o, /boot.scr, -p, boot, -w {1}",
                         files[0], files[1]
                     )
                 },
