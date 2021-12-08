@@ -251,3 +251,29 @@ fn check_set_iot_hub_device_update_config_bmap() {
         docker::set_iot_hub_device_update_config(&adu_config_file_path, &image_path, true).is_ok()
     );
 }
+
+#[test]
+fn check_set_boot_config() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let boot_config_file_path = tr.to_pathbuf("boot.scr");
+    let image_path = tr.to_pathbuf("image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_boot_config(&boot_config_file_path, &image_path, false).is_ok()
+    );
+}
+
+//#[test]
+fn check_set_boot_config_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let boot_config_file_path = tr.to_pathbuf("boot.scr");
+    let image_path = tr.to_pathbuf("image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_boot_config(&boot_config_file_path, &image_path, true).is_ok()
+    );
+}

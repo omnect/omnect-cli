@@ -13,6 +13,8 @@ ics-dm-cli provides commands to inject various configurations into a flash image
   - Inject an iot leaf identity configuration for AIS
 - Device Update for IoT Hub configuration
   - Inject `adu-conf.txt`
+- Boot configuration
+  - Inject `boot.scr`
 
 # Download prebuild Docker image
 - login to azure docker registry either via admin user
@@ -44,6 +46,9 @@ Use `wpa_passphrase` to generate your `psk`. Depending on your host system you m
 
 ```sh
 ics-dm-cli wifi set -c <path>/wpa_supplicant.conf -i <path>/image.wic
+
+Options:
+  -b create bmap file
 ```
 
 # Enrollment configuration
@@ -53,6 +58,9 @@ Adapt [enrollment_static.json.template](conf/enrollment_static.json.template) to
 
 ```sh
 ics-dm-cli enrollment set -c <path>/enrollment_static.json -i <path>/image.wic
+
+Options:
+  -b create bmap file
 ```
 
 # Identity configuration
@@ -61,6 +69,9 @@ For `ics-iot-devices` and `ics-iotedge-devices` adapt [config.toml.ics-iot.templ
 
 ```sh
 ics-dm-cli identity set-config -c <path>/config.toml -i <path>/image.wic
+
+Options:
+  -b create bmap file
 ```
 
 ## Prepare `ics-iotedge-gateway-device` and `ics-iot-leaf-device` for a transparent gateway with leaf scenario
@@ -80,6 +91,9 @@ Adapt [config.toml.ics-iotedge-gateway.template](conf/config.toml.ics-iotedge-ga
 ### Inject configuration
 ```sh
 ics-dm-cli identity  set-iotedge-gateway-config -c <path>/iotedge_config.toml -i <path>/iotedge_image.wic  -r <path>/azure-iot-test-only.root.ca.cert.pem -d <path>/iot-edge-device-ca-<name>-full-chain.cert.pem -k <path>/iot-edge-device-ca-<name>.key.pem
+
+Options:
+  -b create bmap file
 ```
 
 ## Leaf configuration
@@ -96,6 +110,9 @@ Adapt [config.toml.ics-iot-leaf.template](conf/config.toml.ics-iot-leaf.template
 ### Inject configuration
 ```sh
 ics-dm-cli identity set-iot-leaf-sas-config -c <path>/iot_config.toml -i <path>/leaf_image.wic  -r <path>/azure-iot-test-only.root.ca.cert.pem
+
+Options:
+  -b create bmap file
 ```
 
 # Device Update for IoT Hub configuration
@@ -103,6 +120,19 @@ ics-dm-cli identity set-iot-leaf-sas-config -c <path>/iot_config.toml -i <path>/
 
 ```sh
 ics-dm-cli iot-hub-device-update set -c <path>/adu-conf.txt -i <path>/image.wic
+
+Options:
+  -b create bmap file
+```
+
+# Boot configuration
+## Inject `boot.scr`
+
+```sh
+ics-dm-cli boot set -c <path>/boot.scr -i <path>/image.wic
+
+Options:
+  -b create bmap file
 ```
 
 # Troubleshooting
