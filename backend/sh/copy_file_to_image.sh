@@ -59,9 +59,13 @@ if [ "${p}" != "boot" ]; then
     e2mkdir /tmp/${uuid}/${p}.img:$(dirname ${o})
     e2cp ${i} /tmp/${uuid}/${p}.img:${o}
 else 
-    d_echo "mcopy ${i} /tmp/${uuid}/${p}.img:${o}"
-    mmd /tmp/${uuid}/${p}.img:$(dirname ${o})
-    mcopy ${i} /tmp/${uuid}/${p}.img:${o}
+    if [ ! -d $(dirname ${o}) ]; then
+        d_echo "mmd -i /tmp/${uuid}/${p}.img ::$(dirname ${o})"
+        mmd -i /tmp/${uuid}/${p}.img ::$(dirname ${o})
+    fi
+
+    d_echo "mcopy -i /tmp/${uuid}/${p}.img ${i} ::$(dirname ${o})"
+    mcopy -i /tmp/${uuid}/${p}.img ${i} ::$(dirname ${o})
 fi
 
 write_back_partition
