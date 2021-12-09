@@ -5,11 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.2] Q4 2021
+## [0.9.1] Q4 2021
 
 - remove async_compress and instead use xz, bzip2 and flate2 dependencies directly,i
   fixing a bug with recompression failing for xz with an lzma data error for large images
   (likely a race condition since the error did not happen every time).
+
+## [0.9.0] Q4 2021
+
+- added inject boot script command
+- added mtools to be able to cope to boot partition
 
 ## [0.8.1] Q4 2021
 

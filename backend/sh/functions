@@ -2,6 +2,7 @@
 
 # for now we use static lookup for partion numbers (may break if we have
 # systems whith different partition schemas, e.g. dos vs gpt)
+boot=1
 rootA=2
 factory=5
 cert=6
