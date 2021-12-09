@@ -1,71 +1,92 @@
 use filemagic::Magic;
 use log::{debug, info};
 use std::fs::remove_file;
+use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
 
 trait CompressionGenerator {
-    fn compressor<'a>(
+    fn compress<'a>(
         &self,
-        destination: &'a mut (dyn tokio::io::AsyncWrite + Unpin),
-    ) -> Box<dyn tokio::io::AsyncWrite + Unpin + 'a>;
-    fn decompressor<'a>(
+        source: &mut std::fs::File,
+        destination: &mut std::fs::File,
+    ) -> std::io::Result<u64>;
+    fn decompress<'a>(
         &self,
-        destination: &'a mut (dyn tokio::io::AsyncWrite + Unpin),
-    ) -> Box<dyn tokio::io::AsyncWrite + Unpin + 'a>;
+        source: &mut std::fs::File,
+        destination: &mut std::fs::File,
+    ) -> std::io::Result<u64>;
 }
 
 struct XzGenerator;
 impl CompressionGenerator for XzGenerator {
-    fn compressor<'a>(
+    fn compress<'a>(
         &self,
-        destination: &'a mut (dyn tokio::io::AsyncWrite + Unpin),
-    ) -> Box<dyn tokio::io::AsyncWrite + Unpin + 'a> {
-        Box::new(async_compression::tokio::write::XzEncoder::new(destination))
+        source: &mut std::fs::File,
+        destination: &mut std::fs::File,
+    ) -> std::io::Result<u64> {
+        let mut enc = xz2::write::XzEncoder::new(destination, 9);
+        let bytes_written = std::io::copy(source, &mut enc)?;
+        enc.finish()?;
+        Ok(bytes_written)
     }
-    fn decompressor<'a>(
+    fn decompress<'a>(
         &self,
-        destination: &'a mut (dyn tokio::io::AsyncWrite + Unpin),
-    ) -> Box<dyn tokio::io::AsyncWrite + Unpin + 'a> {
-        Box::new(async_compression::tokio::write::XzDecoder::new(destination))
+        source: &mut std::fs::File,
+        destination: &mut std::fs::File,
+    ) -> std::io::Result<u64> {
+        let mut dec = xz2::write::XzDecoder::new(destination);
+        let bytes_written = std::io::copy(source, &mut dec)?;
+        dec.finish()?;
+        Ok(bytes_written)
     }
 }
 
 struct BzGenerator;
 impl CompressionGenerator for BzGenerator {
-    fn compressor<'a>(
+    fn compress<'a>(
         &self,
-        destination: &'a mut (dyn tokio::io::AsyncWrite + Unpin),
-    ) -> Box<dyn tokio::io::AsyncWrite + Unpin + 'a> {
-        Box::new(async_compression::tokio::write::BzEncoder::new(destination))
+        source: &mut std::fs::File,
+        destination: &mut std::fs::File,
+    ) -> std::io::Result<u64> {
+        let mut enc = bzip2::write::BzEncoder::new(destination, bzip2::Compression::best());
+        let bytes_written = std::io::copy(source, &mut enc)?;
+        enc.finish()?;
+        Ok(bytes_written)
     }
-    fn decompressor<'a>(
+    fn decompress<'a>(
         &self,
-        destination: &'a mut (dyn tokio::io::AsyncWrite + Unpin),
-    ) -> Box<dyn tokio::io::AsyncWrite + Unpin + 'a> {
-        Box::new(async_compression::tokio::write::BzDecoder::new(destination))
+        source: &mut std::fs::File,
+        destination: &mut std::fs::File,
+    ) -> std::io::Result<u64> {
+        let mut dec = bzip2::write::BzDecoder::new(destination);
+        let bytes_written = std::io::copy(source, &mut dec)?;
+        dec.finish()?;
+        Ok(bytes_written)
     }
 }
 
 struct GzGenerator;
 impl CompressionGenerator for GzGenerator {
-    fn compressor<'a>(
+    fn compress<'a>(
         &self,
-        destination: &'a mut (dyn tokio::io::AsyncWrite + Unpin),
-    ) -> Box<dyn tokio::io::AsyncWrite + Unpin + 'a> {
-        Box::new(async_compression::tokio::write::GzipEncoder::new(
-            destination,
-        ))
+        source: &mut std::fs::File,
+        destination: &mut std::fs::File,
+    ) -> std::io::Result<u64> {
+        let mut enc = flate2::write::GzEncoder::new(destination, flate2::Compression::best());
+        let bytes_written = std::io::copy(source, &mut enc)?;
+        enc.finish()?;
+        Ok(bytes_written)
     }
-    fn decompressor<'a>(
+    fn decompress<'a>(
         &self,
-        destination: &'a mut (dyn tokio::io::AsyncWrite + Unpin),
-    ) -> Box<dyn tokio::io::AsyncWrite + Unpin + 'a> {
-        Box::new(async_compression::tokio::write::GzipDecoder::new(
-            destination,
-        ))
+        source: &mut std::fs::File,
+        destination: &mut std::fs::File,
+    ) -> std::io::Result<u64> {
+        let mut dec = flate2::write::GzDecoder::new(destination);
+        let bytes_written = std::io::copy(source, &mut dec)?;
+        dec.finish()?;
+        Ok(bytes_written)
     }
 }
 
@@ -163,34 +184,28 @@ pub fn validate_and_decompress_image(
     action(image_file_name)
 }
 
-#[tokio::main]
-async fn decompress(
+fn decompress(
     image_file_name: &PathBuf,
     extension: &'static str,
     generator: &'static dyn CompressionGenerator,
-) -> Result<PathBuf, tokio::io::Error> {
+) -> Result<PathBuf, std::io::Error> {
     let mut new_image_file = image_file_name.to_path_buf();
     new_image_file.set_extension(extension);
-    let mut destination = File::create(new_image_file.clone()).await?;
-    let mut source = File::open(image_file_name).await?;
-    let mut decompressor = generator.decompressor(&mut destination);
-    let bytes_written = tokio::io::copy(&mut source, &mut decompressor).await?;
+    let mut destination = File::create(new_image_file.clone())?;
+    let mut source = File::open(image_file_name)?;
+    let bytes_written = generator.decompress(&mut source, &mut destination)?;
     debug!("Decompress: copied {} bytes.", bytes_written);
-    decompressor.shutdown().await?;
     Ok(new_image_file)
 }
 
-#[tokio::main]
-async fn compress(
+fn compress(
     uncompressed_file_name: &PathBuf,
     compressed_file_name: &PathBuf,
     generator: &'static dyn CompressionGenerator,
-) -> Result<(), tokio::io::Error> {
-    let mut destination = File::create(compressed_file_name.clone()).await?;
-    let mut source = File::open(uncompressed_file_name).await?;
-    let mut compressor = generator.compressor(&mut destination);
-    let bytes_written = tokio::io::copy(&mut source, &mut compressor).await?;
+) -> Result<(), std::io::Error> {
+    let mut destination = File::create(compressed_file_name.clone())?;
+    let mut source = File::open(uncompressed_file_name)?;
+    let bytes_written = generator.compress(&mut source, &mut destination)?;
     debug!("Compress: copied {} bytes.", bytes_written);
-    compressor.shutdown().await?;
     Ok(())
 }
