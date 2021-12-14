@@ -25,7 +25,7 @@ function uuid_gen() {
 
 function read_in_partition() {
     d_echo read_in_partition ${p}
-    part_offset=($(fdisk -l ${w} | grep ${w}${!p} | awk '{print $2 " " $4}'))
+    part_offset=($(fdisk -l -o Device,Start,End ${w} | grep ${w}${!p} | awk '{print $2 " " $3}'))
     d_echo "dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset[0]} count=${part_offset[1]}"
     dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset[0]} count=${part_offset[1]} 2>&1
     sync
