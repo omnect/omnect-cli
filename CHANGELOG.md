@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] Q4 2021
+
+- re-enabled dd to log errors again but prevent logging statistics
+
 ## [0.9.2] Q4 2021
 
 - fix boot.scr injection on images with active boot partition
