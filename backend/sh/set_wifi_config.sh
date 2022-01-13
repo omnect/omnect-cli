@@ -51,13 +51,6 @@ d_echo "e2cp ${i} /tmp/${uuid}/${p}.img:/etc/wpa_supplicant/wpa_supplicant-wlan0
 e2mkdir /tmp/${uuid}/${p}.img:/etc/wpa_supplicant
 e2cp -P 644 ${i} /tmp/${uuid}/${p}.img:/etc/wpa_supplicant/wpa_supplicant-wlan0.conf
 
-# enable wpa_supplicant
-# create/append to ics_dm_first_boot.sh in factory partition
-# for the following cp redirect stderr -> stdout, since it is possible that this file doesnt exist
-e2cp /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh /tmp/${uuid}/icsd_dm_first_boot.sh 2>&1
-echo "systemctl enable wpa_supplicant@wlan0.service && systemctl start wpa_supplicant@wlan0.service" >> /tmp/${uuid}/ics_dm_first_boot.sh
-e2cp /tmp/${uuid}/ics_dm_first_boot.sh /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh
-
 write_back_partition
 
 if [ "0" != "${b}0" ]; then

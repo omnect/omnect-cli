@@ -72,13 +72,6 @@ read_in_partition
 
 copy_identity_config
 
-# create/append to ics_dm_first_boot.sh in factory partition
-# activate identity config on first boot if enrollment demo is not installed
-# for the following cp redirect stderr -> stdout, since it is possible that this file doesnt exist
-e2cp /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh /tmp/${uuid}/icsd_dm_first_boot.sh 2>&1
-echo "iotedge config apply" >>  /tmp/${uuid}/ics_dm_first_boot.sh
-e2cp /tmp/${uuid}/ics_dm_first_boot.sh /tmp/${uuid}/${p}.img:/ics_dm_first_boot.sh
-
 write_back_partition
 
 # copy root ca cert,  device cert and key
