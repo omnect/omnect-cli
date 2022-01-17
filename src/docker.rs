@@ -257,7 +257,10 @@ pub fn set_wifi_config(
             cmd_exec(
                 vec![config_file, image_file],
                 |files| -> String {
-                    format!("set_wifi_config.sh, -i, {0}, -w, {1}", files[0], files[1])
+                    format!(
+                        "copy_file_to_image.sh, -i, {0}, -o, /etc/wpa_supplicant/wpa_supplicant-wlan0.conf, -p, factory, -w, {1}",
+                        files[0], files[1]
+                    )
                 },
                 generate_bmap,
             )
