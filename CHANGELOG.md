@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.5] Q1 2022
+
+- subcommand `iot-hub-device-update`:
+  - adapt to `iot-hub-device-update` version >= 0.8.0
+  - test if input config file is a json file
+
 ## [0.9.4] Q1 2022
 
 - remove ics_dm_first_boot.sh from factory partition, handling
