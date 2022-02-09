@@ -386,13 +386,12 @@ pub fn set_iot_hub_device_update_config(
     generate_bmap: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let file = File::open(&config_file)?;
-    let _only_verify_json: serde_json::Value = serde_json::from_reader(BufReader::new(file))
-        .map_err(|e| {
-            format!(
-                "Input {:?} seems not to be a valid json file: {}",
-                &config_file, &e
-            )
-        })?;
+    serde_json::from_reader::<_, serde_json::Value>(BufReader::new(file)).map_err(|e| {
+        format!(
+            "Input {:?} seems not to be a valid json file: {}",
+            &config_file, &e
+        )
+    })?;
 
     super::validators::image::validate_and_decompress_image(
         image_file,
