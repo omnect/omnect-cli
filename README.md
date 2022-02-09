@@ -12,7 +12,7 @@ ics-dm-cli provides commands to inject various configurations into a flash image
   - Inject an iotedge gateway identity configuration for AIS
   - Inject an iot leaf identity configuration for AIS
 - Device Update for IoT Hub configuration
-  - Inject `adu-conf.txt`
+  - Inject [`du-config.json`](https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
 - Boot configuration
   - Inject `boot.scr`
 
@@ -116,10 +116,10 @@ Options:
 ```
 
 # Device Update for IoT Hub configuration
-## Inject `adu-conf.txt`
+## Inject `du-config.json`
 
 ```sh
-ics-dm-cli iot-hub-device-update set -c <path>/adu-conf.txt -i <path>/image.wic
+ics-dm-cli iot-hub-device-update set -c <path>/du-config.json -i <path>/image.wic
 
 Options:
   -b create bmap file
@@ -182,4 +182,4 @@ submitted for inclusion in the work by you, as defined in the Apache-2.0
 license, shall be dual licensed as above, without any additional terms or
 conditions.
 
-Copyright (c) 2021 conplement AG
+Copyright (c) 2021-2022 conplement AG

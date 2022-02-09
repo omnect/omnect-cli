@@ -385,13 +385,21 @@ pub fn set_iot_hub_device_update_config(
     image_file: &PathBuf,
     generate_bmap: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let file = File::open(&config_file)?;
+    serde_json::from_reader::<_, serde_json::Value>(BufReader::new(file)).map_err(|e| {
+        format!(
+            "Input {:?} seems not to be a valid json file: {}",
+            &config_file, &e
+        )
+    })?;
+
     super::validators::image::validate_and_decompress_image(
         image_file,
         move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
             cmd_exec(
                 vec![config_file, image_file],
                 |files| -> String {
-                    format!("copy_file_to_image.sh, -i, {0}, -o, /etc/adu/adu-conf.txt, -p, factory, -w {1}",
+                    format!("copy_file_to_image.sh, -i, {0}, -o, /etc/adu/du-config.json, -p, factory, -w {1}",
                         files[0], files[1]
                     )
                 },

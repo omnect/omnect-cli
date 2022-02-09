@@ -230,7 +230,7 @@ fn check_set_identity_config_bmap() {
 fn check_set_iot_hub_device_update_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let adu_config_file_path = tr.to_pathbuf("adu-conf.txt");
+    let adu_config_file_path = tr.to_pathbuf("du-config.json");
     let image_path = tr.to_pathbuf("image.wic");
 
     assert_eq!(
@@ -243,7 +243,7 @@ fn check_set_iot_hub_device_update_config() {
 fn check_set_iot_hub_device_update_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let adu_config_file_path = tr.to_pathbuf("adu-conf.txt");
+    let adu_config_file_path = tr.to_pathbuf("du-config.json");
     let image_path = tr.to_pathbuf("image.wic");
 
     assert_eq!(
