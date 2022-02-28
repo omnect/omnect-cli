@@ -4,6 +4,7 @@ use std::io::{Error, ErrorKind};
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[allow(dead_code)]
 struct Attestation {
     method: String,
     registration_id: Option<String>,
@@ -12,6 +13,7 @@ struct Attestation {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[allow(dead_code)]
 struct Authentication {
     method: String,
     device_id_pk: Option<BTreeMap<String, String>>,
@@ -31,6 +33,7 @@ struct Provisioning {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[allow(dead_code)]
 struct EdgeCA {
     cert: String,
     pk: String,
@@ -38,6 +41,7 @@ struct EdgeCA {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[allow(dead_code)]
 struct IdentityConfig {
     hostname: String,
     local_gateway_hostname: Option<String>,

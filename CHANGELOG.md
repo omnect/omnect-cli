@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] Q1 2022
+- added `Cargo.audit.ignore`: this file lists the `cargo audit` findings we
+  ignore
+- fixed dependencies to solve 2 `cargo audit` findings
+- ignore dead code warnings in validator structs; structs are used at runtime
+  of validator tests
+
 ## [0.9.5] Q1 2022
 
 - subcommand `iot-hub-device-update`:
