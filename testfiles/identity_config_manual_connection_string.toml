@@ -1,4 +1,4 @@
-hostname= "test"
+hostname = "test"
 
 [provisioning]
 source = "manual"
