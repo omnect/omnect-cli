@@ -207,7 +207,7 @@ mod tests {
         assert_ne!(None, result[0].find("provisioning source manual"));
         assert_ne!(
             None,
-            result[0].find("connection_string or iothub_hostname and device_id")
+            result[0].find("either connection_string or iothub_hostname and device_id")
         );
         assert_ne!(None, result[1].find("provisioning source manual"));
         assert_ne!(None, result[1].find("authentication section"));
@@ -308,7 +308,7 @@ mod tests {
         assert_ne!(None, result[0].find("provisioning source manual"));
         assert_ne!(
             None,
-            result[0].find("connection_string or iothub_hostname and device_id")
+            result[0].find("either connection_string or iothub_hostname and device_id")
         );
         assert_ne!(None, result[1].find("provisioning source manual"));
         assert_ne!(None, result[1].find("authentication section"));
@@ -405,7 +405,7 @@ mod tests {
         assert_ne!(None, result[0].find("provisioning source manual"));
         assert_ne!(
             None,
-            result[0].find("connection_string or iothub_hostname and device_id")
+            result[0].find("either connection_string or iothub_hostname and device_id")
         );
         assert_ne!(None, result[1].find("provisioning source manual"));
         assert_ne!(None, result[1].find("authentication section"));
