@@ -1,0 +1,5 @@
+hostname= "test"
+
+[provisioning]
+source = "manual"
+connection_string  = "my-iothub.azure-devices.net"
