@@ -130,7 +130,7 @@ pub fn validate_identity(
                             }
                         }
                     }
-                } 
+                }
             }
             &_ => {
                 out.push(WARN_INVALID_SOURCE);
@@ -306,7 +306,10 @@ mod tests {
         .unwrap();
         assert_eq!(2, result.len());
         assert_ne!(None, result[0].find("provisioning source manual"));
-        assert_ne!(None, result[0].find("connection_string or iothub_hostname and device_id"));
+        assert_ne!(
+            None,
+            result[0].find("connection_string or iothub_hostname and device_id")
+        );
         assert_ne!(None, result[1].find("provisioning source manual"));
         assert_ne!(None, result[1].find("authentication section"));
     }
@@ -400,7 +403,10 @@ mod tests {
         .unwrap();
         assert_eq!(2, result.len());
         assert_ne!(None, result[0].find("provisioning source manual"));
-        assert_ne!(None, result[0].find("connection_string or iothub_hostname and device_id"));
+        assert_ne!(
+            None,
+            result[0].find("connection_string or iothub_hostname and device_id")
+        );
         assert_ne!(None, result[1].find("provisioning source manual"));
         assert_ne!(None, result[1].find("authentication section"));
     }
