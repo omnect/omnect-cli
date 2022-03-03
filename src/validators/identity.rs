@@ -28,6 +28,7 @@ struct Provisioning {
     attestation: Option<Attestation>,
     authentication: Option<Authentication>,
     iothub_hostname: Option<String>,
+    connection_string: Option<String>,
     device_id: Option<String>,
 }
 
@@ -58,7 +59,7 @@ const WARN_MISSING_PROVISIONING: &'static str = "A provisioning section should b
 const WARN_MISSING_DPS_PARAMS: &'static str =
     "For provisioning source dps, global_endpoint and id_scope should be specified.";
 const WARN_MISSING_MANUAL_PARAMS: &'static str =
-    "For provisioning source manual, iothub_hostname and device_id are required.";
+    "For provisioning source manual, either connection_string or iothub_hostname and device_id are required.";
 const WARN_MISSING_AUTHENTICATION: &'static str =
     "For provisioning source manual, an authentication section should be present in the provisioning section.";
 const WARN_MISSING_ATTESTATION: &'static str =
@@ -97,7 +98,7 @@ pub fn validate_identity(
         }
         Some(p) => match p.source.as_str() {
             "dps" => {
-                if p.global_endpoint == None || p.id_scope == None {
+                if p.global_endpoint.is_none() || p.id_scope.is_none() {
                     out.push(WARN_MISSING_DPS_PARAMS);
                 }
                 match p.attestation {
@@ -112,16 +113,21 @@ pub fn validate_identity(
                 }
             }
             "manual" => {
-                if p.iothub_hostname == None || p.device_id == None {
+                if p.connection_string.is_none()
+                    && (p.iothub_hostname.is_none() || p.device_id.is_none())
+                {
                     out.push(WARN_MISSING_MANUAL_PARAMS);
                 }
-                match p.authentication {
-                    None => {
-                        out.push(WARN_MISSING_AUTHENTICATION);
-                    }
-                    Some(a) => {
-                        if a.method != "sas" {
-                            out.push(WARN_AUTHENTICATION_VALID_METHOD_EXPECTED);
+
+                if p.connection_string.is_none() {
+                    match p.authentication {
+                        None => {
+                            out.push(WARN_MISSING_AUTHENTICATION);
+                        }
+                        Some(a) => {
+                            if a.method != "sas" {
+                                out.push(WARN_AUTHENTICATION_VALID_METHOD_EXPECTED);
+                            }
                         }
                     }
                 }
@@ -196,11 +202,27 @@ mod tests {
             &std::path::PathBuf::from("testfiles/identity_config_manual.toml"),
         )
         .unwrap();
+
         assert_eq!(2, result.len());
         assert_ne!(None, result[0].find("provisioning source manual"));
+        assert_ne!(
+            None,
+            result[0].find("either connection_string or iothub_hostname and device_id")
+        );
         assert_ne!(None, result[1].find("provisioning source manual"));
-        assert_ne!(None, result[0].find("iothub_hostname and device_id"));
         assert_ne!(None, result[1].find("authentication section"));
+    }
+
+    #[test]
+    fn identity_config_standalone_manual_con_str() {
+        lazy_static::initialize(&LOG);
+        let result = validate_identity(
+            IdentityType::Standalone,
+            &std::path::PathBuf::from("testfiles/identity_config_manual_connection_string.toml"),
+        )
+        .unwrap();
+
+        assert_eq!(0, result.len());
     }
 
     #[test]
@@ -284,7 +306,10 @@ mod tests {
         .unwrap();
         assert_eq!(2, result.len());
         assert_ne!(None, result[0].find("provisioning source manual"));
-        assert_ne!(None, result[0].find("iothub_hostname and device_id"));
+        assert_ne!(
+            None,
+            result[0].find("either connection_string or iothub_hostname and device_id")
+        );
         assert_ne!(None, result[1].find("provisioning source manual"));
         assert_ne!(None, result[1].find("authentication section"));
     }
@@ -378,7 +403,10 @@ mod tests {
         .unwrap();
         assert_eq!(2, result.len());
         assert_ne!(None, result[0].find("provisioning source manual"));
-        assert_ne!(None, result[0].find("iothub_hostname and device_id"));
+        assert_ne!(
+            None,
+            result[0].find("either connection_string or iothub_hostname and device_id")
+        );
         assert_ne!(None, result[1].find("provisioning source manual"));
         assert_ne!(None, result[1].find("authentication section"));
     }
