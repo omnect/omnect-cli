@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.2] Q1 2022
 - backend: enforce non-empty hostname in `cargo.toml`
+- updated dependencies `validator` and `regex` explicitly to fix
+  RUSTSEC-2022-0013
 
 ## [0.10.1] Q1 2022
 - added new validator for connection string based provisioning in `config.toml`
