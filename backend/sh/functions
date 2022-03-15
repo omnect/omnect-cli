@@ -54,6 +54,12 @@ function config_hostname () {
     hostname=${hostname%%\#*}
 
     hostname=$(echo ${hostname} | cut -d "=" -f2 | xargs)
+
+    if [ -z "${hostname}" ]; then
+        error "hostname is empty"
+        exit 1
+    fi
+
     echo "${hostname}" > /tmp/${uuid}/hostname
 
     read_in_rootA
