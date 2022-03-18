@@ -3,7 +3,7 @@ name = "ics-dm-cli"
 version = "0.10.4"
 authors = ["Marcel Lilienthal <134974+mlilien@users.noreply.github.com>",
            "Jan Zachmann <jan.zachmann@conplement.de>"]
-edition = "2018"
+edition = "2021"
 build = "src/build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

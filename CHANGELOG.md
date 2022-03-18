@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.11.0] Q1 2022
 - create and inject device cert + key for given input certificate chain + given key
+- switched rust edition to 2021
 
 ## [0.10.4] Q1 2022
 - fixed a bug occurring for the combination of -b option and relative image.wic path
