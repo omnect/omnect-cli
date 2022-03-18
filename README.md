@@ -11,6 +11,7 @@ ics-dm-cli provides commands to inject various configurations into a flash image
   - Inject general identity configuration for AIS (Azure Identity Service)
   - Inject an iotedge gateway identity configuration for AIS
   - Inject an iot leaf identity configuration for AIS
+  - Inject a device certificate with corresponding key from a given intermediate full-chain-certificate and corresponding key
 - Device Update for IoT Hub configuration
   - Inject [`du-config.json`](https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
 - Boot configuration
@@ -113,6 +114,64 @@ ics-dm-cli identity set-iot-leaf-sas-config -c <path>/iot_config.toml -i <path>/
 
 Options:
   -b create bmap file
+```
+
+## Device Certificate and Key
+
+For a given full-chain intermediate certificate and corresponding key, both as pem files, generate a device certificate and device key.
+```sh
+ics-dm-cli set-device-certificate -d "device_id" -i <path>/image.wic -c <path>/intermediate_full_chain_cert.pem -k <path>/intermediate_cert_key.pem
+```
+Note: "device_id" has to match the `registration_id` respectively the `device_id` configured in `config.toml`.
+
+A corresponding `config.toml` has to include the following values:
+```
+# not using est
+[provisioning.authentication]
+identity_cert = "file:///mnt/cert/priv/device_id_cert.pem"
+identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"
+```
+```
+# using est
+[cert_issuance.est]
+ trusted_certs = [
+     "file:///mnt/cert/priv/ca.crt.pem",
+]
+
+[cert_issuance.est.auth]
+identity_cert = "file:///mnt/cert/priv/device_id_cert.pem"
+identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"
+```
+### Generate full-chain Intermediate Certificate and Key
+Example:
+```sh
+# generate root key
+openssl genrsa -des3 -out rootCA.key 4096
+
+# generate and self sign root ca
+openssl req -x509 -new -nodes -key rootCA.key -sha256 -days 3650 -out rootCA.crt -subj "/C=DE/ST=BY/O=\"conplement AG\", Inc./CN=rootCA.conplement.de"
+
+# generate intermediate key
+openssl genrsa -out intermediate.key 4096
+
+# create signing request for intermediate certificate
+openssl req -new -sha256 -key intermediate.key -out intermediate.csr -subj "/C=DE/ST=BY/O=\"conplement AG\", Inc./CN=intermediate.conplement.de"
+
+# create intermediate certificate and key
+openssl x509 -req -in intermediate.csr -CA rootCA.crt -CAkey rootCA.key -CAcreateserial -out intermediate.crt -days 1460 -sha256
+
+# convert root cert to pem format
+openssl x509 -in rootCA.crt -out rootCA_cert.pem
+
+# convert intermediate cert to pem format
+openssl x509 -in intermediate.crt -out intermediate_cert.pem
+
+# create intermediate full-chain certificate
+cat rootCA_cert.pem intermediate_cert.pem > intermediate_full_chain_cert.pem
+
+# convert intermediate key to pem format
+openssl rsa -in intermediate.key -text > intermediate_cert_key.pem
+
 ```
 
 # Device Update for IoT Hub configuration
