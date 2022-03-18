@@ -249,7 +249,7 @@ fn check_set_device_cert() {
     .expect("could not create crypto");
 
     let (device_cert_pem, device_key_pem) = crypto
-        .new_cert_and_key("bla", &None)
+        .new_cert_and_key("bla", &None, 1)
         .expect("could not create new device certificate");
 
     let image_path = tr.to_pathbuf("image.wic");

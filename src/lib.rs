@@ -40,6 +40,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             intermediate_key,
             image,
             device_id,
+            days,
             generate_bmap,
         }) => {
             let intermediate_full_chain_cert_str =
@@ -49,7 +50,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 intermediate_key_str.as_bytes(),
                 intermediate_full_chain_cert_str.as_bytes(),
             )?;
-            let (device_cert_pem, device_key_pem) = crypto.new_cert_and_key(&device_id, &None)?;
+            let (device_cert_pem, device_key_pem) =
+                crypto.new_cert_and_key(&device_id, &None, days)?;
             docker::set_device_cert(
                 &intermediate_full_chain_cert,
                 &device_cert_pem,

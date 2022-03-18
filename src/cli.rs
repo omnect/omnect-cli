@@ -81,6 +81,9 @@ pub enum IdentityConfig {
         /// device id
         #[structopt(short = "d", long = "device-id")]
         device_id: std::string::String,
+        /// period of validity in days
+        #[structopt(short = "D", long = "days")]
+        days: u32,
         /// optional: generate bmap file
         #[structopt(short = "b", long = "generate-bmap-file")]
         generate_bmap: bool,

@@ -118,9 +118,9 @@ Options:
 
 ## Device Certificate and Key
 
-For a given full-chain intermediate certificate and corresponding key, both as pem files, generate a device certificate and device key.
+For a given full-chain intermediate certificate and corresponding key, both as pem files, generate a device certificate and device key valid for 365 days.
 ```sh
-ics-dm-cli set-device-certificate -d "device_id" -i <path>/image.wic -c <path>/intermediate_full_chain_cert.pem -k <path>/intermediate_cert_key.pem
+ics-dm-cli set-device-certificate -d "device_id" -i <path>/image.wic -c <path>/intermediate_full_chain_cert.pem -k <path>/intermediate_cert_key.pem -D 365
 ```
 Note: "device_id" has to match the `registration_id` respectively the `device_id` configured in `config.toml`.
 
