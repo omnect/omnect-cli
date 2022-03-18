@@ -55,6 +55,7 @@ pub enum IdentityType {
     Leaf,
     Gateway,
 }
+const WARN_EMPTY_HOSTNAME: &'static str = "The hostname is an empty String.";
 const WARN_MISSING_PROVISIONING: &'static str = "A provisioning section should be specified.";
 const WARN_MISSING_DPS_PARAMS: &'static str =
     "For provisioning source dps, global_endpoint and id_scope should be specified.";
@@ -91,7 +92,9 @@ pub fn validate_identity(
         }
         Ok(body) => body,
     };
-
+    if body.hostname.is_empty() {
+        out.push(WARN_EMPTY_HOSTNAME)
+    }
     match body.provisioning {
         None => {
             out.push(WARN_MISSING_PROVISIONING);
@@ -149,6 +152,21 @@ mod tests {
             env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
                 .init();
     }
+    #[test]
+    fn identity_config_hostname_empty() {
+        lazy_static::initialize(&LOG);
+        assert_eq!(
+            None,
+            validate_identity(
+                IdentityType::Standalone,
+                &std::path::PathBuf::from("testfiles/identity_config_hostname_empty.toml"),
+            )
+            .unwrap_err()
+            .to_string()
+            .find(WARN_EMPTY_HOSTNAME)
+        );
+    }
+
     #[test]
     fn identity_config_standalone_empty() {
         lazy_static::initialize(&LOG);

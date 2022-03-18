@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.2] Q1 2022
+- backend: enforce non-empty hostname in `cargo.toml`
+- updated dependencies `validator` and `regex` explicitly to fix
+  RUSTSEC-2022-0013
+- validator explicitly checks for empty hostname string
+
 ## [0.10.1] Q1 2022
 - added new validator for connection string based provisioning in `config.toml`
 
