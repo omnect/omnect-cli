@@ -1,7 +1,7 @@
 mod common;
 use common::Testrunner;
-use crypto;
 use ics_dm_cli::docker;
+use ics_dm_crypto;
 use stdext::function_name;
 #[macro_use]
 extern crate lazy_static;
@@ -242,14 +242,14 @@ fn check_set_device_cert() {
         std::fs::read_to_string(&intermediate_full_chain_crt_key_path)
             .expect("could not read intermediate certificate key");
 
-    let crypto = crypto::Crypto::new(
+    let crypto = ics_dm_crypto::Crypto::new(
         intermediate_full_chain_crt_key.as_bytes(),
         intermediate_full_chain_crt.as_bytes(),
     )
     .expect("could not create crypto");
 
     let (device_cert_pem, device_key_pem) = crypto
-        .new_device("bla")
+        .new_cert_and_key("bla", &None)
         .expect("could not create new device certificate");
 
     let image_path = tr.to_pathbuf("image.wic");
