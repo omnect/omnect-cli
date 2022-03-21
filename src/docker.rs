@@ -405,7 +405,7 @@ pub fn set_device_cert(
                         files[0], files[1]
                     )
                 },
-                generate_bmap,
+                false,
             )?;
             cmd_exec(
                 vec![device_key_path, image_file],
@@ -414,7 +414,7 @@ pub fn set_device_cert(
                         files[0], files[1]
                     )
                 },
-                generate_bmap,
+                false,
             )?;
             cmd_exec(
                 vec![intermediate_full_chain_cert_path, image_file],
@@ -424,7 +424,7 @@ pub fn set_device_cert(
                         files[0], files[1]
                     )
                 },
-                generate_bmap,
+                false,
             )?;
             // copy as crt file for device cert store -> device can talk to our own services besides est
             cmd_exec(
