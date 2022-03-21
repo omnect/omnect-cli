@@ -116,33 +116,17 @@ Options:
   -b create bmap file
 ```
 
-## Device Certificate and Key
+## Device certificate and key
 
 For a given full-chain intermediate certificate and corresponding key, both as pem files, generate a device certificate and device key valid for 365 days.
 ```sh
-ics-dm-cli set-device-certificate -d "device_id" -i <path>/image.wic -c <path>/intermediate_full_chain_cert.pem -k <path>/intermediate_cert_key.pem -D 365
+ics-dm-cli identity set-device-certificate -d "device_id" -i <path>/image.wic -c <path>/intermediate_full_chain_cert.pem -k <path>/intermediate_cert_key.pem -D 365
 ```
 Note: "device_id" has to match the `registration_id` respectively the `device_id` configured in `config.toml`.
 
-A corresponding `config.toml` has to include the following values:
-```
-# not using est
-[provisioning.authentication]
-identity_cert = "file:///mnt/cert/priv/device_id_cert.pem"
-identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"
-```
-```
-# using est
-[cert_issuance.est]
- trusted_certs = [
-     "file:///mnt/cert/priv/ca.crt.pem",
-]
+See [`config.toml.est.template`](conf/config.toml.est.template) as a corresponding `config.toml` is case of using `est`.
 
-[cert_issuance.est.auth]
-identity_cert = "file:///mnt/cert/priv/device_id_cert.pem"
-identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"
-```
-### Generate full-chain Intermediate Certificate and Key
+### Generate full-chain Intermediate certificate and key
 Example:
 ```sh
 # generate root key

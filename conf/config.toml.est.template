@@ -1,0 +1,27 @@
+hostname = "test-ics-dm-est"
+
+## DPS provisioning with X.509 certificate
+[provisioning]
+source = "dps"
+global_endpoint = "https://global.azure-devices-provisioning.net/"
+id_scope = "0neXXXXXXXX"
+
+[provisioning.attestation]
+method = "x509"
+registration_id = "test-ics-dm-est"
+identity_cert = { method = "est", common_name = "test-ics-dm-est" }
+
+# Cert issuance via EST
+# ---------------------
+
+[cert_issuance.est]
+trusted_certs = [
+     "file:///mnt/cert/ca/ca.crt",
+]
+
+[cert_issuance.est.auth]
+identity_cert = "file:///mnt/cert/priv/device_id_cert.pem"
+identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"            # file URI, or...
+
+[cert_issuance.est.urls]
+default = "https://ics-dm-est.url:8080/.well-known/est"

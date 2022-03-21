@@ -51,7 +51,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 intermediate_full_chain_cert_str.as_bytes(),
             )?;
             let (device_cert_pem, device_key_pem) =
-                crypto.new_cert_and_key(&device_id, &None, days)?;
+                crypto.create_cert_and_key(&device_id, &None, days)?;
             docker::set_device_cert(
                 &intermediate_full_chain_cert,
                 &device_cert_pem,
