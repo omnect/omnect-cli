@@ -130,31 +130,22 @@ See [`config.toml.est.template`](conf/config.toml.est.template) as a correspondi
 Example:
 ```sh
 # generate root key
-openssl genrsa -des3 -out rootCA.key 4096
+openssl genrsa -out rootCA.key 4096
 
 # generate and self sign root ca
-openssl req -x509 -new -nodes -key rootCA.key -sha256 -days 3650 -out rootCA.crt -subj "/C=DE/ST=BY/O=\"conplement AG\", Inc./CN=rootCA.conplement.de"
+openssl req -x509 -new -nodes -key rootCA.key -sha256 -days 3650 -out rootCA.crt -subj "/C=DE/ST=BY/L=Nuremberg/O=conplement AG/OU=Device Management/CN=rootCA"
 
 # generate intermediate key
 openssl genrsa -out intermediate.key 4096
 
 # create signing request for intermediate certificate
-openssl req -new -sha256 -key intermediate.key -out intermediate.csr -subj "/C=DE/ST=BY/O=\"conplement AG\", Inc./CN=intermediate.conplement.de"
+openssl req -new -sha256 -key intermediate.key -out intermediate.csr -subj "/C=DE/ST=BY/L=Nuremberg/O=conplement AG/OU=Device Management/CN=intermediate"
 
-# create intermediate certificate and key
+# create intermediate certificate and sign
 openssl x509 -req -in intermediate.csr -CA rootCA.crt -CAkey rootCA.key -CAcreateserial -out intermediate.crt -days 1460 -sha256
 
-# convert root cert to pem format
-openssl x509 -in rootCA.crt -out rootCA_cert.pem
-
-# convert intermediate cert to pem format
-openssl x509 -in intermediate.crt -out intermediate_cert.pem
-
 # create intermediate full-chain certificate
-cat rootCA_cert.pem intermediate_cert.pem > intermediate_full_chain_cert.pem
-
-# convert intermediate key to pem format
-openssl rsa -in intermediate.key -text > intermediate_cert_key.pem
+cat rootCA_cert.crt intermediate_cert.crt > intermediate_full_chain_cert.pem
 
 ```
 
