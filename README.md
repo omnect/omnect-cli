@@ -127,28 +127,7 @@ Note: "device_id" has to match the `registration_id` respectively the `device_id
 See [`config.toml.est.template`](conf/config.toml.est.template) as a corresponding `config.toml` is case of using `est`.
 
 ### Generate full-chain Intermediate certificate and key
-Example:
-```sh
-# generate root key
-openssl genrsa -out rootCA.key 4096
-
-# generate and self sign root ca
-openssl req -x509 -new -nodes -key rootCA.key -sha256 -days 3650 -out rootCA.crt -subj "/C=DE/ST=BY/L=Nuremberg/O=conplement AG/OU=Device Management/CN=rootCA"
-
-# generate intermediate key
-openssl genrsa -out intermediate.key 4096
-
-# create signing request for intermediate certificate
-openssl req -new -sha256 -key intermediate.key -out intermediate.csr -subj "/C=DE/ST=BY/L=Nuremberg/O=conplement AG/OU=Device Management/CN=intermediate"
-
-# create intermediate certificate and sign
-openssl x509 -req -in intermediate.csr -CA rootCA.crt -CAkey rootCA.key -CAcreateserial -out intermediate.crt -days 1460 -sha256
-
-# create intermediate full-chain certificate
-cat rootCA_cert.crt intermediate_cert.crt > intermediate_full_chain_cert.pem
-
-```
-
+See https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11.
 # Device Update for IoT Hub configuration
 ## Inject `du-config.json`
 

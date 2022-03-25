@@ -233,8 +233,8 @@ fn check_set_identity_config_bmap() {
 fn check_set_device_cert() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let intermediate_full_chain_crt_path = tr.to_pathbuf("intermediate_full_chain_cert.pem");
-    let intermediate_full_chain_crt_key_path = tr.to_pathbuf("intermediate_cert_key.pem");
+    let intermediate_full_chain_crt_path = tr.to_pathbuf("test-int-ca_fullchain.pem");
+    let intermediate_full_chain_crt_key_path = tr.to_pathbuf("test-int-ca.key");
 
     let intermediate_full_chain_crt = std::fs::read_to_string(&intermediate_full_chain_crt_path)
         .expect("could not read intermediate full-chain-certificate");
