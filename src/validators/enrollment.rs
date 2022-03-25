@@ -13,7 +13,6 @@ lazy_static! {
 }
 
 #[derive(Debug, Validate, Deserialize)]
-#[serde(deny_unknown_fields)]
 #[allow(dead_code)]
 struct EnrollmentConfig {
     #[validate(regex = "RE_CONNECTION_STRING")]

@@ -96,12 +96,9 @@ fn check_set_enrollment_config_unknown_key() {
     let enrollment_config_file_path = tr.to_pathbuf("enrollment_static_unknown_key.json");
     let image_path = tr.to_pathbuf("image.wic");
 
-    assert_ne!(
-        None,
-        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false)
-            .unwrap_err()
-            .to_string()
-            .find("unknown field `someKeyWeDontKnow`")
+    assert_eq!(
+        true,
+        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false).is_ok()
     );
 }
 
