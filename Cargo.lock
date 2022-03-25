@@ -575,7 +575,7 @@ dependencies = [
 [[package]]
 name = "ics-dm-crypto"
 version = "0.1.0"
-source = "git+ssh://git@github.com/mlilien/ics-dm-crypto.git?branch=initial#f2184726e91202f832ffc649b2b2ecc6404e8015"
+source = "git+ssh://git@github.com/ICS-DeviceManagement/ics-dm-crypto.git?tag=0.1.0#25ac0e917a29aa9e6bd2bab5606494a67ecf81c0"
 dependencies = [
  "anyhow",
  "log",
