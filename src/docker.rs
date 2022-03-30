@@ -471,7 +471,7 @@ where
     let mut cmdline: Vec<String> = f(&bind_files).split(",").map(|s| s.to_string()).collect();
 
     if generate_bmap {
-        let bmap_path = format!("{}.bmap", files.last().unwrap().to_str().unwrap());
+        let bmap_path = format!("{}.bmap", ensure_filepath(files.last().unwrap())?);
         let bmap_pathbuf = PathBuf::from(&bmap_path);
         File::create(bmap_pathbuf.clone())?;
         let bmap_bind_path = format!(
