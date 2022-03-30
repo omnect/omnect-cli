@@ -18,7 +18,8 @@ fn check_set_wifi_config() {
     );
 }
 
-//#[test]
+#[test]
+#[ignore]
 fn check_set_wifi_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -44,7 +45,8 @@ fn check_set_enrollment_config() {
     );
 }
 
-//#[test]
+#[test]
+#[ignore]
 fn check_set_enrollment_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -143,7 +145,8 @@ fn check_set_identity_gateway_config() {
     );
 }
 
-//#[test]
+#[test]
+#[ignore]
 fn check_set_identity_gateway_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -182,7 +185,8 @@ fn check_set_identity_leaf_config() {
     );
 }
 
-//#[test]
+#[test]
+#[ignore]
 fn check_set_identity_leaf_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -210,7 +214,8 @@ fn check_set_identity_config() {
     );
 }
 
-//#[test]
+#[test]
+#[ignore]
 fn check_set_identity_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -236,7 +241,8 @@ fn check_set_iot_hub_device_update_config() {
     );
 }
 
-//#[test]
+#[test]
+#[ignore]
 fn check_set_iot_hub_device_update_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -262,7 +268,8 @@ fn check_set_boot_config() {
     );
 }
 
-//#[test]
+#[test]
+#[ignore]
 fn check_set_boot_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
