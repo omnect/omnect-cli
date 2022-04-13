@@ -1,6 +1,7 @@
 mod common;
 use common::Testrunner;
 use ics_dm_cli::docker;
+use ics_dm_crypto;
 use stdext::function_name;
 #[macro_use]
 extern crate lazy_static;
@@ -225,6 +226,44 @@ fn check_set_identity_config_bmap() {
     assert_eq!(
         true,
         docker::set_identity_config(&config_file_path, &image_path, true).is_ok()
+    );
+}
+
+#[test]
+fn check_set_device_cert() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let intermediate_full_chain_crt_path = tr.to_pathbuf("test-int-ca_fullchain.pem");
+    let intermediate_full_chain_crt_key_path = tr.to_pathbuf("test-int-ca.key");
+
+    let intermediate_full_chain_crt = std::fs::read_to_string(&intermediate_full_chain_crt_path)
+        .expect("could not read intermediate full-chain-certificate");
+    let intermediate_full_chain_crt_key =
+        std::fs::read_to_string(&intermediate_full_chain_crt_key_path)
+            .expect("could not read intermediate certificate key");
+
+    let crypto = ics_dm_crypto::Crypto::new(
+        intermediate_full_chain_crt_key.as_bytes(),
+        intermediate_full_chain_crt.as_bytes(),
+    )
+    .expect("could not create crypto");
+
+    let (device_cert_pem, device_key_pem) = crypto
+        .create_cert_and_key("bla", &None, 1)
+        .expect("could not create new device certificate");
+
+    let image_path = tr.to_pathbuf("image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_device_cert(
+            &intermediate_full_chain_crt_path,
+            &device_cert_pem,
+            &device_key_pem,
+            &image_path,
+            false
+        )
+        .is_ok()
     );
 }
 

@@ -11,6 +11,7 @@ ics-dm-cli provides commands to inject various configurations into a flash image
   - Inject general identity configuration for AIS (Azure Identity Service)
   - Inject an iotedge gateway identity configuration for AIS
   - Inject an iot leaf identity configuration for AIS
+  - Inject a device certificate with corresponding key from a given intermediate full-chain-certificate and corresponding key
 - Device Update for IoT Hub configuration
   - Inject [`du-config.json`](https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
 - Boot configuration
@@ -115,6 +116,18 @@ Options:
   -b create bmap file
 ```
 
+## Device certificate and key
+
+For a given full-chain intermediate certificate and corresponding key, both as pem files, generate a device certificate and device key valid for 365 days.
+```sh
+ics-dm-cli identity set-device-certificate -d "device_id" -i <path>/image.wic -c <path>/intermediate_full_chain_cert.pem -k <path>/intermediate_cert_key.pem -D 365
+```
+Note: "device_id" has to match the `registration_id` respectively the `device_id` configured in `config.toml`.
+
+See [`config.toml.est.template`](conf/config.toml.est.template) as a corresponding `config.toml` is case of using `est`.
+
+### Generate full-chain Intermediate certificate and key
+See https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11.
 # Device Update for IoT Hub configuration
 ## Inject `du-config.json`
 

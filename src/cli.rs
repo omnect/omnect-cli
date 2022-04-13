@@ -65,6 +65,29 @@ pub enum IdentityConfig {
         #[structopt(short = "b", long = "generate-bmap-file")]
         generate_bmap: bool,
     },
+    SetDeviceCertificate {
+        /// path to intermediate full-chain-certificate pem file
+        #[structopt(short = "c", long = "intermediate-full-chain-cert")]
+        #[structopt(parse(from_os_str))]
+        intermediate_full_chain_cert: std::path::PathBuf,
+        /// path to intermediate key pem file
+        #[structopt(short = "k", long = "intermediate-key")]
+        #[structopt(parse(from_os_str))]
+        intermediate_key: std::path::PathBuf,
+        /// path to wic image file
+        #[structopt(short = "i", long = "image")]
+        #[structopt(parse(from_os_str))]
+        image: std::path::PathBuf,
+        /// device id
+        #[structopt(short = "d", long = "device-id")]
+        device_id: std::string::String,
+        /// period of validity in days
+        #[structopt(short = "D", long = "days")]
+        days: u32,
+        /// optional: generate bmap file
+        #[structopt(short = "b", long = "generate-bmap-file")]
+        generate_bmap: bool,
+    },
     Info {
         #[structopt(short = "i", long = "image")]
         #[structopt(parse(from_os_str))]

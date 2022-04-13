@@ -380,6 +380,67 @@ pub fn set_identity_config(
     )
 }
 
+pub fn set_device_cert(
+    intermediate_full_chain_cert_path: &PathBuf,
+    device_full_chain_cert: &Vec<u8>,
+    device_key: &Vec<u8>,
+    image_file: &PathBuf,
+    generate_bmap: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let uuid = Uuid::new_v4();
+    let device_cert_path = &PathBuf::from(format!("/tmp/{}.pem", uuid));
+    let device_key_path = &PathBuf::from(format!("/tmp/{}.key.pem", uuid));
+
+    fs::write(device_cert_path, device_full_chain_cert)?;
+    fs::write(device_key_path, device_key)?;
+
+    super::validators::image::validate_and_decompress_image(
+        image_file,
+        move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
+            cmd_exec(
+                vec![device_cert_path, image_file],
+                |files| -> String {
+                    format!(
+                        "copy_file_to_image.sh, -i, {0}, -o, /priv/device_id_cert.pem, -p, cert, -w {1}",
+                        files[0], files[1]
+                    )
+                },
+                false,
+            )?;
+            cmd_exec(
+                vec![device_key_path, image_file],
+                |files| -> String {
+                    format!("copy_file_to_image.sh, -i, {0}, -o, /priv/device_id_cert_key.pem, -p, cert, -w {1}",
+                        files[0], files[1]
+                    )
+                },
+                false,
+            )?;
+            cmd_exec(
+                vec![intermediate_full_chain_cert_path, image_file],
+                |files| -> String {
+                    format!(
+                        "copy_file_to_image.sh, -i, {0}, -o, /priv/ca.crt.pem, -p, cert, -w {1}",
+                        files[0], files[1]
+                    )
+                },
+                false,
+            )?;
+            // copy as crt file for device cert store -> device can talk to our own services besides est
+            cmd_exec(
+                vec![intermediate_full_chain_cert_path, image_file],
+                |files| -> String {
+                    format!(
+                        "copy_file_to_image.sh, -i, {0}, -o, /ca/ca.crt, -p, cert, -w {1}",
+                        files[0], files[1]
+                    )
+                },
+                generate_bmap,
+            )
+        },
+    )
+}
+
 pub fn set_iot_hub_device_update_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
