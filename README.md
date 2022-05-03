@@ -127,7 +127,7 @@ Note: "device_id" has to match the `registration_id` respectively the `device_id
 See [`config.toml.est.template`](conf/config.toml.est.template) as a corresponding `config.toml` is case of using `EST service`.
 
 ### Get full-chain intermediate certificate and key for existing ICS-DM PKI
-Please get into contact with us in case you want to use our existing cloud services for device provisioning. We could provide existing certificate and key file to configure your device.
+Please get into contact with us in case you want to use our existing cloud services for device provisioning. We can provide certificate and key file to configure your device.
 
 ### Generate your own full-chain intermediate certificate and key
 In case you intend to use your own certificates (e.g. because you want to use your own `PKI` and/or `EST service`), you can find some information about generating certificate and key here: https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11.
