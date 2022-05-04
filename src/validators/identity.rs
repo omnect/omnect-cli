@@ -5,10 +5,19 @@ use std::io::{Error, ErrorKind};
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
+struct IdentityCert {
+    method: String,
+    common_name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
 struct Attestation {
     method: String,
     registration_id: Option<String>,
     trust_bundle_cert: Option<String>,
+    identity_cert: Option<IdentityCert>
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,11 +52,43 @@ struct EdgeCA {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
+struct Auth {
+    identity_cert: String,
+    identity_pk: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct Urls {
+    default: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct EST {
+    auth: Auth,
+    urls: Urls,
+    trusted_certs: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct CertIssuance {
+    est: Option<EST>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
 struct IdentityConfig {
     hostname: String,
     local_gateway_hostname: Option<String>,
     provisioning: Option<Provisioning>,
     edge_ca: Option<EdgeCA>,
+    cert_issuance: Option<CertIssuance>,
 }
 
 pub enum IdentityType {
@@ -267,6 +308,17 @@ mod tests {
             None,
             result[0].find("attestation method should be tpm, x509 or symmetric_key")
         );
+    }
+
+    #[test]
+    fn identity_config_standalone_dps_x509() {
+        lazy_static::initialize(&LOG);
+        let result = validate_identity(
+            IdentityType::Standalone,
+            &std::path::PathBuf::from("testfiles/identity_config_dps_est.toml"),
+        )
+        .unwrap();
+        assert_eq!(0, result.len());
     }
 
     #[test]
