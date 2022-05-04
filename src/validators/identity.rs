@@ -17,7 +17,7 @@ struct Attestation {
     method: String,
     registration_id: Option<String>,
     trust_bundle_cert: Option<String>,
-    identity_cert: Option<IdentityCert>
+    identity_cert: Option<IdentityCert>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -111,6 +111,10 @@ const WARN_ATTESTATION_VALID_METHOD_EXPECTED: &'static str =
 const WARN_INVALID_SOURCE: &'static str = "The provisioning source should be dps or manual.";
 const WARN_AUTHENTICATION_VALID_METHOD_EXPECTED: &'static str =
     "The authentication method should be sas.";
+const WARN_UNEXPECTED_EST_IDENTITY_CERT: &'static str =
+    "The cert_issuance.est.auth.identity_cert should be \"file:///mnt/cert/priv/device_id_cert.pem\".";
+const WARN_UNEXPECTED_EST_IDENTITY_KEY: &'static str =
+    "The cert_issuance.est.auth.identity_pk should be \"file:///mnt/cert/priv/device_id_cert_key.pem\".";
 
 pub fn validate_identity(
     _id_type: IdentityType,
@@ -181,6 +185,27 @@ pub fn validate_identity(
             }
         },
     }
+
+    if Some("file:///mnt/cert/priv/device_id_cert.pem")
+        != body
+            .cert_issuance
+            .as_ref()
+            .and_then(|ci| ci.est.as_ref())
+            .and_then(|est| Some(est.auth.identity_cert.as_str()))
+    {
+        out.push(WARN_UNEXPECTED_EST_IDENTITY_CERT)
+    }
+
+    if Some("file:///mnt/cert/priv/device_id_cert_key.pem")
+        != body
+            .cert_issuance
+            .as_ref()
+            .and_then(|ci| ci.est.as_ref())
+            .and_then(|est| Some(est.auth.identity_pk.as_str()))
+    {
+        out.push(WARN_UNEXPECTED_EST_IDENTITY_KEY)
+    }
+
     Ok(out)
 }
 
