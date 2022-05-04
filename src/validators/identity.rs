@@ -111,10 +111,10 @@ const WARN_ATTESTATION_VALID_METHOD_EXPECTED: &'static str =
 const WARN_INVALID_SOURCE: &'static str = "The provisioning source should be dps or manual.";
 const WARN_AUTHENTICATION_VALID_METHOD_EXPECTED: &'static str =
     "The authentication method should be sas.";
-const WARN_UNEXPECTED_EST_IDENTITY_CERT: &'static str =
-    "The cert_issuance.est.auth.identity_cert should be \"file:///mnt/cert/priv/device_id_cert.pem\".";
-const WARN_UNEXPECTED_EST_IDENTITY_KEY: &'static str =
-    "The cert_issuance.est.auth.identity_pk should be \"file:///mnt/cert/priv/device_id_cert_key.pem\".";
+const WARN_UNEXPECTED_PATH: &'static str =
+    "Unexpected path found.";
+const WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID: &'static str =
+    "provisioning.attestation.registration_id is not equal to provisioning.attestation.identity_cert.common_name";
 
 pub fn validate_identity(
     _id_type: IdentityType,
@@ -153,11 +153,19 @@ pub fn validate_identity(
                     None => {
                         out.push(WARN_MISSING_ATTESTATION);
                     }
-                    Some(a) => {
-                        if a.method != "tpm" && a.method != "x509" && a.method != "symmetric_key" {
-                            out.push(WARN_ATTESTATION_VALID_METHOD_EXPECTED);
+                    Some(a) => match a.method.as_str() {
+                        "x509" => {
+                            if Some(false)
+                                == a.identity_cert.and_then(|ic| {
+                                    Some(ic.common_name == a.registration_id.unwrap())
+                                })
+                            {
+                                out.push(WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID)
+                            }
                         }
-                    }
+                        "tpm" | "symmetric_key" => {}
+                        _ => out.push(WARN_ATTESTATION_VALID_METHOD_EXPECTED),
+                    },
                 }
             }
             "manual" => {
@@ -186,24 +194,24 @@ pub fn validate_identity(
         },
     }
 
-    if Some("file:///mnt/cert/priv/device_id_cert.pem")
-        != body
+    if Some(false)
+        == body
             .cert_issuance
             .as_ref()
             .and_then(|ci| ci.est.as_ref())
-            .and_then(|est| Some(est.auth.identity_cert.as_str()))
+            .and_then(|est| {
+                Some(
+                    est.auth.identity_cert.as_str() == "file:///mnt/cert/priv/device_id_cert.pem"
+                        && est.auth.identity_cert.as_str()
+                            == "file:///mnt/cert/priv/device_id_cert.pem"
+                        && est
+                            .trusted_certs
+                            .iter()
+                            .any(|e| e == "file:///mnt/cert/ca/ca.crt"),
+                )
+            })
     {
-        out.push(WARN_UNEXPECTED_EST_IDENTITY_CERT)
-    }
-
-    if Some("file:///mnt/cert/priv/device_id_cert_key.pem")
-        != body
-            .cert_issuance
-            .as_ref()
-            .and_then(|ci| ci.est.as_ref())
-            .and_then(|est| Some(est.auth.identity_pk.as_str()))
-    {
-        out.push(WARN_UNEXPECTED_EST_IDENTITY_KEY)
+        out.push(WARN_UNEXPECTED_PATH)
     }
 
     Ok(out)
