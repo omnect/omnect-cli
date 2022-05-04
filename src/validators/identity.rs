@@ -5,10 +5,19 @@ use std::io::{Error, ErrorKind};
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
+struct IdentityCert {
+    method: String,
+    common_name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
 struct Attestation {
     method: String,
     registration_id: Option<String>,
     trust_bundle_cert: Option<String>,
+    identity_cert: Option<IdentityCert>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,11 +52,43 @@ struct EdgeCA {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
+struct Auth {
+    identity_cert: String,
+    identity_pk: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct Urls {
+    default: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct EST {
+    auth: Auth,
+    urls: Urls,
+    trusted_certs: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct CertIssuance {
+    est: Option<EST>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
 struct IdentityConfig {
     hostname: String,
     local_gateway_hostname: Option<String>,
     provisioning: Option<Provisioning>,
     edge_ca: Option<EdgeCA>,
+    cert_issuance: Option<CertIssuance>,
 }
 
 pub enum IdentityType {
@@ -70,6 +111,10 @@ const WARN_ATTESTATION_VALID_METHOD_EXPECTED: &'static str =
 const WARN_INVALID_SOURCE: &'static str = "The provisioning source should be dps or manual.";
 const WARN_AUTHENTICATION_VALID_METHOD_EXPECTED: &'static str =
     "The authentication method should be sas.";
+const WARN_UNEXPECTED_PATH: &'static str =
+    "Unexpected path found.";
+const WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID: &'static str =
+    "provisioning.attestation.registration_id is not equal to provisioning.attestation.identity_cert.common_name";
 
 pub fn validate_identity(
     _id_type: IdentityType,
@@ -108,11 +153,19 @@ pub fn validate_identity(
                     None => {
                         out.push(WARN_MISSING_ATTESTATION);
                     }
-                    Some(a) => {
-                        if a.method != "tpm" && a.method != "x509" && a.method != "symmetric_key" {
-                            out.push(WARN_ATTESTATION_VALID_METHOD_EXPECTED);
+                    Some(a) => match a.method.as_str() {
+                        "x509" => {
+                            if Some(false)
+                                == a.identity_cert.and_then(|ic| {
+                                    Some(ic.common_name == a.registration_id.unwrap())
+                                })
+                            {
+                                out.push(WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID)
+                            }
                         }
-                    }
+                        "tpm" | "symmetric_key" => {}
+                        _ => out.push(WARN_ATTESTATION_VALID_METHOD_EXPECTED),
+                    },
                 }
             }
             "manual" => {
@@ -140,6 +193,27 @@ pub fn validate_identity(
             }
         },
     }
+
+    if Some(false)
+        == body
+            .cert_issuance
+            .as_ref()
+            .and_then(|ci| ci.est.as_ref())
+            .and_then(|est| {
+                Some(
+                    est.auth.identity_cert.as_str() == "file:///mnt/cert/priv/device_id_cert.pem"
+                        && est.auth.identity_cert.as_str()
+                            == "file:///mnt/cert/priv/device_id_cert.pem"
+                        && est
+                            .trusted_certs
+                            .iter()
+                            .any(|e| e == "file:///mnt/cert/ca/ca.crt"),
+                )
+            })
+    {
+        out.push(WARN_UNEXPECTED_PATH)
+    }
+
     Ok(out)
 }
 
@@ -267,6 +341,17 @@ mod tests {
             None,
             result[0].find("attestation method should be tpm, x509 or symmetric_key")
         );
+    }
+
+    #[test]
+    fn identity_config_standalone_dps_x509() {
+        lazy_static::initialize(&LOG);
+        let result = validate_identity(
+            IdentityType::Standalone,
+            &std::path::PathBuf::from("testfiles/identity_config_dps_est.toml"),
+        )
+        .unwrap();
+        assert_eq!(0, result.len());
     }
 
     #[test]
