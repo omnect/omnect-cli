@@ -26,23 +26,26 @@ function uuid_gen() {
 function read_in_partition() {
     d_echo read_in_partition ${p}
     part_offset=($(fdisk -l -o Device,Start,End ${w} | grep ${w}${!p} | awk '{print $2 " " $3}'))
-    d_echo "dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset[0]} count=${part_offset[1]}"
-    dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset[0]} count=${part_offset[1]} status=none
+    d_echo "dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset[0]} count=${part_offset[1]} conv=sparse status=none"
+    dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset[0]} count=${part_offset[1]} conv=sparse status=none
     sync
 }
 
 function write_back_partition() {
     d_echo write_back_partition ${p}
-    d_echo "dd if=/tmp/${uuid}/${p}.img of=${w} bs=512 seek=${part_offset[0]} count=${part_offset[1]} conv=notrunc"
-    dd if=/tmp/${uuid}/${p}.img of=${w} bs=512 seek=${part_offset[0]} count=${part_offset[1]} conv=notrunc status=none
+    d_echo "dd if=/tmp/${uuid}/${p}.img of=${w} bs=512 seek=${part_offset[0]} count=${part_offset[1]} conv=notrunc,sparse status=none"
+    dd if=/tmp/${uuid}/${p}.img of=${w} bs=512 seek=${part_offset[0]} count=${part_offset[1]} conv=notrunc,sparse status=none
+    # there are cases where dd with conv=notrunc,sparse is not sufficient:
+    # e.g. the original file lies in a ramdisk
+    fallocate -d ${w}
     sync
 }
 
 function read_in_rootA() {
     d_echo read_in_rootA
     local _part_offset=($(fdisk -l ${w} | grep ${w}${rootA} | awk '{print $2 " " $4}'))
-    d_echo "dd if=${w} of=/tmp/${uuid}/rootA.img bs=512 skip=${_part_offset[0]} count=${_part_offset[1]}"
-    dd if=${w} of=/tmp/${uuid}/rootA.img bs=512 skip=${_part_offset[0]} count=${_part_offset[1]} status=none
+    d_echo "dd if=${w} of=/tmp/${uuid}/rootA.img bs=512 skip=${_part_offset[0]} count=${_part_offset[1]} conv=sparse status=none"
+    dd if=${w} of=/tmp/${uuid}/rootA.img bs=512 skip=${_part_offset[0]} count=${_part_offset[1]} conv=sparse status=none
     sync
 }
 
