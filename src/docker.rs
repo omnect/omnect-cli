@@ -30,7 +30,7 @@ lazy_static! {
             def_reg_name
         }
         else {
-            "icsdm.azurecr.io"
+            "dmdevweucopsacr.azurecr.io"
         }
     };
     // read at run time
