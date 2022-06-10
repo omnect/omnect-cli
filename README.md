@@ -20,7 +20,7 @@ ics-dm-cli provides commands to inject various configurations into a flash image
 # Download prebuild Docker image
 - login to azure docker registry either via admin user
     ```sh
-    docker login icsdm.azurecr.io
+    docker login dmdevweucopsacr.azurecr.io
     ```
     or via your AAD account
     ```sh
@@ -29,7 +29,7 @@ ics-dm-cli provides commands to inject various configurations into a flash image
     ```
 - Pull latest docker image
     ```sh
-    docker pull icsdm.azurecr.io/ics-dm-cli-backend:latest
+    docker pull dmdevweucopsacr.azurecr.io/ics-dm-cli-backend:latest
     ```
 If you want to use a specific version, look for available versions in the [registry](https://portal.azure.com/#@CONPLEMENTAG1.onmicrosoft.com/resource/subscriptions/ff939028-597d-472b-a7cc-bca2ac8f96bd/resourcegroups/DockerRegistry/providers/Microsoft.ContainerRegistry/registries/icsdm/repository).
 
@@ -37,7 +37,7 @@ If you want to use a specific version, look for available versions in the [regis
 Ensure ~/bin/ exists and is in your $PATH before executing:
 
 ```sh
-docker run --rm --entrypoint cat icsdm.azurecr.io/ics-dm-cli-backend:latest /install/ics-dm-cli > ~/bin/ics-dm-cli && chmod +x ~/bin/ics-dm-cli
+docker run --rm --entrypoint cat dmdevweucopsacr.azurecr.io/ics-dm-cli-backend:latest /install/ics-dm-cli > ~/bin/ics-dm-cli && chmod +x ~/bin/ics-dm-cli
 ```
 
 # Wifi configuration
@@ -157,11 +157,11 @@ Options:
 If anything goes wrong, setting RUST_LOG=debug enables output of debug information.
 
 ## No credential store support
-`ics-dm-cli` needs to pull a docker image `icsdm.azurecr.io/ics-dm-cli-backend` as backend for some cli
+`ics-dm-cli` needs to pull a docker image `dmdevweucopsacr.azurecr.io/ics-dm-cli-backend` as backend for some cli
 commands. If you use a docker environment with credential store you have to
 pull the image prior to calling `ics-dm-cli` manually. (Note this is not necessary if you installed ´ics-dm-cli´ via: [Installation](#installation))
 ```sh
-docker pull icsdm.azurecr.io/ics-dm-cli-backend:$(ics-dm-cli --version | awk '{print $2}')
+docker pull dmdevweucopsacr.azurecr.io/ics-dm-cli-backend:$(ics-dm-cli --version | awk '{print $2}')
 ```
 
 ## Verify configuration is functional
