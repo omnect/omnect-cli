@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.11.6] Q2 2022
 - conf/config.toml.ics-iotedge.template: configure auto renewal of identity cert for dps
 - Cargo.lock: updated dependencies
+- added test to test current and future changes on config.toml.ics-iotedge.template
 
 ## [0.11.5] Q2 2022
 - updated ics-dm-crypto to version 0.1.3 (verbose on certificate validation errors)

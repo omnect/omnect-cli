@@ -5,9 +5,18 @@ use std::io::{Error, ErrorKind};
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
+struct CertAutoRenew {
+    threshold: String,
+    retry: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
 struct IdentityCert {
     method: String,
     common_name: String,
+    auto_renew: Option<CertAutoRenew>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -111,8 +120,7 @@ const WARN_ATTESTATION_VALID_METHOD_EXPECTED: &'static str =
 const WARN_INVALID_SOURCE: &'static str = "The provisioning source should be dps or manual.";
 const WARN_AUTHENTICATION_VALID_METHOD_EXPECTED: &'static str =
     "The authentication method should be sas.";
-const WARN_UNEXPECTED_PATH: &'static str =
-    "Unexpected path found.";
+const WARN_UNEXPECTED_PATH: &'static str = "Unexpected path found.";
 const WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID: &'static str =
     "provisioning.attestation.registration_id is not equal to provisioning.attestation.identity_cert.common_name";
 
