@@ -15,6 +15,7 @@ method = "est"
 common_name = "test-ics-dm-est"
 
 [provisioning.attestation.identity_cert.auto_renew]
+rotate_key = true
 threshold = "80%"
 retry = "4%"
 

@@ -6,6 +6,7 @@ use std::io::{Error, ErrorKind};
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
 struct CertAutoRenew {
+    rotate_key: bool,
     threshold: String,
     retry: String,
 }
