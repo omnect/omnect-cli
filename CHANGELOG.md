@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.11.6] Q3 2022
-- conf/config.toml.ics-iotedge.template: configure auto renewal of identity cert for dps
+- conf/config.toml.est.template: configure auto renewal of identity cert for dps
 - added test to test current and future changes on config.toml.est.template
 - updated dependency `bollard` to 0.13.*
 - updated dependency `ics-dm-crypto` to 0.2.0

@@ -63,8 +63,8 @@ struct EdgeCA {
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
 struct Auth {
-    identity_cert: String,
-    identity_pk: String,
+    bootstrap_identity_cert: String,
+    bootstrap_identity_pk: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -210,8 +210,9 @@ pub fn validate_identity(
             .and_then(|ci| ci.est.as_ref())
             .and_then(|est| {
                 Some(
-                    est.auth.identity_cert.as_str() == "file:///mnt/cert/priv/device_id_cert.pem"
-                        && est.auth.identity_cert.as_str()
+                    est.auth.bootstrap_identity_cert.as_str()
+                        == "file:///mnt/cert/priv/device_id_cert.pem"
+                        && est.auth.bootstrap_identity_cert.as_str()
                             == "file:///mnt/cert/priv/device_id_cert.pem"
                         && est
                             .trusted_certs
@@ -357,7 +358,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &std::path::PathBuf::from("testfiles/identity_config_dps_est.toml"),
+            &std::path::PathBuf::from("conf/config.toml.est.template"),
         )
         .unwrap();
         assert_eq!(0, result.len());

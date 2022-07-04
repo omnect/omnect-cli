@@ -28,8 +28,8 @@ trusted_certs = [
 ]
 
 [cert_issuance.est.auth]
-identity_cert = "file:///mnt/cert/priv/device_id_cert.pem"
-identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"            # file URI, or...
+bootstrap_identity_cert = "file:///mnt/cert/priv/device_id_cert.pem"
+bootstrap_identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"            # file URI, or...
 
 [cert_issuance.est.urls]
 default = "https://ics-dm-est.url:8080/.well-known/est"
