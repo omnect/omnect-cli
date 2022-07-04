@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.11.6] Q3 2022
 - conf/config.toml.ics-iotedge.template: configure auto renewal of identity cert for dps
-- added test to test current and future changes on config.toml.ics-iotedge.template
+- added test to test current and future changes on config.toml.est.template
 - updated dependency `bollard` to 0.13.*
 - updated dependency `ics-dm-crypto` to 0.2.0
 - Cargo.lock: implicitly updated dependencies (via `cargo update`)
