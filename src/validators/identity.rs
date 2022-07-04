@@ -5,9 +5,19 @@ use std::io::{Error, ErrorKind};
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
+struct CertAutoRenew {
+    rotate_key: bool,
+    threshold: String,
+    retry: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
 struct IdentityCert {
     method: String,
     common_name: String,
+    auto_renew: Option<CertAutoRenew>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -53,8 +63,8 @@ struct EdgeCA {
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
 struct Auth {
-    identity_cert: String,
-    identity_pk: String,
+    bootstrap_identity_cert: String,
+    bootstrap_identity_pk: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -111,8 +121,7 @@ const WARN_ATTESTATION_VALID_METHOD_EXPECTED: &'static str =
 const WARN_INVALID_SOURCE: &'static str = "The provisioning source should be dps or manual.";
 const WARN_AUTHENTICATION_VALID_METHOD_EXPECTED: &'static str =
     "The authentication method should be sas.";
-const WARN_UNEXPECTED_PATH: &'static str =
-    "Unexpected path found.";
+const WARN_UNEXPECTED_PATH: &'static str = "Unexpected path found.";
 const WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID: &'static str =
     "provisioning.attestation.registration_id is not equal to provisioning.attestation.identity_cert.common_name";
 
@@ -201,8 +210,9 @@ pub fn validate_identity(
             .and_then(|ci| ci.est.as_ref())
             .and_then(|est| {
                 Some(
-                    est.auth.identity_cert.as_str() == "file:///mnt/cert/priv/device_id_cert.pem"
-                        && est.auth.identity_cert.as_str()
+                    est.auth.bootstrap_identity_cert.as_str()
+                        == "file:///mnt/cert/priv/device_id_cert.pem"
+                        && est.auth.bootstrap_identity_cert.as_str()
                             == "file:///mnt/cert/priv/device_id_cert.pem"
                         && est
                             .trusted_certs
@@ -348,7 +358,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &std::path::PathBuf::from("testfiles/identity_config_dps_est.toml"),
+            &std::path::PathBuf::from("conf/config.toml.est.template"),
         )
         .unwrap();
         assert_eq!(0, result.len());

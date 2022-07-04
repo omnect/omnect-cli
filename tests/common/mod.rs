@@ -4,7 +4,6 @@ use std::fs::{create_dir_all, remove_dir_all};
 use std::path::PathBuf;
 
 const TMPDIR_FORMAT_STR: &'static str = "/tmp/ics-dm-cli-integration-tests/";
-const TESTDIR_FORMAT_STR: &'static str = "testfiles/";
 
 lazy_static! {
     static ref LOG: () = if cfg!(debug_assertions) {
@@ -27,7 +26,10 @@ impl Testrunner {
     }
 
     pub fn to_pathbuf(&self, file: &str) -> PathBuf {
-        let path = PathBuf::from(format!("{}/{}", self.dirpath, file));
+        let destfile = String::from(file);
+        let destfile = destfile.split('/').last().unwrap();
+
+        let path = PathBuf::from(format!("{}/{}", self.dirpath, destfile));
 
         /*
          * unfortunately std::fs::copy can not handle sparse files.
@@ -38,7 +40,7 @@ impl Testrunner {
          * possible alternative: https://crates.io/crates/hole-punch
          * possible alternative for unix hosts only: https://github.com/rust-lang/rust/pull/58636/files
          */
-        copy(format!("{}{}", TESTDIR_FORMAT_STR, file), &path).unwrap();
+        copy(file, &path).unwrap();
         path
     }
 }

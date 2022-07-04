@@ -9,7 +9,15 @@ id_scope = "0neXXXXXXXX"
 [provisioning.attestation]
 method = "x509"
 registration_id = "test-ics-dm-est"
-identity_cert = { method = "est", common_name = "test-ics-dm-est" }
+
+[provisioning.attestation.identity_cert]
+method = "est"
+common_name = "test-ics-dm-est"
+
+[provisioning.attestation.identity_cert.auto_renew]
+rotate_key = true
+threshold = "80%"
+retry = "4%"
 
 # Cert issuance via EST
 # ---------------------
@@ -20,8 +28,8 @@ trusted_certs = [
 ]
 
 [cert_issuance.est.auth]
-identity_cert = "file:///mnt/cert/priv/device_id_cert.pem"
-identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"            # file URI, or...
+bootstrap_identity_cert = "file:///mnt/cert/priv/device_id_cert.pem"
+bootstrap_identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"            # file URI, or...
 
 [cert_issuance.est.urls]
 default = "https://ics-dm-est.url:8080/.well-known/est"

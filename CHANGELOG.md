@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.6] Q3 2022
+- conf/config.toml.est.template: configure auto renewal of identity cert for dps
+- added test to test current and future changes on config.toml.est.template
+- updated dependency `bollard` to 0.13.*
+- updated dependency `ics-dm-crypto` to 0.2.0
+- Cargo.lock: implicitly updated dependencies (via `cargo update`)
+
 ## [0.11.5] Q2 2022
 - updated ics-dm-crypto to version 0.1.3 (verbose on certificate validation errors)
 - switched default docker registry used to pull backend image
