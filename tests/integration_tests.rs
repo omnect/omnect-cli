@@ -7,6 +7,32 @@ use stdext::function_name;
 extern crate lazy_static;
 
 #[test]
+fn check_set_wifi_template() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_wifi_config(&config_file_path, &image_path, false).is_ok()
+    );
+}
+
+#[test]
+fn check_set_wifi_template_simple() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.simple.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_wifi_config(&config_file_path, &image_path, false).is_ok()
+    );
+}
+
+#[test]
 fn check_set_wifi_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -30,6 +56,19 @@ fn check_set_wifi_config_bmap() {
     assert_eq!(
         true,
         docker::set_wifi_config(&config_file_path, &image_path, true).is_ok()
+    );
+}
+
+#[test]
+fn check_set_enrollment_template() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let enrollment_config_file_path = tr.to_pathbuf("conf/enrollment_static.json.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false).is_ok()
     );
 }
 
@@ -292,6 +331,19 @@ fn check_set_device_cert() {
             false
         )
         .is_ok()
+    );
+}
+
+#[test]
+fn check_set_iot_hub_device_update_template() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let adu_config_file_path = tr.to_pathbuf("conf/du-config.json.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_iot_hub_device_update_config(&adu_config_file_path, &image_path, false).is_ok()
     );
 }
 
