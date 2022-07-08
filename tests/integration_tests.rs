@@ -20,6 +20,20 @@ fn check_set_wifi_template() {
 }
 
 #[test]
+#[ignore]
+fn check_set_wifi_template_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_wifi_config(&config_file_path, &image_path, true).is_ok()
+    );
+}
+
+#[test]
 fn check_set_wifi_template_simple() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -33,24 +47,11 @@ fn check_set_wifi_template_simple() {
 }
 
 #[test]
-fn check_set_wifi_config() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let config_file_path = tr.to_pathbuf("testfiles/wpa_supplicant.conf");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_eq!(
-        true,
-        docker::set_wifi_config(&config_file_path, &image_path, false).is_ok()
-    );
-}
-
-#[test]
 #[ignore]
-fn check_set_wifi_config_bmap() {
+fn check_set_wifi_template_simple_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("testfiles/wpa_supplicant.conf");
+    let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.simple.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert_eq!(
@@ -69,69 +70,6 @@ fn check_set_enrollment_template() {
     assert_eq!(
         true,
         docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false).is_ok()
-    );
-}
-
-#[test]
-fn check_set_enrollment_config_missing_dps() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let enrollment_config_file_path = tr.to_pathbuf("testfiles/enrollment_static_missing_dps.json");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_ne!(
-        None,
-        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false)
-            .unwrap_err()
-            .to_string()
-            .find("missing field `dpsConnectionString`")
-    );
-}
-
-#[test]
-fn check_set_enrollment_config_missing_iothub() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let enrollment_config_file_path =
-        tr.to_pathbuf("testfiles/enrollment_static_missing_iothub.json");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_ne!(
-        None,
-        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false)
-            .unwrap_err()
-            .to_string()
-            .find("missing field `iothubConnectionString`")
-    );
-}
-
-#[test]
-fn check_set_enrollment_config_unknown_key() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let enrollment_config_file_path = tr.to_pathbuf("testfiles/enrollment_static_unknown_key.json");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_eq!(
-        true,
-        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false).is_ok()
-    );
-}
-
-#[test]
-fn check_set_enrollment_config_invalid_connection_string() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let enrollment_config_file_path =
-        tr.to_pathbuf("testfiles/enrollment_static_invalid_connection_string.json");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_ne!(
-        None,
-        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false)
-            .unwrap_err()
-            .to_string()
-            .find("Enrollment validation failed")
     );
 }
 

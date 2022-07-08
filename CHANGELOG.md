@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.11.7] Q3 2022
-- added missing test cases for template files in conf/ folder
+- re-organized tests:
+  - added missing integration test cases for template files in conf/ folder
+  - moved unit tests from integration tests to validator tests
 
 ## [0.11.6] Q3 2022
 - conf/config.toml.est.template: configure auto renewal of identity cert for dps
