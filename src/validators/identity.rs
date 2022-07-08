@@ -239,28 +239,6 @@ mod tests {
     }
 
     #[test]
-    fn identity_config_iot_template() {
-        lazy_static::initialize(&LOG);
-        let result = validate_identity(
-            IdentityType::Gateway,
-            &PathBuf::from("conf/config.toml.ics-iot.template"),
-        )
-        .unwrap();
-        assert_eq!(0, result.len());
-    }
-
-    #[test]
-    fn identity_config_iotedge_template() {
-        lazy_static::initialize(&LOG);
-        let result = validate_identity(
-            IdentityType::Gateway,
-            &PathBuf::from("conf/config.toml.ics-iotedge.template"),
-        )
-        .unwrap();
-        assert_eq!(0, result.len());
-    }
-
-    #[test]
     fn identity_config_hostname_empty() {
         lazy_static::initialize(&LOG);
         assert_eq!(
@@ -378,11 +356,11 @@ mod tests {
     }
 
     #[test]
-    fn identity_config_standalone_dps_x509() {
+    fn identity_config_dps_x509_est() {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &PathBuf::from("conf/config.toml.est.template"),
+            &PathBuf::from("testfiles/identity_config_dps_x509_est.toml"),
         )
         .unwrap();
         assert_eq!(0, result.len());
@@ -475,17 +453,6 @@ mod tests {
     }
 
     #[test]
-    fn identity_config_leaf_no_warn() {
-        lazy_static::initialize(&LOG);
-        let result = validate_identity(
-            IdentityType::Leaf,
-            &PathBuf::from("conf/config.toml.ics-iot-leaf.template"),
-        )
-        .unwrap();
-        assert_eq!(0, result.len());
-    }
-
-    #[test]
     fn identity_config_gateway_empty() {
         lazy_static::initialize(&LOG);
         assert_ne!(
@@ -572,16 +539,5 @@ mod tests {
             None,
             result[0].find("attestation method should be tpm, x509 or symmetric_key")
         );
-    }
-
-    #[test]
-    fn identity_config_gateway_no_warn() {
-        lazy_static::initialize(&LOG);
-        let result = validate_identity(
-            IdentityType::Gateway,
-            &PathBuf::from("conf/config.toml.ics-iotedge-gateway.template"),
-        )
-        .unwrap();
-        assert_eq!(0, result.len());
     }
 }
