@@ -74,6 +74,20 @@ fn check_set_enrollment_template() {
 }
 
 #[test]
+#[ignore]
+fn check_set_enrollment_template_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let enrollment_config_file_path = tr.to_pathbuf("conf/enrollment_static.json.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, true).is_ok()
+    );
+}
+
+#[test]
 fn check_set_identity_gateway_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
