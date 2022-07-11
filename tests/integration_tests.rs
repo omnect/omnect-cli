@@ -20,7 +20,6 @@ fn check_set_wifi_template() {
 }
 
 #[test]
-#[ignore]
 fn check_set_wifi_template_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -47,7 +46,6 @@ fn check_set_wifi_template_simple() {
 }
 
 #[test]
-#[ignore]
 fn check_set_wifi_template_simple_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -74,7 +72,6 @@ fn check_set_enrollment_template() {
 }
 
 #[test]
-#[ignore]
 fn check_set_enrollment_template_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -112,7 +109,6 @@ fn check_set_identity_gateway_config() {
 }
 
 #[test]
-#[ignore]
 fn check_set_identity_gateway_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -152,7 +148,6 @@ fn check_set_identity_leaf_config() {
 }
 
 #[test]
-#[ignore]
 fn check_set_identity_leaf_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -181,7 +176,6 @@ fn check_set_identity_config_est_template() {
 }
 
 #[test]
-#[ignore]
 fn check_set_identity_config_est_template_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -208,7 +202,6 @@ fn check_set_identity_config_iot_template() {
 }
 
 #[test]
-#[ignore]
 fn check_set_identity_config_iot_template_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -235,7 +228,6 @@ fn check_set_identity_config_iotedge_template() {
 }
 
 #[test]
-#[ignore]
 fn check_set_identity_config_iotedge_template_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -300,11 +292,10 @@ fn check_set_iot_hub_device_update_template() {
 }
 
 #[test]
-#[ignore]
-fn check_set_iot_hub_device_update_config_bmap() {
+fn check_set_iot_hub_device_update_template_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let adu_config_file_path = tr.to_pathbuf("testfiles/du-config.json");
+    let adu_config_file_path = tr.to_pathbuf("conf/du-config.json.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert_eq!(
@@ -327,7 +318,6 @@ fn check_set_boot_config() {
 }
 
 #[test]
-#[ignore]
 fn check_set_boot_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
