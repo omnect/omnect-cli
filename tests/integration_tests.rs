@@ -7,10 +7,10 @@ use stdext::function_name;
 extern crate lazy_static;
 
 #[test]
-fn check_set_wifi_config() {
+fn check_set_wifi_template() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("testfiles/wpa_supplicant.conf");
+    let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert_eq!(
@@ -21,10 +21,10 @@ fn check_set_wifi_config() {
 
 #[test]
 #[ignore]
-fn check_set_wifi_config_bmap() {
+fn check_set_wifi_template_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("testfiles/wpa_supplicant.conf");
+    let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert_eq!(
@@ -34,10 +34,37 @@ fn check_set_wifi_config_bmap() {
 }
 
 #[test]
-fn check_set_enrollment_config() {
+fn check_set_wifi_template_simple() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let enrollment_config_file_path = tr.to_pathbuf("testfiles/enrollment_static.json");
+    let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.simple.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_wifi_config(&config_file_path, &image_path, false).is_ok()
+    );
+}
+
+#[test]
+#[ignore]
+fn check_set_wifi_template_simple_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.simple.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_wifi_config(&config_file_path, &image_path, true).is_ok()
+    );
+}
+
+#[test]
+fn check_set_enrollment_template() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let enrollment_config_file_path = tr.to_pathbuf("conf/enrollment_static.json.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert_eq!(
@@ -48,10 +75,10 @@ fn check_set_enrollment_config() {
 
 #[test]
 #[ignore]
-fn check_set_enrollment_config_bmap() {
+fn check_set_enrollment_template_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let enrollment_config_file_path = tr.to_pathbuf("testfiles/enrollment_static.json");
+    let enrollment_config_file_path = tr.to_pathbuf("conf/enrollment_static.json.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert_eq!(
@@ -61,73 +88,10 @@ fn check_set_enrollment_config_bmap() {
 }
 
 #[test]
-fn check_set_enrollment_config_missing_dps() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let enrollment_config_file_path = tr.to_pathbuf("testfiles/enrollment_static_missing_dps.json");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_ne!(
-        None,
-        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false)
-            .unwrap_err()
-            .to_string()
-            .find("missing field `dpsConnectionString`")
-    );
-}
-
-#[test]
-fn check_set_enrollment_config_missing_iothub() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let enrollment_config_file_path =
-        tr.to_pathbuf("testfiles/enrollment_static_missing_iothub.json");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_ne!(
-        None,
-        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false)
-            .unwrap_err()
-            .to_string()
-            .find("missing field `iothubConnectionString`")
-    );
-}
-
-#[test]
-fn check_set_enrollment_config_unknown_key() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let enrollment_config_file_path = tr.to_pathbuf("testfiles/enrollment_static_unknown_key.json");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_eq!(
-        true,
-        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false).is_ok()
-    );
-}
-
-#[test]
-fn check_set_enrollment_config_invalid_connection_string() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let enrollment_config_file_path =
-        tr.to_pathbuf("testfiles/enrollment_static_invalid_connection_string.json");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_ne!(
-        None,
-        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false)
-            .unwrap_err()
-            .to_string()
-            .find("Enrollment validation failed")
-    );
-}
-
-#[test]
 fn check_set_identity_gateway_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("testfiles/identity_config_gateway.toml");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iotedge-gateway.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
     let edge_device_identity_full_chain_file_path = tr.to_pathbuf("testfiles/full-chain.cert.pem");
@@ -152,7 +116,7 @@ fn check_set_identity_gateway_config() {
 fn check_set_identity_gateway_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("testfiles/identity_config_gateway.toml");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iotedge-gateway.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
     let edge_device_identity_full_chain_file_path = tr.to_pathbuf("testfiles/full-chain.cert.pem");
@@ -176,7 +140,7 @@ fn check_set_identity_gateway_config_bmap() {
 fn check_set_identity_leaf_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("testfiles/identity_config_leaf.toml");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iot-leaf.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
 
@@ -192,7 +156,7 @@ fn check_set_identity_leaf_config() {
 fn check_set_identity_leaf_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("testfiles/identity_config_leaf.toml");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iot-leaf.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
 
@@ -200,33 +164,6 @@ fn check_set_identity_leaf_config_bmap() {
         true,
         docker::set_iot_leaf_sas_config(&config_file_path, &image_path, &root_ca_file_path, true)
             .is_ok()
-    );
-}
-
-#[test]
-fn check_set_identity_config() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let config_file_path = tr.to_pathbuf("testfiles/identity_config_dps_tpm.toml");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_eq!(
-        true,
-        docker::set_identity_config(&config_file_path, &image_path, false).is_ok()
-    );
-}
-
-#[test]
-#[ignore]
-fn check_set_identity_config_bmap() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let config_file_path = tr.to_pathbuf("testfiles/identity_config_dps_tpm.toml");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_eq!(
-        true,
-        docker::set_identity_config(&config_file_path, &image_path, true).is_ok()
     );
 }
 
@@ -249,6 +186,60 @@ fn check_set_identity_config_est_template_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
     let config_file_path = tr.to_pathbuf("conf/config.toml.est.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_identity_config(&config_file_path, &image_path, true).is_ok()
+    );
+}
+
+#[test]
+fn check_set_identity_config_iot_template() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iot.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_identity_config(&config_file_path, &image_path, false).is_ok()
+    );
+}
+
+#[test]
+#[ignore]
+fn check_set_identity_config_iot_template_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iot.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_identity_config(&config_file_path, &image_path, true).is_ok()
+    );
+}
+
+#[test]
+fn check_set_identity_config_iotedge_template() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iotedge.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::set_identity_config(&config_file_path, &image_path, false).is_ok()
+    );
+}
+
+#[test]
+#[ignore]
+fn check_set_identity_config_iotedge_template_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iotedge.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert_eq!(
@@ -296,10 +287,10 @@ fn check_set_device_cert() {
 }
 
 #[test]
-fn check_set_iot_hub_device_update_config() {
+fn check_set_iot_hub_device_update_template() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let adu_config_file_path = tr.to_pathbuf("testfiles/du-config.json");
+    let adu_config_file_path = tr.to_pathbuf("conf/du-config.json.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert_eq!(

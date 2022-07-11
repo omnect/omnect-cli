@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::io::{Error, ErrorKind};
+use std::path::PathBuf;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -127,7 +128,7 @@ const WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID: &'static str =
 
 pub fn validate_identity(
     _id_type: IdentityType,
-    config_file_name: &std::path::PathBuf,
+    config_file_name: &PathBuf,
 ) -> Result<Vec<&'static str>, Box<dyn std::error::Error>> {
     let mut out = Vec::<&'static str>::new();
     let file_content = std::fs::read_to_string(config_file_name)?;
@@ -236,6 +237,7 @@ mod tests {
             env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
                 .init();
     }
+
     #[test]
     fn identity_config_hostname_empty() {
         lazy_static::initialize(&LOG);
@@ -243,7 +245,7 @@ mod tests {
             None,
             validate_identity(
                 IdentityType::Standalone,
-                &std::path::PathBuf::from("testfiles/identity_config_hostname_empty.toml"),
+                &PathBuf::from("testfiles/identity_config_hostname_empty.toml"),
             )
             .unwrap_err()
             .to_string()
@@ -258,7 +260,7 @@ mod tests {
             None,
             validate_identity(
                 IdentityType::Standalone,
-                &std::path::PathBuf::from("testfiles/identity_config_empty.toml"),
+                &PathBuf::from("testfiles/identity_config_empty.toml"),
             )
             .unwrap_err()
             .to_string()
@@ -271,7 +273,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &std::path::PathBuf::from("testfiles/identity_config_minimal.toml"),
+            &PathBuf::from("testfiles/identity_config_minimal.toml"),
         )
         .unwrap();
         assert_eq!(1, result.len());
@@ -286,7 +288,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &std::path::PathBuf::from("testfiles/identity_config_dps.toml"),
+            &PathBuf::from("testfiles/identity_config_dps.toml"),
         )
         .unwrap();
         assert_eq!(2, result.len());
@@ -301,7 +303,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &std::path::PathBuf::from("testfiles/identity_config_manual.toml"),
+            &PathBuf::from("testfiles/identity_config_manual.toml"),
         )
         .unwrap();
 
@@ -320,7 +322,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &std::path::PathBuf::from("testfiles/identity_config_manual_connection_string.toml"),
+            &PathBuf::from("testfiles/identity_config_manual_connection_string.toml"),
         )
         .unwrap();
 
@@ -332,7 +334,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &std::path::PathBuf::from("testfiles/identity_config_dps_tpm.toml"),
+            &PathBuf::from("testfiles/identity_config_dps_tpm.toml"),
         )
         .unwrap();
         assert_eq!(0, result.len());
@@ -343,7 +345,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &std::path::PathBuf::from("testfiles/identity_config_dps_sas.toml"),
+            &PathBuf::from("testfiles/identity_config_dps_sas.toml"),
         )
         .unwrap();
         assert_eq!(1, result.len());
@@ -354,11 +356,11 @@ mod tests {
     }
 
     #[test]
-    fn identity_config_standalone_dps_x509() {
+    fn identity_config_dps_x509_est() {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &std::path::PathBuf::from("conf/config.toml.est.template"),
+            &PathBuf::from("testfiles/identity_config_dps_x509_est.toml"),
         )
         .unwrap();
         assert_eq!(0, result.len());
@@ -371,7 +373,7 @@ mod tests {
             None,
             validate_identity(
                 IdentityType::Leaf,
-                &std::path::PathBuf::from("testfiles/identity_config_empty.toml"),
+                &PathBuf::from("testfiles/identity_config_empty.toml"),
             )
             .unwrap_err()
             .to_string()
@@ -384,7 +386,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
-            &std::path::PathBuf::from("testfiles/identity_config_minimal.toml"),
+            &PathBuf::from("testfiles/identity_config_minimal.toml"),
         )
         .unwrap();
         assert_eq!(1, result.len());
@@ -399,7 +401,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
-            &std::path::PathBuf::from("testfiles/identity_config_dps.toml"),
+            &PathBuf::from("testfiles/identity_config_dps.toml"),
         )
         .unwrap();
         assert_eq!(2, result.len());
@@ -414,7 +416,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
-            &std::path::PathBuf::from("testfiles/identity_config_manual.toml"),
+            &PathBuf::from("testfiles/identity_config_manual.toml"),
         )
         .unwrap();
         assert_eq!(2, result.len());
@@ -432,7 +434,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
-            &std::path::PathBuf::from("testfiles/identity_config_manual_sas.toml"),
+            &PathBuf::from("testfiles/identity_config_manual_sas.toml"),
         )
         .unwrap();
         assert_eq!(0, result.len());
@@ -443,22 +445,11 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
-            &std::path::PathBuf::from("testfiles/identity_config_manual_tpm.toml"),
+            &PathBuf::from("testfiles/identity_config_manual_tpm.toml"),
         )
         .unwrap();
         assert_eq!(1, result.len());
         assert_ne!(None, result[0].find("authentication method should be sas"));
-    }
-
-    #[test]
-    fn identity_config_leaf_no_warn() {
-        lazy_static::initialize(&LOG);
-        let result = validate_identity(
-            IdentityType::Leaf,
-            &std::path::PathBuf::from("conf/config.toml.ics-iot-leaf.template"),
-        )
-        .unwrap();
-        assert_eq!(0, result.len());
     }
 
     #[test]
@@ -468,7 +459,7 @@ mod tests {
             None,
             validate_identity(
                 IdentityType::Gateway,
-                &std::path::PathBuf::from("testfiles/identity_config_empty.toml"),
+                &PathBuf::from("testfiles/identity_config_empty.toml"),
             )
             .unwrap_err()
             .to_string()
@@ -481,7 +472,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
-            &std::path::PathBuf::from("testfiles/identity_config_minimal.toml"),
+            &PathBuf::from("testfiles/identity_config_minimal.toml"),
         )
         .unwrap();
         assert_eq!(1, result.len());
@@ -496,7 +487,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
-            &std::path::PathBuf::from("testfiles/identity_config_dps.toml"),
+            &PathBuf::from("testfiles/identity_config_dps.toml"),
         )
         .unwrap();
         assert_eq!(2, result.len());
@@ -511,7 +502,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
-            &std::path::PathBuf::from("testfiles/identity_config_manual.toml"),
+            &PathBuf::from("testfiles/identity_config_manual.toml"),
         )
         .unwrap();
         assert_eq!(2, result.len());
@@ -529,7 +520,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
-            &std::path::PathBuf::from("testfiles/identity_config_dps_tpm.toml"),
+            &PathBuf::from("testfiles/identity_config_dps_tpm.toml"),
         )
         .unwrap();
         assert_eq!(0, result.len());
@@ -540,7 +531,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
-            &std::path::PathBuf::from("testfiles/identity_config_dps_sas.toml"),
+            &PathBuf::from("testfiles/identity_config_dps_sas.toml"),
         )
         .unwrap();
         assert_eq!(1, result.len());
@@ -548,16 +539,5 @@ mod tests {
             None,
             result[0].find("attestation method should be tpm, x509 or symmetric_key")
         );
-    }
-
-    #[test]
-    fn identity_config_gateway_no_warn() {
-        lazy_static::initialize(&LOG);
-        let result = validate_identity(
-            IdentityType::Gateway,
-            &std::path::PathBuf::from("conf/config.toml.ics-iotedge-gateway.template"),
-        )
-        .unwrap();
-        assert_eq!(0, result.len());
     }
 }
