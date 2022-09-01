@@ -23,6 +23,6 @@ method = "tpm"                           # don't change if using enrollment demo
 # registration_id = "my-reg-id"          # don't set if using enrollment demo
 
 [tpm]
-tcti = "device:/dev/tpmrm0"              # adapt if using e.g. abrmd
+# tcti = "device:/dev/tpmrm0"              # adapt if using e.g. abrmd
 ## currently we have to configure auth_key_index (https://github.com/Azure/iot-identity-service/issues/450#issuecomment-1233768066)
 auth_key_index = 0x00_10_10
