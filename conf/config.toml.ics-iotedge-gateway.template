@@ -35,3 +35,8 @@ trust_bundle_cert = "file:///mnt/cert/ca/trust-bundle.pem.crt"    # don't change
 [edge_ca]
 cert = "file:///mnt/cert/priv/edge-ca.pem"                        # don't change path
 pk = "file:///mnt/cert/priv/edge-ca.key.pem"                      # don't change path
+
+[tpm]
+# tcti = "device:/dev/tpmrm0"              # adapt if using e.g. abrmd
+## currently we have to configure auth_key_index (https://github.com/Azure/iot-identity-service/issues/450#issuecomment-1233768066)
+auth_key_index = 0x00_10_10

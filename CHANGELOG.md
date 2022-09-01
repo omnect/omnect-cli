@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.9] Q3 2022
+- adapted config templates using tpm provisioning to iotedge 1.4.x
+- updated cargo dependencies
+- fixed audit errors
+
 ## [0.11.8] Q3 2022
 - enable ignored integration tests (possible due to fix in 0.11.4)
 

@@ -55,6 +55,31 @@ struct Provisioning {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
+struct TpmHierarchyAuthorization {
+    endorsement: Option<String>,
+    owner: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct TpmEndpoints {
+    aziot_tpmd: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct Tpm {
+    tcti: Option<String>,
+    auth_key_index: Option<u32>,
+    hierarchy_authorization: Option<TpmHierarchyAuthorization>,
+    endpoints: Option<TpmEndpoints>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
 struct EdgeCA {
     cert: String,
     pk: String,
@@ -98,6 +123,7 @@ struct IdentityConfig {
     hostname: String,
     local_gateway_hostname: Option<String>,
     provisioning: Option<Provisioning>,
+    tpm: Option<Tpm>,
     edge_ca: Option<EdgeCA>,
     cert_issuance: Option<CertIssuance>,
 }
