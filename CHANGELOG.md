@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.11.10] Q3 2022
 - config-templates: don't configure tpm auth_key_index
+
 ## [0.11.9] Q3 2022
 - adapted config templates using tpm provisioning to iotedge 1.4.x
 - updated cargo dependencies
