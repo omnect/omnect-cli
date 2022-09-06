@@ -6,8 +6,13 @@ use validator::Validate;
 use regex::Regex;
 
 lazy_static! {
+    //
     static ref RE_HOSTNAME: Regex = Regex::new(
-        r"^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$"
+        // hostname validation allowing names starting with digits (https://www.rfc-editor.org/rfc/rfc1123)
+        r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$"
+        // hostname validation NOT allowing names starting with digits (https://www.rfc-editor.org/rfc/rfc952)
+        // r"^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$"
+
     )
     .unwrap();
 }
