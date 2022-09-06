@@ -1,4 +1,4 @@
-hostname = ""
+hostname = "0_bl-:?a"
 
 [provisioning]
 source = "manual"

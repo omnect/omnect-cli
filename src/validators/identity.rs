@@ -2,6 +2,15 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
+use validator::Validate;
+use regex::Regex;
+
+lazy_static! {
+    static ref RE_HOSTNAME: Regex = Regex::new(
+        r"^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$"
+    )
+    .unwrap();
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -116,10 +125,11 @@ struct CertIssuance {
     est: Option<EST>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Validate, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
 struct IdentityConfig {
+    #[validate(regex(path = "RE_HOSTNAME", message = "invalid hostname"))]
     hostname: String,
     local_gateway_hostname: Option<String>,
     provisioning: Option<Provisioning>,
@@ -133,7 +143,7 @@ pub enum IdentityType {
     Leaf,
     Gateway,
 }
-const WARN_EMPTY_HOSTNAME: &'static str = "The hostname is an empty String.";
+
 const WARN_MISSING_PROVISIONING: &'static str = "A provisioning section should be specified.";
 const WARN_MISSING_DPS_PARAMS: &'static str =
     "For provisioning source dps, global_endpoint and id_scope should be specified.";
@@ -173,9 +183,7 @@ pub fn validate_identity(
         }
         Ok(body) => body,
     };
-    if body.hostname.is_empty() {
-        out.push(WARN_EMPTY_HOSTNAME)
-    }
+    body.validate()?;
     match body.provisioning {
         None => {
             out.push(WARN_MISSING_PROVISIONING);
@@ -267,7 +275,7 @@ mod tests {
     #[test]
     fn identity_config_hostname_empty() {
         lazy_static::initialize(&LOG);
-        assert_eq!(
+        assert_ne!(
             None,
             validate_identity(
                 IdentityType::Standalone,
@@ -275,7 +283,34 @@ mod tests {
             )
             .unwrap_err()
             .to_string()
-            .find(WARN_EMPTY_HOSTNAME)
+            .find("invalid hostname")
+        );
+    }
+
+    #[test]
+    fn identity_config_hostname_invalid() {
+        lazy_static::initialize(&LOG);
+        assert_ne!(
+            None,
+            validate_identity(
+                IdentityType::Standalone,
+                &PathBuf::from("testfiles/identity_config_hostname_invalid.toml"),
+            )
+            .unwrap_err()
+            .to_string()
+            .find("invalid hostname")
+        );
+    }
+
+    #[test]
+    fn identity_config_hostname_valid() {
+        lazy_static::initialize(&LOG);
+        assert_eq!(
+            true,
+            validate_identity(
+                IdentityType::Standalone,
+                &PathBuf::from("testfiles/identity_config_hostname_valid.toml"),
+            ).is_ok()
         );
     }
 
