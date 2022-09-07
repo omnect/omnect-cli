@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.11.11] Q3 2022
-- check for hostname regex
+- set-identity: check for hostname regex
 
 ## [0.11.10] Q3 2022
 - config-templates: don't configure tpm auth_key_index
