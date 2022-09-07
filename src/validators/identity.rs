@@ -8,8 +8,7 @@ use validator::Validate;
 lazy_static! {
     //
     static ref RE_HOSTNAME: Regex = Regex::new(
-        // hostname validation against (https://www.rfc-editor.org/rfc/rfc1035)
-        // in order to pass "iotedge check"
+        // hostname validation against https://www.rfc-editor.org/rfc/rfc1035 in order to pass "iotedge check"
         r"^[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$"
     )
     .unwrap();
