@@ -1,18 +1,16 @@
+use regex::Regex;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use validator::Validate;
-use regex::Regex;
 
 lazy_static! {
     //
     static ref RE_HOSTNAME: Regex = Regex::new(
-        // hostname validation allowing names starting with digits (https://www.rfc-editor.org/rfc/rfc1123)
-        r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$"
-        // hostname validation NOT allowing names starting with digits (https://www.rfc-editor.org/rfc/rfc952)
-        // r"^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$"
-
+        // hostname validation against (https://www.rfc-editor.org/rfc/rfc1035)
+        // in order to pass "iotedge check"
+        r"^[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$"
     )
     .unwrap();
 }
@@ -315,7 +313,8 @@ mod tests {
             validate_identity(
                 IdentityType::Standalone,
                 &PathBuf::from("testfiles/identity_config_hostname_valid.toml"),
-            ).is_ok()
+            )
+            .is_ok()
         );
     }
 
