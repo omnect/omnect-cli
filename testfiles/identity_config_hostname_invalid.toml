@@ -1,4 +1,4 @@
-hostname = ""
+hostname = "0:MY_HOSTNAME"
 
 [provisioning]
 source = "manual"
