@@ -131,7 +131,7 @@ struct CertIssuance {
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
 struct IdentityConfig {
-    #[validate(regex(path = "RE_HOSTNAME", message = "invalid hostname"))]
+    #[validate(regex(path = "RE_HOSTNAME", code = "hostname validation", message = "hostname is not compliant with rfc1035"))]
     hostname: String,
     local_gateway_hostname: Option<String>,
     provisioning: Option<Provisioning>,
@@ -285,7 +285,7 @@ mod tests {
             )
             .unwrap_err()
             .to_string()
-            .find("invalid hostname")
+            .find("hostname is not compliant with rfc1035")
         );
     }
 
@@ -300,7 +300,7 @@ mod tests {
             )
             .unwrap_err()
             .to_string()
-            .find("invalid hostname")
+            .find("hostname is not compliant with rfc1035")
         );
     }
 
