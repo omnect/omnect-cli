@@ -23,6 +23,27 @@ use uuid::Uuid;
 const DOCKER_IMAGE_NAME: &'static str = "ics-dm-cli-backend";
 const DOCKER_IMAGE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
+#[macro_export]
+macro_rules! img_to_bmap_path {
+    ($generate_bmap:expr, $wic_image_path:expr) => {{
+        $generate_bmap.then_some({
+            let bmap_image_path = $wic_image_path.clone();
+
+            let res_image_path = loop {
+                match bmap_image_path.extension() {
+                    Some(e) if "wic" == e => break bmap_image_path.with_extension("wic.bmap"),
+                    None => break bmap_image_path.with_extension("bmap"),
+                    _ => {
+                        bmap_image_path.with_extension("");
+                    }
+                }
+            };
+
+            res_image_path
+        })
+    }};
+}
+
 lazy_static! {
     // read at compile time
     static ref DEFAULT_DOCKER_REG_NAME: &'static str = {
@@ -249,7 +270,7 @@ async fn docker_exec(
 pub fn set_wifi_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
-    generate_bmap: bool,
+    bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     super::validators::image::validate_and_decompress_image(
         image_file,
@@ -262,7 +283,7 @@ pub fn set_wifi_config(
                         files[0], files[1]
                     )
                 },
-                generate_bmap,
+                bmap_file,
             )
         },
     )
@@ -271,7 +292,7 @@ pub fn set_wifi_config(
 pub fn set_enrollment_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
-    generate_bmap: bool,
+    bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     super::validators::enrollment::validate_enrollment(&config_file)?;
 
@@ -286,7 +307,7 @@ pub fn set_enrollment_config(
                         files[0], files[1]
                     )
                 },
-                generate_bmap,
+                bmap_file,
             )
         },
     )
@@ -298,7 +319,7 @@ pub fn set_iotedge_gateway_config(
     root_ca_file: &PathBuf,
     edge_device_identity_full_chain_file: &PathBuf,
     edge_device_identity_key_file: &PathBuf,
-    generate_bmap: bool,
+    bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     validate_identity(IdentityType::Gateway, &config_file)?
         .iter()
@@ -321,7 +342,7 @@ pub fn set_iotedge_gateway_config(
                         files[0], files[1], files[2], files[3], files[4]
                     )
                 },
-                generate_bmap,
+                bmap_file,
             )
         },
     )
@@ -331,7 +352,7 @@ pub fn set_iot_leaf_sas_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
     root_ca_file: &PathBuf,
-    generate_bmap: bool,
+    bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     validate_identity(IdentityType::Leaf, &config_file)?
         .iter()
@@ -348,7 +369,7 @@ pub fn set_iot_leaf_sas_config(
                         files[0], files[1], files[2]
                     )
                 },
-                generate_bmap,
+                bmap_file,
             )
         },
     )
@@ -357,7 +378,7 @@ pub fn set_iot_leaf_sas_config(
 pub fn set_identity_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
-    generate_bmap: bool,
+    bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     validate_identity(IdentityType::Standalone, &config_file)?
         .iter()
@@ -374,7 +395,7 @@ pub fn set_identity_config(
                         files[0], files[1]
                     )
                 },
-                generate_bmap,
+                bmap_file,
             )
         },
     )
@@ -385,7 +406,7 @@ pub fn set_device_cert(
     device_full_chain_cert: &Vec<u8>,
     device_key: &Vec<u8>,
     image_file: &PathBuf,
-    generate_bmap: bool,
+    bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let uuid = Uuid::new_v4();
     let device_cert_path = &PathBuf::from(format!("/tmp/{}.pem", uuid));
@@ -405,7 +426,7 @@ pub fn set_device_cert(
                         files[0], files[1]
                     )
                 },
-                false,
+                None,
             )?;
             cmd_exec(
                 vec![device_key_path, image_file],
@@ -414,7 +435,7 @@ pub fn set_device_cert(
                         files[0], files[1]
                     )
                 },
-                false,
+                None,
             )?;
             cmd_exec(
                 vec![intermediate_full_chain_cert_path, image_file],
@@ -424,7 +445,7 @@ pub fn set_device_cert(
                         files[0], files[1]
                     )
                 },
-                false,
+                None,
             )?;
             // copy as crt file for device cert store -> device can talk to our own services besides est
             cmd_exec(
@@ -435,7 +456,7 @@ pub fn set_device_cert(
                         files[0], files[1]
                     )
                 },
-                generate_bmap,
+                bmap_file,
             )
         },
     )
@@ -444,7 +465,7 @@ pub fn set_device_cert(
 pub fn set_iot_hub_device_update_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
-    generate_bmap: bool,
+    bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let file = File::open(&config_file)?;
     serde_json::from_reader::<_, serde_json::Value>(BufReader::new(file)).map_err(|e| {
@@ -464,7 +485,7 @@ pub fn set_iot_hub_device_update_config(
                         files[0], files[1]
                     )
                 },
-                generate_bmap,
+                bmap_file,
             )
         },
     )
@@ -473,7 +494,7 @@ pub fn set_iot_hub_device_update_config(
 pub fn set_boot_config(
     boot_script: &PathBuf,
     image_file: &PathBuf,
-    generate_bmap: bool,
+    bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     super::validators::image::validate_and_decompress_image(
         image_file,
@@ -486,7 +507,7 @@ pub fn set_boot_config(
                         files[0], files[1]
                     )
                 },
-                generate_bmap,
+                bmap_file,
             )
         },
     )
@@ -505,7 +526,7 @@ pub async fn docker_version() -> Result<(), Error> {
 pub fn cmd_exec<F>(
     files: Vec<&PathBuf>,
     f: F,
-    generate_bmap: bool,
+    bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>>
 where
     F: Fn(&Vec<String>) -> String,
@@ -531,17 +552,20 @@ where
     // format cmdline
     let mut cmdline: Vec<String> = f(&bind_files).split(",").map(|s| s.to_string()).collect();
 
-    if generate_bmap {
-        let bmap_path = format!("{}.bmap", ensure_filepath(files.last().unwrap())?);
-        let bmap_pathbuf = PathBuf::from(&bmap_path);
-        File::create(bmap_pathbuf.clone())?;
+    if bmap_file.is_some() {
+        let bmap_file = bmap_file.unwrap();
+        File::create(bmap_file.clone())?;
         let bmap_bind_path = format!(
             "/tmp/{}/{}",
             tmp_folder,
-            bmap_pathbuf.file_name().unwrap().to_str().unwrap()
+            bmap_file.file_name().unwrap().to_str().unwrap()
         );
         bind_files.push(bmap_bind_path.clone());
-        binds.push(format!("{}:{}", bmap_path, bmap_bind_path));
+        binds.push(format!(
+            "{}:{}",
+            bmap_file.to_string_lossy(),
+            bmap_bind_path
+        ));
         cmdline.push(String::from("-b"));
         cmdline.push(bind_files.last().unwrap().to_string());
     }
