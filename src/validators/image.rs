@@ -25,7 +25,12 @@ impl CompressionGenerator for XzGenerator {
         source: &mut std::fs::File,
         destination: &mut std::fs::File,
     ) -> std::io::Result<u64> {
-        let mut enc = xz2::write::XzEncoder::new(destination, 9);
+        let stream = xz2::stream::MtStreamBuilder::new()
+            .threads(Ord::min(num_cpus::get(), 8) as u32)
+            .preset(9)
+            .encoder()?;
+        let mut enc = xz2::write::XzEncoder::new_stream(destination, stream);
+
         let bytes_written = std::io::copy(source, &mut enc)?;
         enc.finish()?;
         Ok(bytes_written)
@@ -35,7 +40,11 @@ impl CompressionGenerator for XzGenerator {
         source: &mut std::fs::File,
         destination: &mut std::fs::File,
     ) -> std::io::Result<u64> {
-        let mut dec = xz2::write::XzDecoder::new(destination);
+        let stream = xz2::stream::MtStreamBuilder::new()
+            .threads(Ord::min(num_cpus::get(), 8) as u32)
+            .preset(9)
+            .encoder()?;
+        let mut dec = xz2::write::XzDecoder::new_stream(destination, stream);
         let bytes_written = std::io::copy(source, &mut dec)?;
         dec.finish()?;
         Ok(bytes_written)

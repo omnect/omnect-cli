@@ -5,6 +5,11 @@ authors = ["Marcel Lilienthal <134974+mlilien@users.noreply.github.com>",
            "Jan Zachmann <jan.zachmann@conplement.de>"]
 edition = "2021"
 build = "src/build.rs"
+description = "This tools helps to configure your ics-dm device images."
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/ICS-DeviceManagement/ics-dm-cli"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -13,6 +18,7 @@ anyhow = "1"
 base64 = "0.13.0"
 bollard = { version = "0.13", features = ["ssl"] }
 bzip2 = "0.4.1"
+clap = { version = "4.0", features = ["derive"] }
 dirs = "4.*"
 env_logger = "0.8"
 filemagic = "0.12"
@@ -24,6 +30,7 @@ hex = "0.4.3"
 ics-dm-crypto = { git = "ssh://git@github.com/ICS-DeviceManagement/ics-dm-crypto.git", tag="0.2.0"}
 lazy_static = "1.4.0"
 log = "0.4"
+num_cpus = "1.13"
 openssl = { version = "0.10" }
 openssl-sys = "0.9"
 path-absolutize = "3.0.10"
@@ -32,7 +39,6 @@ serde = "1.0.*"
 serde_json = "1.0.59"
 serde_path_to_error = "0.1.*"
 stdext = "0.3.*"
-structopt = "0.3.21"
 tempfile = "3.2.0"
 tokio = { version = "1.13.*", features = ["macros", "io-std", "io-util", "fs"] }
 toml = "0.5.*"

@@ -27,14 +27,15 @@ const DOCKER_IMAGE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 macro_rules! img_to_bmap_path {
     ($generate_bmap:expr, $wic_image_path:expr) => {{
         $generate_bmap.then_some({
-            let bmap_image_path = $wic_image_path.clone();
+            let mut bmap_image_path = $wic_image_path.clone();
 
             let res_image_path = loop {
                 match bmap_image_path.extension() {
                     Some(e) if "wic" == e => break bmap_image_path.with_extension("wic.bmap"),
                     None => break bmap_image_path.with_extension("bmap"),
                     _ => {
-                        bmap_image_path.with_extension("");
+                        dbg!(&bmap_image_path);
+                        bmap_image_path = bmap_image_path.with_extension("");
                     }
                 }
             };

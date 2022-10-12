@@ -15,7 +15,6 @@ use cli::IdentityConfig::SetIotLeafSasConfig;
 use cli::IdentityConfig::SetIotedgeGatewayConfig;
 use cli::IotHubDeviceUpdateConfig::Set as IotHubDeviceUpdateSet;
 use cli::WifiConfig::Set as WifiSet;
-use std::io::{Error, ErrorKind};
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     match cli::from_args() {
@@ -104,7 +103,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             image,
             generate_bmap,
         }) => docker::set_boot_config(&boot_script, &image, img_to_bmap_path!(generate_bmap, &image))?,
-        _ => Err(Error::new(ErrorKind::Other, "Not implemented"))?,
     }
 
     Ok(())

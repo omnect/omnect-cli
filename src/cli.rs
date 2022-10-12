@@ -1,212 +1,169 @@
-use structopt::StructOpt;
+use clap::Parser;
 
-const ABOUT: &'static str = "This tools helps to manage your ics-dm devices. For more information visit:\nhttps://github.com/ICS-DeviceManagement/ics-dm-cli";
-const COPYRIGHT: &'static str = "Copyright © 2021 by conplement AG";
-
-#[derive(StructOpt, Debug, PartialEq)]
-#[structopt(about = ABOUT)]
-#[structopt(after_help = COPYRIGHT)]
+#[derive(Parser, Debug)]
+#[command(after_help="Copyright © 2021 by conplement AG")]
+/// pre-configure device identity settings
 pub enum IdentityConfig {
+    /// set general config.toml file
     SetConfig {
-        /// path to config file
-        #[structopt(short = "c", long = "config")]
-        #[structopt(parse(from_os_str))]
+        /// path to config.toml file
+        #[arg(short = 'c', long = "config")]
         config: std::path::PathBuf,
         /// path to wic image file
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
 
         /// optional: generate bmap file
-        #[structopt(short = "b", long = "generate-bmap-file")]
+        #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
     },
+    /// set transparent gateway config.toml file and additional certificates and keys
     SetIotedgeGatewayConfig {
-        /// path to config file
-        #[structopt(short = "c", long = "config")]
-        #[structopt(parse(from_os_str))]
+        /// path to config.toml file
+        #[arg(short = 'c', long = "config")]
         config: std::path::PathBuf,
         /// path to wic image file
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// path to root ca certificate file
-        #[structopt(short = "r", long = "root_ca")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'r', long = "root_ca")]
         root_ca: std::path::PathBuf,
         /// path to device identity certificate file
-        #[structopt(short = "d", long = "device_identity")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'd', long = "device_identity")]
         device_identity: std::path::PathBuf,
         /// path to device identity certificate key file
-        #[structopt(short = "k", long = "device_identity_key")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'k', long = "device_identity_key")]
         device_identity_key: std::path::PathBuf,
-
         /// optional: generate bmap file
-        #[structopt(short = "b", long = "generate-bmap-file")]
+        #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
     },
+    /// set leaf device config.toml file and additional certificate
     SetIotLeafSasConfig {
-        /// path to config file
-        #[structopt(short = "c", long = "config")]
-        #[structopt(parse(from_os_str))]
+        /// path to config.toml file
+        #[arg(short = 'c', long = "config")]
         config: std::path::PathBuf,
         /// path to wic image file
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// path to root ca certificate file
-        #[structopt(short = "r", long = "root_ca")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'r', long = "root_ca")]
         root_ca: std::path::PathBuf,
-
         /// optional: generate bmap file
-        #[structopt(short = "b", long = "generate-bmap-file")]
+        #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
     },
+    /// set certificates in order to support X.509 based DPS provisioning and certificate renewal via EST
     SetDeviceCertificate {
         /// path to intermediate full-chain-certificate pem file
-        #[structopt(short = "c", long = "intermediate-full-chain-cert")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'c', long = "intermediate-full-chain-cert")]
         intermediate_full_chain_cert: std::path::PathBuf,
         /// path to intermediate key pem file
-        #[structopt(short = "k", long = "intermediate-key")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'k', long = "intermediate-key")]
         intermediate_key: std::path::PathBuf,
         /// path to wic image file
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// device id
-        #[structopt(short = "d", long = "device-id")]
+        #[arg(short = 'd', long = "device-id")]
         device_id: std::string::String,
         /// period of validity in days
-        #[structopt(short = "D", long = "days")]
+        #[arg(short = 'D', long = "days")]
         days: u32,
         /// optional: generate bmap file
-        #[structopt(short = "b", long = "generate-bmap-file")]
+        #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-    },
-    Info {
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
-        image: std::path::PathBuf,
     },
 }
 
-#[derive(StructOpt, Debug, PartialEq)]
-#[structopt(about = ABOUT)]
-#[structopt(after_help = COPYRIGHT)]
+#[derive(Parser, Debug)]
+#[command(after_help="Copyright © 2021 by conplement AG")]
+/// pre-configure wifi settings
 pub enum WifiConfig {
+    /// set wpa_supplicant.conf to pre-configure wifi settings
     Set {
         /// path to config file
-        #[structopt(short = "c", long = "config")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'c', long = "config")]
         config: std::path::PathBuf,
         /// path to wic image file
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
-
         /// optional: generate bmap file
-        #[structopt(short = "b", long = "generate-bmap-file")]
+        #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-    },
-    Info {
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
-        image: std::path::PathBuf,
     },
 }
 
-#[derive(StructOpt, Debug, PartialEq)]
-#[structopt(about = ABOUT)]
-#[structopt(after_help = COPYRIGHT)]
+#[derive(Parser, Debug)]
+#[command(after_help="Copyright © 2021 by conplement AG")]
+/// pre-configure enrollment settings
 pub enum EnrollmentConfig {
+    /// set enrollment configuration for images built with enrollment feature
     Set {
-        /// path to config file
-        #[structopt(short = "c", long = "enrollment-config")]
-        #[structopt(parse(from_os_str))]
+        /// path to enrollment config file
+        #[arg(short = 'c', long = "enrollment-config")]
         enrollment_config: std::path::PathBuf,
         /// path to wic image file
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
-
         /// optional: generate bmap file
-        #[structopt(short = "b", long = "generate-bmap-file")]
+        #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-    },
-    Info {
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
-        image: std::path::PathBuf,
     },
 }
 
-#[derive(StructOpt, Debug, PartialEq)]
-#[structopt(about = ABOUT)]
-#[structopt(after_help = COPYRIGHT)]
+#[derive(Parser, Debug)]
+#[command(after_help="Copyright © 2021 by conplement AG")]
+/// pre-configure ADU settings
 pub enum IotHubDeviceUpdateConfig {
+    /// set ADU configuration
     Set {
-        /// path to config file
-        #[structopt(short = "c", long = "config")]
-        #[structopt(parse(from_os_str))]
+        /// path to ADU config file
+        #[arg(short = 'c', long = "config")]
         iot_hub_device_update_config: std::path::PathBuf,
         /// path to wic image file
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
-
         /// optional: generate bmap file
-        #[structopt(short = "b", long = "generate-bmap-file")]
+        #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-    },
-    Info {
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
-        image: std::path::PathBuf,
     },
 }
 
-#[derive(StructOpt, Debug, PartialEq)]
-#[structopt(about = ABOUT)]
-#[structopt(after_help = COPYRIGHT)]
+#[derive(Parser, Debug)]
+#[command(after_help="Copyright © 2021 by conplement AG")]
+/// pre-configure boot settings
 pub enum BootConfig {
     Set {
-        /// path to config file
-        #[structopt(short = "c", long = "config")]
-        #[structopt(parse(from_os_str))]
+        /// path to boot.scr file
+        #[arg(short = 'c', long = "config")]
         boot_script: std::path::PathBuf,
         /// path to wic image file
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
+        #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
-
         /// optional: generate bmap file
-        #[structopt(short = "b", long = "generate-bmap-file")]
+        #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-    },
-    Info {
-        #[structopt(short = "i", long = "image")]
-        #[structopt(parse(from_os_str))]
-        image: std::path::PathBuf,
     },
 }
 
-#[derive(StructOpt, Debug, PartialEq)]
-#[structopt(about = ABOUT)]
-#[structopt(after_help = COPYRIGHT)]
+#[derive(Parser, Debug)]
+#[command(version, after_help="Copyright © 2021 by conplement AG")]
+/// This tools helps to manage your ics-dm devices. For more information visit:\nhttps://github.com/ICS-DeviceManagement/ics-dm-cli
 pub enum Command {
+    #[command(subcommand)]
     Identity(IdentityConfig),
     DockerInfo,
+    #[command(subcommand)]
     Wifi(WifiConfig),
+    #[command(subcommand)]
     Enrollment(EnrollmentConfig),
+    #[command(subcommand)]
     IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
+    #[command(subcommand)]
     Boot(BootConfig),
 }
 
 pub fn from_args() -> Command {
-    Command::from_args()
+    Command::parse()
 }

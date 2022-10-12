@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.11.13] Q3 2022
 - bmap file generation: fixed filename
+- XzEncoder/XzDecoder: introduced multithreaded de-/compression
+- cli: switched from structopt to clap
 
 ## [0.11.12] Q3 2022
 - set-identity: improved error message on hostname validation error
