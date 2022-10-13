@@ -1,5 +1,6 @@
 use filemagic::Magic;
 use log::{debug, info};
+use std::env;
 use std::fs::remove_file;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
@@ -25,7 +26,12 @@ impl CompressionGenerator for XzGenerator {
         source: &mut std::fs::File,
         destination: &mut std::fs::File,
     ) -> std::io::Result<u64> {
-        let mut enc = xz2::write::XzEncoder::new(destination, 9);
+        let stream = xz2::stream::MtStreamBuilder::new()
+            .threads(num_cpus::get() as u32)
+            .preset(XzGenerator::get_level())
+            .encoder()?;
+        let mut enc = xz2::write::XzEncoder::new_stream(destination, stream);
+
         let bytes_written = std::io::copy(source, &mut enc)?;
         enc.finish()?;
         Ok(bytes_written)
@@ -35,10 +41,30 @@ impl CompressionGenerator for XzGenerator {
         source: &mut std::fs::File,
         destination: &mut std::fs::File,
     ) -> std::io::Result<u64> {
-        let mut dec = xz2::write::XzDecoder::new(destination);
+        let stream = xz2::stream::MtStreamBuilder::new()
+            .threads(num_cpus::get() as u32)
+            .preset(XzGenerator::get_level())
+            .encoder()?;
+        let mut dec = xz2::write::XzDecoder::new_stream(destination, stream);
         let bytes_written = std::io::copy(source, &mut dec)?;
         dec.finish()?;
         Ok(bytes_written)
+    }
+}
+
+impl XzGenerator {
+    fn get_level() -> u32 {
+        let range = 0..9;
+        let level = env::var("XZ_ENCODER_PRESET")
+            .unwrap_or("9".to_string())
+            .parse()
+            .unwrap_or(9);
+
+        let level = if range.contains(&level) { level } else { 9 };
+
+        debug!("using xz level: {}", level);
+
+        level
     }
 }
 

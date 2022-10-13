@@ -15,7 +15,6 @@ use cli::IdentityConfig::SetIotLeafSasConfig;
 use cli::IdentityConfig::SetIotedgeGatewayConfig;
 use cli::IotHubDeviceUpdateConfig::Set as IotHubDeviceUpdateSet;
 use cli::WifiConfig::Set as WifiSet;
-use std::io::{Error, ErrorKind};
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     match cli::from_args() {
@@ -24,17 +23,21 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             config,
             image,
             generate_bmap,
-        }) => docker::set_wifi_config(&config, &image, generate_bmap)?,
+        }) => docker::set_wifi_config(&config, &image, img_to_bmap_path!(generate_bmap, &image))?,
         Command::Enrollment(EnrollmentSet {
             enrollment_config,
             image,
             generate_bmap,
-        }) => docker::set_enrollment_config(&enrollment_config, &image, generate_bmap)?,
+        }) => docker::set_enrollment_config(
+            &enrollment_config,
+            &image,
+            img_to_bmap_path!(generate_bmap, &image),
+        )?,
         Command::Identity(SetConfig {
             config,
             image,
             generate_bmap,
-        }) => docker::set_identity_config(&config, &image, generate_bmap)?,
+        }) => docker::set_identity_config(&config, &image, img_to_bmap_path!(generate_bmap, &image))?,
         Command::Identity(SetDeviceCertificate {
             intermediate_full_chain_cert,
             intermediate_key,
@@ -57,7 +60,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 &device_cert_pem,
                 &device_key_pem,
                 &image,
-                generate_bmap,
+                img_to_bmap_path!(generate_bmap, &image),
             )?
         }
         Command::Identity(SetIotedgeGatewayConfig {
@@ -73,14 +76,19 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             &root_ca,
             &device_identity,
             &device_identity_key,
-            generate_bmap,
+            img_to_bmap_path!(generate_bmap, &image),
         )?,
         Command::Identity(SetIotLeafSasConfig {
             config,
             image,
             root_ca,
             generate_bmap,
-        }) => docker::set_iot_leaf_sas_config(&config, &image, &root_ca, generate_bmap)?,
+        }) => docker::set_iot_leaf_sas_config(
+            &config,
+            &image,
+            &root_ca,
+            img_to_bmap_path!(generate_bmap, &image),
+        )?,
         Command::IotHubDeviceUpdate(IotHubDeviceUpdateSet {
             iot_hub_device_update_config,
             image,
@@ -88,14 +96,13 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         }) => docker::set_iot_hub_device_update_config(
             &iot_hub_device_update_config,
             &image,
-            generate_bmap,
+            img_to_bmap_path!(generate_bmap, &image),
         )?,
         Command::Boot(BootSet {
             boot_script,
             image,
             generate_bmap,
-        }) => docker::set_boot_config(&boot_script, &image, generate_bmap)?,
-        _ => Err(Error::new(ErrorKind::Other, "Not implemented"))?,
+        }) => docker::set_boot_config(&boot_script, &image, img_to_bmap_path!(generate_bmap, &image))?,
     }
 
     Ok(())

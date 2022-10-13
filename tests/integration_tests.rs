@@ -1,6 +1,6 @@
 mod common;
 use common::Testrunner;
-use ics_dm_cli::docker;
+use ics_dm_cli::{docker, img_to_bmap_path};
 use ics_dm_crypto;
 use stdext::function_name;
 #[macro_use]
@@ -15,7 +15,7 @@ fn check_set_wifi_template() {
 
     assert_eq!(
         true,
-        docker::set_wifi_config(&config_file_path, &image_path, false).is_ok()
+        docker::set_wifi_config(&config_file_path, &image_path, None).is_ok()
     );
 }
 
@@ -28,7 +28,7 @@ fn check_set_wifi_template_bmap() {
 
     assert_eq!(
         true,
-        docker::set_wifi_config(&config_file_path, &image_path, true).is_ok()
+        docker::set_wifi_config(&config_file_path, &image_path, None).is_ok()
     );
 }
 
@@ -41,7 +41,7 @@ fn check_set_wifi_template_simple() {
 
     assert_eq!(
         true,
-        docker::set_wifi_config(&config_file_path, &image_path, false).is_ok()
+        docker::set_wifi_config(&config_file_path, &image_path, None).is_ok()
     );
 }
 
@@ -54,7 +54,12 @@ fn check_set_wifi_template_simple_bmap() {
 
     assert_eq!(
         true,
-        docker::set_wifi_config(&config_file_path, &image_path, true).is_ok()
+        docker::set_wifi_config(
+            &config_file_path,
+            &image_path,
+            img_to_bmap_path!(true, &image_path)
+        )
+        .is_ok()
     );
 }
 
@@ -67,7 +72,7 @@ fn check_set_enrollment_template() {
 
     assert_eq!(
         true,
-        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, false).is_ok()
+        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, None).is_ok()
     );
 }
 
@@ -80,7 +85,12 @@ fn check_set_enrollment_template_bmap() {
 
     assert_eq!(
         true,
-        docker::set_enrollment_config(&enrollment_config_file_path, &image_path, true).is_ok()
+        docker::set_enrollment_config(
+            &enrollment_config_file_path,
+            &image_path,
+            img_to_bmap_path!(true, &image_path)
+        )
+        .is_ok()
     );
 }
 
@@ -102,7 +112,7 @@ fn check_set_identity_gateway_config() {
             &root_ca_file_path,
             &edge_device_identity_full_chain_file_path,
             &edge_device_identity_key_file_path,
-            false
+            None
         )
         .is_ok()
     );
@@ -126,7 +136,7 @@ fn check_set_identity_gateway_config_bmap() {
             &root_ca_file_path,
             &edge_device_identity_full_chain_file_path,
             &edge_device_identity_key_file_path,
-            true
+            img_to_bmap_path!(true, &image_path)
         )
         .is_ok()
     );
@@ -142,7 +152,7 @@ fn check_set_identity_leaf_config() {
 
     assert_eq!(
         true,
-        docker::set_iot_leaf_sas_config(&config_file_path, &image_path, &root_ca_file_path, false)
+        docker::set_iot_leaf_sas_config(&config_file_path, &image_path, &root_ca_file_path, None)
             .is_ok()
     );
 }
@@ -157,8 +167,13 @@ fn check_set_identity_leaf_config_bmap() {
 
     assert_eq!(
         true,
-        docker::set_iot_leaf_sas_config(&config_file_path, &image_path, &root_ca_file_path, true)
-            .is_ok()
+        docker::set_iot_leaf_sas_config(
+            &config_file_path,
+            &image_path,
+            &root_ca_file_path,
+            img_to_bmap_path!(true, &image_path)
+        )
+        .is_ok()
     );
 }
 
@@ -171,7 +186,7 @@ fn check_set_identity_config_est_template() {
 
     assert_eq!(
         true,
-        docker::set_identity_config(&config_file_path, &image_path, false).is_ok()
+        docker::set_identity_config(&config_file_path, &image_path, None).is_ok()
     );
 }
 
@@ -184,7 +199,12 @@ fn check_set_identity_config_est_template_bmap() {
 
     assert_eq!(
         true,
-        docker::set_identity_config(&config_file_path, &image_path, true).is_ok()
+        docker::set_identity_config(
+            &config_file_path,
+            &image_path,
+            img_to_bmap_path!(true, &image_path)
+        )
+        .is_ok()
     );
 }
 
@@ -197,7 +217,7 @@ fn check_set_identity_config_iot_template() {
 
     assert_eq!(
         true,
-        docker::set_identity_config(&config_file_path, &image_path, false).is_ok()
+        docker::set_identity_config(&config_file_path, &image_path, None).is_ok()
     );
 }
 
@@ -210,7 +230,12 @@ fn check_set_identity_config_iot_template_bmap() {
 
     assert_eq!(
         true,
-        docker::set_identity_config(&config_file_path, &image_path, true).is_ok()
+        docker::set_identity_config(
+            &config_file_path,
+            &image_path,
+            img_to_bmap_path!(true, &image_path)
+        )
+        .is_ok()
     );
 }
 
@@ -223,7 +248,7 @@ fn check_set_identity_config_iotedge_template() {
 
     assert_eq!(
         true,
-        docker::set_identity_config(&config_file_path, &image_path, false).is_ok()
+        docker::set_identity_config(&config_file_path, &image_path, None).is_ok()
     );
 }
 
@@ -236,7 +261,12 @@ fn check_set_identity_config_iotedge_template_bmap() {
 
     assert_eq!(
         true,
-        docker::set_identity_config(&config_file_path, &image_path, true).is_ok()
+        docker::set_identity_config(
+            &config_file_path,
+            &image_path,
+            img_to_bmap_path!(true, &image_path)
+        )
+        .is_ok()
     );
 }
 
@@ -272,7 +302,7 @@ fn check_set_device_cert() {
             &device_cert_pem,
             &device_key_pem,
             &image_path,
-            false
+            None
         )
         .is_ok()
     );
@@ -287,7 +317,7 @@ fn check_set_iot_hub_device_update_template() {
 
     assert_eq!(
         true,
-        docker::set_iot_hub_device_update_config(&adu_config_file_path, &image_path, false).is_ok()
+        docker::set_iot_hub_device_update_config(&adu_config_file_path, &image_path, None).is_ok()
     );
 }
 
@@ -300,7 +330,12 @@ fn check_set_iot_hub_device_update_template_bmap() {
 
     assert_eq!(
         true,
-        docker::set_iot_hub_device_update_config(&adu_config_file_path, &image_path, true).is_ok()
+        docker::set_iot_hub_device_update_config(
+            &adu_config_file_path,
+            &image_path,
+            img_to_bmap_path!(true, &image_path)
+        )
+        .is_ok()
     );
 }
 
@@ -313,7 +348,7 @@ fn check_set_boot_config() {
 
     assert_eq!(
         true,
-        docker::set_boot_config(&boot_config_file_path, &image_path, false).is_ok()
+        docker::set_boot_config(&boot_config_file_path, &image_path, None).is_ok()
     );
 }
 
@@ -326,6 +361,11 @@ fn check_set_boot_config_bmap() {
 
     assert_eq!(
         true,
-        docker::set_boot_config(&boot_config_file_path, &image_path, true).is_ok()
+        docker::set_boot_config(
+            &boot_config_file_path,
+            &image_path,
+            img_to_bmap_path!(true, &image_path)
+        )
+        .is_ok()
     );
 }
