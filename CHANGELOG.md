@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.11.13] Q3 2022
 - bmap file generation: fixed filename
-- XzEncoder/XzDecoder: introduced multithreaded de-/compression
+- XzEncoder/XzDecoder:
+  - introduced multithreaded de-/compression
+  - introduced XZ_ENCODER_PRESET <0..9> environment variable (not documented in README.md)
 - cli: switched from structopt to clap
 
 ## [0.11.12] Q3 2022
