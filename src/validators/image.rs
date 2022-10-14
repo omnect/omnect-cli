@@ -41,11 +41,7 @@ impl CompressionGenerator for XzGenerator {
         source: &mut std::fs::File,
         destination: &mut std::fs::File,
     ) -> std::io::Result<u64> {
-        let stream = xz2::stream::MtStreamBuilder::new()
-            .threads(num_cpus::get() as u32)
-            .preset(XzGenerator::get_level())
-            .encoder()?;
-        let mut dec = xz2::write::XzDecoder::new_stream(destination, stream);
+        let mut dec = xz2::write::XzDecoder::new(destination);
         let bytes_written = std::io::copy(source, &mut dec)?;
         dec.finish()?;
         Ok(bytes_written)
@@ -55,14 +51,14 @@ impl CompressionGenerator for XzGenerator {
 impl XzGenerator {
     fn get_level() -> u32 {
         let range = 0..9;
-        let level = env::var("XZ_ENCODER_PRESET")
+        let level = env::var("XZ_COMPRESSION_LEVEL")
             .unwrap_or("9".to_string())
             .parse()
             .unwrap_or(9);
 
         let level = if range.contains(&level) { level } else { 9 };
 
-        debug!("using xz level: {}", level);
+        debug!("using Xz compression level: {}", level);
 
         level
     }
