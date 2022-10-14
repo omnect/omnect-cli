@@ -554,8 +554,8 @@ where
     let mut cmdline: Vec<String> = f(&bind_files).split(",").map(|s| s.to_string()).collect();
 
     if bmap_file.is_some() {
-        let bmap_file = bmap_file.unwrap();
-        File::create(bmap_file.clone())?;
+        let bmap_file = &bmap_file.unwrap().clone().absolutize()?.to_path_buf();
+        File::create(bmap_file)?;
         let bmap_bind_path = format!(
             "/tmp/{}/{}",
             tmp_folder,
