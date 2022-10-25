@@ -304,7 +304,7 @@ pub fn set_enrollment_config(
                 vec![config_file, &image_file],
                 |files| -> String {
                     format!(
-                        "copy_file_to_image.sh, -i, {0}, -o, /etc/ics_dm/enrollment_static.json, -p, factory, -w, {1}",
+                        "copy_file_to_image.sh, -i, {0}, -o, /etc/omnect/enrollment_static.json, -p, factory, -w, {1}",
                         files[0], files[1]
                     )
                 },
