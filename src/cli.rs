@@ -1,7 +1,7 @@
 use clap::Parser;
 
 #[derive(Parser, Debug)]
-#[command(after_help="Copyright © 2021 by conplement AG")]
+#[command(after_help = "Copyright © 2021 by conplement AG")]
 /// pre-configure device identity settings
 pub enum IdentityConfig {
     /// set general config.toml file
@@ -77,7 +77,7 @@ pub enum IdentityConfig {
 }
 
 #[derive(Parser, Debug)]
-#[command(after_help="Copyright © 2021 by conplement AG")]
+#[command(after_help = "Copyright © 2021 by conplement AG")]
 /// pre-configure wifi settings
 pub enum WifiConfig {
     /// set wpa_supplicant.conf to pre-configure wifi settings
@@ -95,7 +95,7 @@ pub enum WifiConfig {
 }
 
 #[derive(Parser, Debug)]
-#[command(after_help="Copyright © 2021 by conplement AG")]
+#[command(after_help = "Copyright © 2021 by conplement AG")]
 /// pre-configure enrollment settings
 pub enum EnrollmentConfig {
     /// set enrollment configuration for images built with enrollment feature
@@ -113,7 +113,7 @@ pub enum EnrollmentConfig {
 }
 
 #[derive(Parser, Debug)]
-#[command(after_help="Copyright © 2021 by conplement AG")]
+#[command(after_help = "Copyright © 2021 by conplement AG")]
 /// pre-configure ADU settings
 pub enum IotHubDeviceUpdateConfig {
     /// set ADU configuration
@@ -131,7 +131,7 @@ pub enum IotHubDeviceUpdateConfig {
 }
 
 #[derive(Parser, Debug)]
-#[command(after_help="Copyright © 2021 by conplement AG")]
+#[command(after_help = "Copyright © 2021 by conplement AG")]
 /// pre-configure boot settings
 pub enum BootConfig {
     Set {
@@ -148,8 +148,8 @@ pub enum BootConfig {
 }
 
 #[derive(Parser, Debug)]
-#[command(version, after_help="Copyright © 2021 by conplement AG")]
-/// This tools helps to manage your ics-dm devices. For more information visit:\nhttps://github.com/ICS-DeviceManagement/ics-dm-cli
+#[command(version, after_help = "Copyright © 2021 by conplement AG")]
+/// This tools helps to manage your omnect devices. For more information visit:\nhttps://github.com/omnect/omnect-cli
 pub enum Command {
     #[command(subcommand)]
     Identity(IdentityConfig),

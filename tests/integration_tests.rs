@@ -1,7 +1,7 @@
 mod common;
 use common::Testrunner;
-use ics_dm_cli::{docker, img_to_bmap_path};
-use ics_dm_crypto;
+use omnect_cli::{docker, img_to_bmap_path};
+use omnect_crypto;
 use stdext::function_name;
 #[macro_use]
 extern crate lazy_static;
@@ -98,7 +98,7 @@ fn check_set_enrollment_template_bmap() {
 fn check_set_identity_gateway_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iotedge-gateway.template");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.gateway.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
     let edge_device_identity_full_chain_file_path = tr.to_pathbuf("testfiles/full-chain.cert.pem");
@@ -122,7 +122,7 @@ fn check_set_identity_gateway_config() {
 fn check_set_identity_gateway_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iotedge-gateway.template");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.gateway.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
     let edge_device_identity_full_chain_file_path = tr.to_pathbuf("testfiles/full-chain.cert.pem");
@@ -146,7 +146,7 @@ fn check_set_identity_gateway_config_bmap() {
 fn check_set_identity_leaf_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iot-leaf.template");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.iot-leaf.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
 
@@ -161,7 +161,7 @@ fn check_set_identity_leaf_config() {
 fn check_set_identity_leaf_config_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iot-leaf.template");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.iot-leaf.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
 
@@ -212,7 +212,7 @@ fn check_set_identity_config_est_template_bmap() {
 fn check_set_identity_config_iot_template() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iot.template");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.iot.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert_eq!(
@@ -225,7 +225,7 @@ fn check_set_identity_config_iot_template() {
 fn check_set_identity_config_iot_template_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iot.template");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.iot.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert_eq!(
@@ -243,7 +243,7 @@ fn check_set_identity_config_iot_template_bmap() {
 fn check_set_identity_config_iotedge_template() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iotedge.template");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.iotedge.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert_eq!(
@@ -256,7 +256,7 @@ fn check_set_identity_config_iotedge_template() {
 fn check_set_identity_config_iotedge_template_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("conf/config.toml.ics-iotedge.template");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.iotedge.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert_eq!(
@@ -283,7 +283,7 @@ fn check_set_device_cert() {
         std::fs::read_to_string(&intermediate_full_chain_crt_key_path)
             .expect("could not read intermediate certificate key");
 
-    let crypto = ics_dm_crypto::Crypto::new(
+    let crypto = omnect_crypto::Crypto::new(
         intermediate_full_chain_crt_key.as_bytes(),
         intermediate_full_chain_crt.as_bytes(),
     )

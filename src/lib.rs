@@ -2,7 +2,7 @@
 extern crate lazy_static;
 
 mod cli;
-use ics_dm_crypto;
+use omnect_crypto;
 pub mod docker;
 mod validators;
 
@@ -37,7 +37,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             config,
             image,
             generate_bmap,
-        }) => docker::set_identity_config(&config, &image, img_to_bmap_path!(generate_bmap, &image))?,
+        }) => {
+            docker::set_identity_config(&config, &image, img_to_bmap_path!(generate_bmap, &image))?
+        }
         Command::Identity(SetDeviceCertificate {
             intermediate_full_chain_cert,
             intermediate_key,
@@ -49,7 +51,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             let intermediate_full_chain_cert_str =
                 std::fs::read_to_string(&intermediate_full_chain_cert)?;
             let intermediate_key_str = std::fs::read_to_string(intermediate_key)?;
-            let crypto = ics_dm_crypto::Crypto::new(
+            let crypto = omnect_crypto::Crypto::new(
                 intermediate_key_str.as_bytes(),
                 intermediate_full_chain_cert_str.as_bytes(),
             )?;
@@ -102,7 +104,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             boot_script,
             image,
             generate_bmap,
-        }) => docker::set_boot_config(&boot_script, &image, img_to_bmap_path!(generate_bmap, &image))?,
+        }) => docker::set_boot_config(
+            &boot_script,
+            &image,
+            img_to_bmap_path!(generate_bmap, &image),
+        )?,
     }
 
     Ok(())

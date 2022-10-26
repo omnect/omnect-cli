@@ -1,4 +1,4 @@
-hostname = "test-ics-dm-est"
+hostname = "test-omnect-est"
 
 ## DPS provisioning with X.509 certificate
 [provisioning]
@@ -8,11 +8,11 @@ id_scope = "0neXXXXXXXX"
 
 [provisioning.attestation]
 method = "x509"
-registration_id = "test-ics-dm-est"
+registration_id = "test-omnect-est"
 
 [provisioning.attestation.identity_cert]
 method = "est"
-common_name = "test-ics-dm-est"
+common_name = "test-omnect-est"
 
 [provisioning.attestation.identity_cert.auto_renew]
 rotate_key = true

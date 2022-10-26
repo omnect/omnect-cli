@@ -2,13 +2,13 @@
 # Hostname
 # =========================================================================================================
 
-hostname = "my-ics-iot-leaf-device"                                             # optional overwrite
+hostname = "my-omnect-iot-leaf-device"                                             # optional overwrite
 
 # =========================================================================================================
 # Local Gateway Hostname
 # =========================================================================================================
 
-local_gateway_hostname = "my-ics-iotedge-gateway-device"
+local_gateway_hostname = "my-omnect-gateway-device"
 
 # =========================================================================================================
 # Provisioning

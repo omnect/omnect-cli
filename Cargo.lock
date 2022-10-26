@@ -572,54 +572,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ics-dm-cli"
-version = "0.11.16"
-dependencies = [
- "anyhow",
- "base64",
- "bollard",
- "bzip2",
- "clap",
- "dirs",
- "env_logger",
- "filemagic",
- "flate2",
- "fs_extra",
- "futures-executor",
- "futures-util",
- "hex",
- "ics-dm-crypto",
- "lazy_static",
- "log",
- "num_cpus",
- "openssl",
- "openssl-sys",
- "path-absolutize",
- "regex",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "stdext",
- "tempfile",
- "tokio",
- "toml",
- "uuid",
- "validator",
- "xz2",
-]
-
-[[package]]
-name = "ics-dm-crypto"
-version = "0.2.0"
-source = "git+ssh://git@github.com/ICS-DeviceManagement/ics-dm-crypto.git?tag=0.2.0#e14f2806a23ae31988370e2f8daa9ba76ccb7230"
-dependencies = [
- "anyhow",
- "log",
- "openssl",
- "openssl-sys",
-]
-
-[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -768,6 +720,54 @@ checksum = "19e64526ebdee182341572e50e9ad03965aa510cd94427a4549448f285e957a1"
 dependencies = [
  "hermit-abi",
  "libc",
+]
+
+[[package]]
+name = "omnect-cli"
+version = "0.12.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "bollard",
+ "bzip2",
+ "clap",
+ "dirs",
+ "env_logger",
+ "filemagic",
+ "flate2",
+ "fs_extra",
+ "futures-executor",
+ "futures-util",
+ "hex",
+ "lazy_static",
+ "log",
+ "num_cpus",
+ "omnect-crypto",
+ "openssl",
+ "openssl-sys",
+ "path-absolutize",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "stdext",
+ "tempfile",
+ "tokio",
+ "toml",
+ "uuid",
+ "validator",
+ "xz2",
+]
+
+[[package]]
+name = "omnect-crypto"
+version = "0.3.0"
+source = "git+ssh://git@github.com/omnect/omnect-crypto.git?tag=0.3.0#14c95a75ecf930feced0931e59fffc14d0623210"
+dependencies = [
+ "anyhow",
+ "log",
+ "openssl",
+ "openssl-sys",
 ]
 
 [[package]]

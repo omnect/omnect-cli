@@ -8,7 +8,7 @@ fn main() {
     } else {
         Builder::from_env(Env::default().default_filter_or("info")).init();
     }
-    if let Err(e) = ics_dm_cli::run() {
+    if let Err(e) = omnect_cli::run() {
         error!("Application error: {}", e);
 
         process::exit(1);

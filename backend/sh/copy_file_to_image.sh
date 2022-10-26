@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # include shared functions
-. /ics-dm-sh/functions
+. /omnect-sh/functions
 
 d_echo ${0}
 
@@ -58,7 +58,7 @@ if [ "${p}" != "boot" ]; then
     d_echo "e2cp ${i} /tmp/${uuid}/${p}.img:${o}"
     e2mkdir /tmp/${uuid}/${p}.img:$(dirname ${o})
     e2cp ${i} /tmp/${uuid}/${p}.img:${o}
-else 
+else
     if [ ! -d $(dirname ${o}) ]; then
         d_echo "mmd -i /tmp/${uuid}/${p}.img ::$(dirname ${o})"
         mmd -i /tmp/${uuid}/${p}.img ::$(dirname ${o})
