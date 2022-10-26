@@ -87,7 +87,7 @@ For the gateway, you need the following files:
   - `iot-edge-ca-<name>.key.pem`
 
 ### Config file
-Adapt [config.toml.iotedge-gateway.template](conf/config.toml.iotedge-gateway.template) to your needs.
+Adapt [config.toml.gateway.template](conf/config.toml.gateway.template) to your needs.
 
 ### Inject configuration
 ```sh
