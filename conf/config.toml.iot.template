@@ -2,7 +2,7 @@
 # Hostname
 # ==============================================================================
 
-hostname = "my-ics-iotedge-device"                          # optional overwrite
+hostname = "my-omnect-iot-device"                              # optional overwrite
 
 # ==============================================================================
 # Provisioning

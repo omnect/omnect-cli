@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # include shared functions
-. /ics-dm-sh/functions
+. /omnect-sh/functions
 
 # restore saved permissions for error file
 function finish {

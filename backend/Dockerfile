@@ -24,8 +24,8 @@ RUN apt-get update && apt-get install -y \
         uuid-runtime \
         && rm -rf /var/lib/apt/lists/*
 
-COPY sh/ /ics-dm-sh/
-ENV PATH="/ics-dm-sh:${PATH}"
+COPY sh/ /omnect-sh/
+ENV PATH="/omnect-sh:${PATH}"
 
 RUN mkdir /install
-COPY ics-dm-cli /install/
+COPY omnect-cli /install/

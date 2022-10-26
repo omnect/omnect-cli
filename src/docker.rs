@@ -20,7 +20,7 @@ use path_absolutize::Absolutize;
 use tempfile::NamedTempFile;
 use uuid::Uuid;
 
-const DOCKER_IMAGE_NAME: &'static str = "ics-dm-cli-backend";
+const DOCKER_IMAGE_NAME: &'static str = "omnect-cli-backend";
 const DOCKER_IMAGE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 #[macro_export]
@@ -48,7 +48,7 @@ macro_rules! img_to_bmap_path {
 lazy_static! {
     // read at compile time
     static ref DEFAULT_DOCKER_REG_NAME: &'static str = {
-        if let Some(def_reg_name) = option_env!("ICS_DM_CLI_DOCKER_REG_NAME") {
+        if let Some(def_reg_name) = option_env!("OMNECT_CLI_DOCKER_REG_NAME") {
             def_reg_name
         }
         else {
@@ -57,7 +57,7 @@ lazy_static! {
     };
     // read at run time
     static ref DOCKER_REG_NAME: String = {
-        if let Some(reg_name) = env::var_os("ICS_DM_CLI_DOCKER_REG_NAME") {
+        if let Some(reg_name) = env::var_os("OMNECT_CLI_DOCKER_REG_NAME") {
             reg_name.into_string().unwrap()
         }
         else {

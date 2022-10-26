@@ -2,7 +2,7 @@
 # Hostname
 # ===================================================================================
 
-hostname = "my-ics-iotedge-gateway-device"                       # optional overwrite
+hostname = "my-omnect-iotedge-gateway-device"                       # optional overwrite
 
 # ===================================================================================
 # Provisioning

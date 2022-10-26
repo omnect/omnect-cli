@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # include shared functions
-. /ics-dm-sh/functions
+. /omnect-sh/functions
 
 d_echo ${0}
 
