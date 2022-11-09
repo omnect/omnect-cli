@@ -25,13 +25,13 @@ omnect-cli provides commands to inject various configurations into a flash image
     or via your AAD account
     ```sh
     az login
-    az acr login -n icsdm
+    az acr login -n dmdevweucopsacr
     ```
 - Pull latest docker image
     ```sh
     docker pull dmdevweucopsacr.azurecr.io/omnect-cli-backend:latest
     ```
-If you want to use a specific version, look for available versions in the [registry](https://portal.azure.com/#@CONPLEMENTAG1.onmicrosoft.com/resource/subscriptions/ff939028-597d-472b-a7cc-bca2ac8f96bd/resourcegroups/DockerRegistry/providers/Microsoft.ContainerRegistry/registries/icsdm/repository).
+If you want to use a specific version, look for available versions in the [registry](https://portal.azure.com/#@CONPLEMENTAG1.onmicrosoft.com/resource/subscriptions/ff939028-597d-472b-a7cc-bca2ac8f96bd/resourceGroups/dmdev-weu-cops-acrrg/providers/Microsoft.ContainerRegistry/registries/dmdevweucopsacr/overview).
 
 # Installation
 Ensure ~/bin/ exists and is in your $PATH before executing:
@@ -181,7 +181,6 @@ systemctl status wpa_supplicant@wlan0
 ```
 
 # ToDo's
-- [ ] Make linked ICS_DeviceManagement Wiki public
 - [ ] Describe local build and overwriting backend docker registry via `OMNECT_CLI_DOCKER_REG_NAME`
       at buildtime and at runtime
 
