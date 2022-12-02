@@ -12,7 +12,9 @@ pub enum IdentityConfig {
         /// path to wic image file
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
-
+        /// optional: path to payload file
+        #[arg(short = 'p', long = "payload")]
+        payload: Option<std::path::PathBuf>,
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,

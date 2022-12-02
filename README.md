@@ -72,6 +72,7 @@ For `omnect-iot-devices` and `omnect-iotedge-devices` adapt [config.toml.iot.tem
 omnect-cli identity set-config -c <path>/config.toml -i <path>/image.wic
 
 Options:
+  -p <path>/payload.json
   -b create bmap file
 ```
 

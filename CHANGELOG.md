@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.3] Q4 2022
+- added option to set-identity command which allows to set a dps payload file
+
 ## [0.12.2] Q4 2022
 - updated links to latest azure resources
 

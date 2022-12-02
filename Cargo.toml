@@ -1,6 +1,6 @@
 [package]
 name = "omnect-cli"
-version = "0.12.2"
+version = "0.12.3"
 authors = ["Marcel Lilienthal <134974+mlilien@users.noreply.github.com>",
            "Jan Zachmann <jan.zachmann@conplement.de>"]
 edition = "2021"

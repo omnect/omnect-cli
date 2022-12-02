@@ -186,7 +186,21 @@ fn check_set_identity_config_est_template() {
 
     assert_eq!(
         true,
-        docker::set_identity_config(&config_file_path, &image_path, None).is_ok()
+        docker::set_identity_config(&config_file_path, &image_path, None, None).is_ok()
+    );
+}
+
+#[test]
+fn check_set_identity_config_payload_template() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let config_file_path = tr.to_pathbuf("conf/config.toml.est.payload.template");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let payload_path = tr.to_pathbuf("testfiles/payload.json");
+
+    assert_eq!(
+        true,
+        docker::set_identity_config(&config_file_path, &image_path, None, Some(payload_path)).is_ok()
     );
 }
 
@@ -202,7 +216,8 @@ fn check_set_identity_config_est_template_bmap() {
         docker::set_identity_config(
             &config_file_path,
             &image_path,
-            img_to_bmap_path!(true, &image_path)
+            img_to_bmap_path!(true, &image_path),
+            None
         )
         .is_ok()
     );
@@ -217,7 +232,7 @@ fn check_set_identity_config_iot_template() {
 
     assert_eq!(
         true,
-        docker::set_identity_config(&config_file_path, &image_path, None).is_ok()
+        docker::set_identity_config(&config_file_path, &image_path, None, None).is_ok()
     );
 }
 
@@ -233,7 +248,8 @@ fn check_set_identity_config_iot_template_bmap() {
         docker::set_identity_config(
             &config_file_path,
             &image_path,
-            img_to_bmap_path!(true, &image_path)
+            img_to_bmap_path!(true, &image_path),
+            None
         )
         .is_ok()
     );
@@ -248,7 +264,7 @@ fn check_set_identity_config_iotedge_template() {
 
     assert_eq!(
         true,
-        docker::set_identity_config(&config_file_path, &image_path, None).is_ok()
+        docker::set_identity_config(&config_file_path, &image_path, None, None).is_ok()
     );
 }
 
@@ -264,7 +280,8 @@ fn check_set_identity_config_iotedge_template_bmap() {
         docker::set_identity_config(
             &config_file_path,
             &image_path,
-            img_to_bmap_path!(true, &image_path)
+            img_to_bmap_path!(true, &image_path),
+            None
         )
         .is_ok()
     );

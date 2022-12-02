@@ -322,7 +322,7 @@ pub fn set_iotedge_gateway_config(
     edge_device_identity_key_file: &PathBuf,
     bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    validate_identity(IdentityType::Gateway, &config_file)?
+    validate_identity(IdentityType::Gateway, &config_file, &None)?
         .iter()
         .for_each(|x| warn!("{}", x));
 
@@ -355,7 +355,7 @@ pub fn set_iot_leaf_sas_config(
     root_ca_file: &PathBuf,
     bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    validate_identity(IdentityType::Leaf, &config_file)?
+    validate_identity(IdentityType::Leaf, &config_file, &None)?
         .iter()
         .for_each(|x| warn!("{}", x));
 
@@ -380,14 +380,29 @@ pub fn set_identity_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
     bmap_file: Option<PathBuf>,
+    payload: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    validate_identity(IdentityType::Standalone, &config_file)?
+    validate_identity(IdentityType::Standalone, &config_file, &payload)?
         .iter()
         .for_each(|x| warn!("{}", x));
 
     super::validators::image::validate_and_decompress_image(
         image_file,
         move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
+            if payload.is_some() {
+                let payload = payload.unwrap().clone();
+                cmd_exec(
+                    vec![&payload, image_file],
+                    |files| -> String {
+                        format!(
+                            "copy_file_to_image.sh, -i, {0}, -o, /etc/aziot/payload.json, -p, factory, -w {1}",
+                            files[0], files[1]
+                        )
+                    },
+                    None,
+                )?;
+            }
+
             cmd_exec(
                 vec![config_file, image_file],
                 |files| -> String {
