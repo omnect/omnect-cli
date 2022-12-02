@@ -75,6 +75,7 @@ Options:
   -p <path>/payload.json
   -b create bmap file
 ```
+For further information on using dps payloads read the following [link](https://learn.microsoft.com/de-de/azure/iot-dps/concepts-custom-allocation).
 
 ## Prepare `omnect-iotedge-gateway-device` and `omnect-iot-leaf-device` for a transparent gateway with leaf scenario
 Follow this article [Configure an IoT Edge device to act as a transparent gateway](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-transparent-gateway?view=iotedge-2020-11) to understand the iotedge based transparent gateway setup. We assume that you use a X.509 CA certificate setup.
