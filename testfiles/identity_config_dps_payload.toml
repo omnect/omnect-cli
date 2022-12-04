@@ -4,7 +4,7 @@ hostname= "test"
 source = "dps"
 global_endpoint = "https://global.azure-devices-provisioning.net"
 id_scope = "my-scope-id"
-payload = { uri = "file:///etc/aziot/payload.json" }
+payload = { uri = "file:///etc/omnect/dps-payload.json" }
 
 [provisioning.attestation]
 method = "tpm"

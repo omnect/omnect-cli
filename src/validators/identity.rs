@@ -159,7 +159,7 @@ pub enum IdentityType {
     Gateway,
 }
 
-const PAYLOAD_FILEPATH: &'static str = "file:///etc/omnect/dsp-payload.json";
+const PAYLOAD_FILEPATH: &'static str = "file:///etc/omnect/dps-payload.json";
 const WARN_MISSING_PROVISIONING: &'static str = "A provisioning section should be specified.";
 const WARN_MISSING_DPS_PARAMS: &'static str =
     "For provisioning source dps, global_endpoint and id_scope should be specified.";
