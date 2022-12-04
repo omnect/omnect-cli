@@ -5,7 +5,7 @@ hostname = "test-omnect-est"
 source = "dps"
 global_endpoint = "https://global.azure-devices-provisioning.net/"
 id_scope = "0neXXXXXXXX"
-payload = { uri = "file:///etc/aziot/payload.json" }
+payload = { uri = "file:///etc/omnect/dsp-payload.json" }
 
 [provisioning.attestation]
 method = "x509"

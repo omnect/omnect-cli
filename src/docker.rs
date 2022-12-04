@@ -395,7 +395,7 @@ pub fn set_identity_config(
                     vec![&payload, image_file],
                     |files| -> String {
                         format!(
-                            "copy_file_to_image.sh, -i, {0}, -o, /etc/aziot/payload.json, -p, factory, -w {1}",
+                            "copy_file_to_image.sh, -i, {0}, -o, /etc/omnect/dsp-payload.json, -p, factory, -w {1}",
                             files[0], files[1]
                         )
                     },
