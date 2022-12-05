@@ -36,10 +36,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         Command::Identity(SetConfig {
             config,
             image,
+            payload,
             generate_bmap,
-        }) => {
-            docker::set_identity_config(&config, &image, img_to_bmap_path!(generate_bmap, &image))?
-        }
+        }) => docker::set_identity_config(
+            &config,
+            &image,
+            img_to_bmap_path!(generate_bmap, &image),
+            payload,
+        )?,
         Command::Identity(SetDeviceCertificate {
             intermediate_full_chain_cert,
             intermediate_key,

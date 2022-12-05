@@ -53,6 +53,13 @@ struct Authentication {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct Payload {
+    uri: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Provisioning {
     source: String,
     global_endpoint: Option<String>,
@@ -62,6 +69,7 @@ struct Provisioning {
     iothub_hostname: Option<String>,
     connection_string: Option<String>,
     device_id: Option<String>,
+    payload: Option<Payload>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -132,7 +140,11 @@ struct CertIssuance {
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
 struct IdentityConfig {
-    #[validate(regex(path = "RE_HOSTNAME", code = "hostname validation", message = "hostname is not compliant with rfc1035"))]
+    #[validate(regex(
+        path = "RE_HOSTNAME",
+        code = "hostname validation",
+        message = "hostname is not compliant with rfc1035"
+    ))]
     hostname: String,
     local_gateway_hostname: Option<String>,
     provisioning: Option<Provisioning>,
@@ -147,6 +159,7 @@ pub enum IdentityType {
     Gateway,
 }
 
+const PAYLOAD_FILEPATH: &'static str = "file:///etc/omnect/dps-payload.json";
 const WARN_MISSING_PROVISIONING: &'static str = "A provisioning section should be specified.";
 const WARN_MISSING_DPS_PARAMS: &'static str =
     "For provisioning source dps, global_endpoint and id_scope should be specified.";
@@ -164,10 +177,14 @@ const WARN_AUTHENTICATION_VALID_METHOD_EXPECTED: &'static str =
 const WARN_UNEXPECTED_PATH: &'static str = "Unexpected path found.";
 const WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID: &'static str =
     "provisioning.attestation.registration_id is not equal to provisioning.attestation.identity_cert.common_name";
+const WARN_PAYLOAD_FILEPATH_MISSING: &'static str =
+    "Payload file is configred but file is missing.";
+const WARN_PAYLOAD_CONFIG_MISSING: &'static str = "Payload file is passed but not configred.";
 
 pub fn validate_identity(
     _id_type: IdentityType,
     config_file_name: &PathBuf,
+    payload: &Option<PathBuf>,
 ) -> Result<Vec<&'static str>, Box<dyn std::error::Error>> {
     let mut out = Vec::<&'static str>::new();
     let file_content = std::fs::read_to_string(config_file_name)?;
@@ -214,6 +231,26 @@ pub fn validate_identity(
                         "tpm" | "symmetric_key" => {}
                         _ => out.push(WARN_ATTESTATION_VALID_METHOD_EXPECTED),
                     },
+                }
+                if p.payload.is_some() {
+                    if p.payload.unwrap().uri.ne(PAYLOAD_FILEPATH) {
+                        out.push(WARN_UNEXPECTED_PATH);
+                    } else if payload.is_none() {
+                        out.push(WARN_PAYLOAD_FILEPATH_MISSING);
+                    } else {
+                        let payload = payload.as_deref();
+                        let file_content = std::fs::read_to_string(payload.unwrap())?;
+                        let _: serde::de::IgnoredAny = serde_json::from_str(&file_content)
+                            .map_err(|e| {
+                                format!(
+                                    "{} parsing failed with error {}",
+                                    payload.unwrap().to_string_lossy(),
+                                    e.to_string()
+                                )
+                            })?;
+                    }
+                } else if payload.is_some() {
+                    out.push(WARN_PAYLOAD_CONFIG_MISSING);
                 }
             }
             "manual" => {
@@ -284,6 +321,7 @@ mod tests {
             validate_identity(
                 IdentityType::Standalone,
                 &PathBuf::from("testfiles/identity_config_hostname_empty.toml"),
+                &None,
             )
             .unwrap_err()
             .to_string()
@@ -299,6 +337,7 @@ mod tests {
             validate_identity(
                 IdentityType::Standalone,
                 &PathBuf::from("testfiles/identity_config_hostname_invalid.toml"),
+                &None,
             )
             .unwrap_err()
             .to_string()
@@ -314,6 +353,7 @@ mod tests {
             validate_identity(
                 IdentityType::Standalone,
                 &PathBuf::from("testfiles/identity_config_hostname_valid.toml"),
+                &None,
             )
             .is_ok()
         );
@@ -327,6 +367,7 @@ mod tests {
             validate_identity(
                 IdentityType::Standalone,
                 &PathBuf::from("testfiles/identity_config_empty.toml"),
+                &None,
             )
             .unwrap_err()
             .to_string()
@@ -340,6 +381,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Standalone,
             &PathBuf::from("testfiles/identity_config_minimal.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(1, result.len());
@@ -355,6 +397,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Standalone,
             &PathBuf::from("testfiles/identity_config_dps.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(2, result.len());
@@ -370,6 +413,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Standalone,
             &PathBuf::from("testfiles/identity_config_manual.toml"),
+            &None,
         )
         .unwrap();
 
@@ -389,6 +433,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Standalone,
             &PathBuf::from("testfiles/identity_config_manual_connection_string.toml"),
+            &None,
         )
         .unwrap();
 
@@ -401,6 +446,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Standalone,
             &PathBuf::from("testfiles/identity_config_dps_tpm.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(0, result.len());
@@ -412,6 +458,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Standalone,
             &PathBuf::from("testfiles/identity_config_dps_sas.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(1, result.len());
@@ -427,6 +474,19 @@ mod tests {
         let result = validate_identity(
             IdentityType::Standalone,
             &PathBuf::from("testfiles/identity_config_dps_x509_est.toml"),
+            &None,
+        )
+        .unwrap();
+        assert_eq!(0, result.len());
+    }
+
+    #[test]
+    fn identity_config_dps_payload() {
+        lazy_static::initialize(&LOG);
+        let result = validate_identity(
+            IdentityType::Standalone,
+            &PathBuf::from("testfiles/identity_config_dps_payload.toml"),
+            &Some(PathBuf::from("testfiles/dsp-payload.json")),
         )
         .unwrap();
         assert_eq!(0, result.len());
@@ -440,6 +500,7 @@ mod tests {
             validate_identity(
                 IdentityType::Leaf,
                 &PathBuf::from("testfiles/identity_config_empty.toml"),
+                &None,
             )
             .unwrap_err()
             .to_string()
@@ -453,6 +514,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Leaf,
             &PathBuf::from("testfiles/identity_config_minimal.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(1, result.len());
@@ -468,6 +530,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Leaf,
             &PathBuf::from("testfiles/identity_config_dps.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(2, result.len());
@@ -483,6 +546,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Leaf,
             &PathBuf::from("testfiles/identity_config_manual.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(2, result.len());
@@ -501,6 +565,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Leaf,
             &PathBuf::from("testfiles/identity_config_manual_sas.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(0, result.len());
@@ -512,6 +577,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Leaf,
             &PathBuf::from("testfiles/identity_config_manual_tpm.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(1, result.len());
@@ -526,6 +592,7 @@ mod tests {
             validate_identity(
                 IdentityType::Gateway,
                 &PathBuf::from("testfiles/identity_config_empty.toml"),
+                &None,
             )
             .unwrap_err()
             .to_string()
@@ -539,6 +606,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Gateway,
             &PathBuf::from("testfiles/identity_config_minimal.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(1, result.len());
@@ -554,6 +622,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Gateway,
             &PathBuf::from("testfiles/identity_config_dps.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(2, result.len());
@@ -569,6 +638,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Gateway,
             &PathBuf::from("testfiles/identity_config_manual.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(2, result.len());
@@ -587,6 +657,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Gateway,
             &PathBuf::from("testfiles/identity_config_dps_tpm.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(0, result.len());
@@ -598,6 +669,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Gateway,
             &PathBuf::from("testfiles/identity_config_dps_sas.toml"),
+            &None,
         )
         .unwrap();
         assert_eq!(1, result.len());
