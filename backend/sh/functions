@@ -35,7 +35,6 @@ function handle_partition_type() {
     fi
 }
 
-
 function read_in_partition() {
     d_echo read_in_partition ${p}
     part_offset=($(fdisk -l -o Device,Start,End ${w} | grep ${w}${!p} | awk '{print $2 " " $3}'))
