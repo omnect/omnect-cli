@@ -26,7 +26,7 @@ function handle_partition_type() {
     if [ "${ptype}" = "gpt" ]; then
         factory=4
         cert=5
-    elif [ "${ptype}" = "dos" ]
+    elif [ "${ptype}" = "dos" ]; then
         factory=5
         cert=6
     else
