@@ -22,7 +22,7 @@ function uuid_gen() {
 }
 
 function handle_partition_type() {
-    local ptype=$(fdisk -l ${w}1 | grep "^Disklabel type:" | awk '{print $NF}')
+    local ptype=$(fdisk -l ${w} | grep "^Disklabel type:" | awk '{print $NF}')
     if [ "${ptype}" = "gpt" ]; then
         factory=4
         cert=5
