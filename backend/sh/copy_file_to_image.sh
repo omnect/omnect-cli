@@ -50,7 +50,7 @@ d_echo "w = ${w}"
 [[ ! -f ${i} ]] && error "input file \"${i}\" not found"    && exit 1
 
 uuid_gen
-
+handle_partition_type
 read_in_partition
 
 # copy file
