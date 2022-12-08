@@ -43,6 +43,7 @@ d_echo "w = ${w}"
 
 uuid_gen
 
+handle_partition_type
 p=factory
 read_in_partition
 

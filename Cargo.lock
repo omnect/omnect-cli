@@ -791,7 +791,7 @@ dependencies = [
 
 [[package]]
 name = "omnect-cli"
-version = "0.12.3"
+version = "0.13.0"
 dependencies = [
  "anyhow",
  "base64",

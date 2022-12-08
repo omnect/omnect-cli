@@ -1,11 +1,9 @@
 #!/bin/bash
 
-# for now we use static lookup for partion numbers (may break if we have
-# systems whith different partition schemas, e.g. dos vs gpt)
 boot=1
 rootA=2
-factory=5
-cert=6
+factory=unset
+cert=unset
 
 function d_echo() {
     if [ ! -z ${DEBUG} ]; then
@@ -21,6 +19,20 @@ function uuid_gen() {
     uuid=$(uuidgen)
     d_echo uuid=${uuid}
     mkdir -p /tmp/${uuid}
+}
+
+function handle_partition_type() {
+    local ptype=$(fdisk -l ${w} | grep "^Disklabel type:" | awk '{print $NF}')
+    if [ "${ptype}" = "gpt" ]; then
+        factory=4
+        cert=5
+    elif [ "${ptype}" = "dos" ]; then
+        factory=5
+        cert=6
+    else
+        error "unhandled partition type"
+        exit 1
+    fi
 }
 
 function read_in_partition() {
