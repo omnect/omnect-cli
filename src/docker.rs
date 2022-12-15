@@ -290,30 +290,6 @@ pub fn set_wifi_config(
     )
 }
 
-pub fn set_enrollment_config(
-    config_file: &PathBuf,
-    image_file: &PathBuf,
-    bmap_file: Option<PathBuf>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    super::validators::enrollment::validate_enrollment(&config_file)?;
-
-    super::validators::image::validate_and_decompress_image(
-        image_file,
-        move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
-            cmd_exec(
-                vec![config_file, &image_file],
-                |files| -> String {
-                    format!(
-                        "copy_file_to_image.sh, -i, {0}, -o, /etc/omnect/enrollment_static.json, -p, factory, -w, {1}",
-                        files[0], files[1]
-                    )
-                },
-                bmap_file,
-            )
-        },
-    )
-}
-
 pub fn set_iotedge_gateway_config(
     config_file: &PathBuf,
     image_file: &PathBuf,

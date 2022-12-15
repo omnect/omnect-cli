@@ -8,7 +8,6 @@ mod validators;
 
 use cli::BootConfig::Set as BootSet;
 use cli::Command;
-use cli::EnrollmentConfig::Set as EnrollmentSet;
 use cli::IdentityConfig::SetConfig;
 use cli::IdentityConfig::SetDeviceCertificate;
 use cli::IdentityConfig::SetIotLeafSasConfig;
@@ -24,15 +23,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             image,
             generate_bmap,
         }) => docker::set_wifi_config(&config, &image, img_to_bmap_path!(generate_bmap, &image))?,
-        Command::Enrollment(EnrollmentSet {
-            enrollment_config,
-            image,
-            generate_bmap,
-        }) => docker::set_enrollment_config(
-            &enrollment_config,
-            &image,
-            img_to_bmap_path!(generate_bmap, &image),
-        )?,
         Command::Identity(SetConfig {
             config,
             image,

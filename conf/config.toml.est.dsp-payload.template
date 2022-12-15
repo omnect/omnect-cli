@@ -1,3 +1,4 @@
+## Hostname
 hostname = "test-omnect-est"
 
 ## DPS provisioning with X.509 certificate
@@ -20,9 +21,7 @@ rotate_key = true
 threshold = "80%"
 retry = "4%"
 
-# Cert issuance via EST
-# ---------------------
-
+## Cert issuance via EST
 [cert_issuance.est]
 trusted_certs = [
      "file:///mnt/cert/ca/ca.crt",
@@ -30,7 +29,7 @@ trusted_certs = [
 
 [cert_issuance.est.auth]
 bootstrap_identity_cert = "file:///mnt/cert/priv/device_id_cert.pem"
-bootstrap_identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"            # file URI, or...
+bootstrap_identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"
 
 [cert_issuance.est.urls]
 default = "https://omnect-est.url:8080/.well-known/est"

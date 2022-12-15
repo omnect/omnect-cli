@@ -98,24 +98,6 @@ pub enum WifiConfig {
 
 #[derive(Parser, Debug)]
 #[command(after_help = "Copyright © 2021 by conplement AG")]
-/// pre-configure enrollment settings
-pub enum EnrollmentConfig {
-    /// set enrollment configuration for images built with enrollment feature
-    Set {
-        /// path to enrollment config file
-        #[arg(short = 'c', long = "enrollment-config")]
-        enrollment_config: std::path::PathBuf,
-        /// path to wic image file
-        #[arg(short = 'i', long = "image")]
-        image: std::path::PathBuf,
-        /// optional: generate bmap file
-        #[arg(short = 'b', long = "generate-bmap-file")]
-        generate_bmap: bool,
-    },
-}
-
-#[derive(Parser, Debug)]
-#[command(after_help = "Copyright © 2021 by conplement AG")]
 /// pre-configure ADU settings
 pub enum IotHubDeviceUpdateConfig {
     /// set ADU configuration
@@ -158,8 +140,6 @@ pub enum Command {
     DockerInfo,
     #[command(subcommand)]
     Wifi(WifiConfig),
-    #[command(subcommand)]
-    Enrollment(EnrollmentConfig),
     #[command(subcommand)]
     IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
     #[command(subcommand)]

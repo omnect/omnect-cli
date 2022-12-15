@@ -1,27 +1,17 @@
-# =========================================================================================================
-# Hostname
-# =========================================================================================================
+## Hostname
+hostname = "my-omnect-iot-leaf-device"
 
-hostname = "my-omnect-iot-leaf-device"                                             # optional overwrite
-
-# =========================================================================================================
-# Local Gateway Hostname
-# =========================================================================================================
-
+## Local Gateway Hostname
 local_gateway_hostname = "my-omnect-gateway-device"
-
-# =========================================================================================================
-# Provisioning
-# =========================================================================================================
 
 ## Manual provisioning with sas symmetric key authentication for a leaf device
 [provisioning]
-source = "manual"                                                               # don't change
+source = "manual"
 iothub_hostname = "my-iothub.azure-devices.net"
 device_id = "my-device-id"
 
 [provisioning.authentication]
-method = "sas"                                                                  # don't change
+method = "sas"
 device_id_pk = { value = "AbCdEfG0123456789=" }                                 # inline key (base64), or...
 # device_id_pk = { uri = "file:///mnt/cert/priv/device-id.key.pem" }            # file URI, or...
 # device_id_pk = { uri = "pkcs11:slot-id=0;object=device%20id?pin-value=1234" } # PKCS#11 URI

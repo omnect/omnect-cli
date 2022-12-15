@@ -5,8 +5,6 @@ omnect-cli is a cli tool to manage your omnect-device [variants](https://wiki.co
 omnect-cli provides commands to inject various configurations into a flash image (wic) build with [meta-omnect](https://github.com/omnect/meta-omnect). Currently the following configurations options are supported:
 - Wifi configuration
   - Inject wifi configuration via wpa_supplicant into all omnect-device variants
-- Enrollment demo configuration
-  - Inject [enrollment demo](https://github.com/omnect/enrollment) configuration
 - Identity configuration
   - Inject general identity configuration for AIS (Azure Identity Service)
   - Inject an iotedge gateway identity configuration for AIS
@@ -52,21 +50,9 @@ Options:
   -b create bmap file
 ```
 
-# Enrollment configuration
-## Inject enrollment configuration
-This is an optional step to configure the [enrollment demo](https://github.com/omnect/enrollment) in case it is part of your image.
-Adapt [enrollment_static.json.template](conf/enrollment_static.json.template) to your needs.
-
-```sh
-omnect-cli enrollment set -c <path>/enrollment_static.json -i <path>/image.wic
-
-Options:
-  -b create bmap file
-```
-
 # Identity configuration
 ## Configuration of devices NOT part of a gateway with leaf scenario
-For `omnect-iot-devices` and `omnect-iotedge-devices` adapt [config.toml.iot.template](conf/config.toml.iot.template) or [config.toml.iotedge.template](conf/config.toml.iotedge.template) to your needs.
+For `omnect-iot-devices` and `omnect-iotedge-devices` adapt [config.toml.est.template](conf/config.toml.est.template) or [config.toml.tpm.template](conf/config.toml.tpm.template) to your needs.
 
 ```sh
 omnect-cli identity set-config -c <path>/config.toml -i <path>/image.wic
@@ -89,7 +75,7 @@ For the gateway, you need the following files:
   - `iot-edge-ca-<name>.key.pem`
 
 ### Config file
-Adapt [config.toml.gateway.template](conf/config.toml.gateway.template) to your needs.
+Adapt [config.toml.gateway.est.template](conf/config.toml.gateway.est.template) or [config.toml.gateway.tpm.template](conf/config.toml.gateway.tpm.template) to your needs.
 
 ### Inject configuration
 ```sh

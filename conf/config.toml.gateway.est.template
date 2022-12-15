@@ -1,5 +1,5 @@
 ## Hostname
-hostname = "test-omnect-est"
+hostname = "my-omnect-iotedge-gateway-device"
 
 ## DPS provisioning with X.509 certificate
 [provisioning]
@@ -10,6 +10,9 @@ id_scope = "0neXXXXXXXX"
 [provisioning.attestation]
 method = "x509"
 registration_id = "test-omnect-est"
+
+## Trust bundle cert
+trust_bundle_cert = "file:///mnt/cert/ca/trust-bundle.pem.crt"    # don't change path
 
 [provisioning.attestation.identity_cert]
 method = "est"
@@ -32,3 +35,9 @@ bootstrap_identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"          
 
 [cert_issuance.est.urls]
 default = "https://omnect-est.url:8080/.well-known/est"
+
+## Edge CA certificate
+[edge_ca]
+cert = "file:///mnt/cert/priv/edge-ca.pem"                        # don't change path
+pk = "file:///mnt/cert/priv/edge-ca.key.pem"                      # don't change path
+
