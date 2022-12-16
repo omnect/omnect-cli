@@ -5,7 +5,6 @@ config.gateway.toml
 Cargo.toml
 config.iot-devel.toml
 du-config.json.template
-enrollment_static.json
 image.wic
 intermediate_cert_key.pem
 intermediate_full_chain_cert.pem
