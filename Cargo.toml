@@ -1,6 +1,6 @@
 [package]
 name = "omnect-cli"
-version = "0.14.0"
+version = "0.14.1"
 authors = [
     "Marcel Lilienthal <134974+mlilien@users.noreply.github.com>",
     "Jan Zachmann <jan.zachmann@conplement.de>",
@@ -42,7 +42,7 @@ serde_json = "1.0.59"
 serde_path_to_error = "0.1.*"
 stdext = "0.3.*"
 tempfile = "3.2.0"
-tokio = { version = "1.13.*", features = ["macros", "io-std", "io-util", "fs"] }
+tokio = { version = "1.23.*", features = ["macros", "io-std", "io-util", "fs"] }
 toml = "0.5.*"
 uuid = { version = "0.8", default-features = false, features = ["v4"] }
 validator = { version = "0.14", features = ["derive"] }

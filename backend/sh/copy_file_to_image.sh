@@ -64,8 +64,8 @@ else
         mmd -i /tmp/${uuid}/${p}.img ::$(dirname ${o})
     fi
 
-    d_echo "mcopy -o -i /tmp/${uuid}/${p}.img ${i} ::$(dirname ${o})"
-    mcopy -o -i /tmp/${uuid}/${p}.img ${i} ::$(dirname ${o})
+    d_echo "mcopy -o -i /tmp/${uuid}/${p}.img ${i} ::${o})"
+    mcopy -o -i /tmp/${uuid}/${p}.img ${i} ::${o}
 fi
 
 write_back_partition
