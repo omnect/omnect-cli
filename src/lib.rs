@@ -1,13 +1,14 @@
 #[macro_use]
 extern crate lazy_static;
 
-mod cli;
+pub mod cli;
 use omnect_crypto;
 pub mod docker;
 mod validators;
 
 use cli::BootConfig::Set as BootSet;
 use cli::Command;
+use cli::FileConfig::Copy;
 use cli::IdentityConfig::SetConfig;
 use cli::IdentityConfig::SetDeviceCertificate;
 use cli::IdentityConfig::SetIotLeafSasConfig;
@@ -101,6 +102,19 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         }) => docker::set_boot_config(
             &boot_script,
             &image,
+            img_to_bmap_path!(generate_bmap, &image),
+        )?,
+        Command::File(Copy {
+            file,
+            image,
+            partition,
+            destination,
+            generate_bmap,
+        }) => docker::file_copy(
+            &file,
+            &image,
+            partition,
+            destination,
             img_to_bmap_path!(generate_bmap, &image),
         )?,
     }

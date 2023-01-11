@@ -14,6 +14,8 @@ omnect-cli provides commands to inject various configurations into a flash image
   - Inject [`du-config.json`](https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
 - Boot configuration
   - Inject `boot.scr`
+- File
+  - Copy a file into the image, restricted to partitions boot, cert, factory
 
 # Download prebuild Docker image
 - login to azure docker registry either via admin user

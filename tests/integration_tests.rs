@@ -1,6 +1,6 @@
 mod common;
 use common::Testrunner;
-use omnect_cli::{docker, img_to_bmap_path};
+use omnect_cli::{cli, docker, img_to_bmap_path};
 use omnect_crypto;
 use stdext::function_name;
 #[macro_use]
@@ -319,6 +319,46 @@ fn check_set_boot_config_bmap() {
         docker::set_boot_config(
             &boot_config_file_path,
             &image_path,
+            img_to_bmap_path!(true, &image_path)
+        )
+        .is_ok()
+    );
+}
+
+#[test]
+fn check_file_copy() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let boot_config_file_path = tr.to_pathbuf("testfiles/boot.scr");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::file_copy(
+            &boot_config_file_path,
+            &image_path,
+            cli::Partition::boot,
+            String::from("/test/test.scr"),
+            None
+        )
+        .is_ok()
+    );
+}
+
+#[test]
+fn check_file_copy_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let boot_config_file_path = tr.to_pathbuf("testfiles/boot.scr");
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    assert_eq!(
+        true,
+        docker::file_copy(
+            &boot_config_file_path,
+            &image_path,
+            cli::Partition::boot,
+            String::from("/test/test.scr"),
             img_to_bmap_path!(true, &image_path)
         )
         .is_ok()
