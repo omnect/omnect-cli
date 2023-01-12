@@ -295,37 +295,6 @@ fn check_set_iot_hub_device_update_template_bmap() {
 }
 
 #[test]
-fn check_set_boot_config() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let boot_config_file_path = tr.to_pathbuf("testfiles/boot.scr");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_eq!(
-        true,
-        docker::set_boot_config(&boot_config_file_path, &image_path, None).is_ok()
-    );
-}
-
-#[test]
-fn check_set_boot_config_bmap() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let boot_config_file_path = tr.to_pathbuf("testfiles/boot.scr");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert_eq!(
-        true,
-        docker::set_boot_config(
-            &boot_config_file_path,
-            &image_path,
-            img_to_bmap_path!(true, &image_path)
-        )
-        .is_ok()
-    );
-}
-
-#[test]
 fn check_file_copy() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 

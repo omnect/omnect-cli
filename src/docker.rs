@@ -484,28 +484,6 @@ pub fn set_iot_hub_device_update_config(
     )
 }
 
-pub fn set_boot_config(
-    boot_script: &PathBuf,
-    image_file: &PathBuf,
-    bmap_file: Option<PathBuf>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    super::validators::image::validate_and_decompress_image(
-        image_file,
-        move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
-            cmd_exec(
-                vec![boot_script, image_file],
-                |files| -> String {
-                    format!(
-                        "copy_file_to_image.sh, -i, {0}, -o, /boot.scr, -p, boot, -w {1}",
-                        files[0], files[1]
-                    )
-                },
-                bmap_file,
-            )
-        },
-    )
-}
-
 pub fn file_copy(
     file: &PathBuf,
     image_file: &PathBuf,

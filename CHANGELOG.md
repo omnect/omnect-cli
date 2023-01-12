@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.15.0] Q1 2023
 - introduced command `file copy`
+- removed `boot set` command
 
 ## [0.14.1] Q1 2023
 - fixed "boot set" command to accept input files not named boot.scr

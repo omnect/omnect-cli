@@ -6,6 +6,7 @@ const COPYRIGHT: &'static str = "Copyright © 2021 by conplement AG";
 #[command(after_help = COPYRIGHT)]
 /// file handling
 pub enum FileConfig {
+    /// copy file into image
     Copy {
         /// path to input file
         #[arg(short = 'f', long = "file")]
@@ -148,23 +149,6 @@ pub enum IotHubDeviceUpdateConfig {
 }
 
 #[derive(Parser, Debug)]
-#[command(after_help = COPYRIGHT)]
-/// pre-configure boot settings
-pub enum BootConfig {
-    Set {
-        /// path to boot.scr file
-        #[arg(short = 'c', long = "config")]
-        boot_script: std::path::PathBuf,
-        /// path to wic image file
-        #[arg(short = 'i', long = "image")]
-        image: std::path::PathBuf,
-        /// optional: generate bmap file
-        #[arg(short = 'b', long = "generate-bmap-file")]
-        generate_bmap: bool,
-    },
-}
-
-#[derive(Parser, Debug)]
 #[command(version, after_help = COPYRIGHT)]
 /// This tools helps to manage your omnect devices. For more information visit:\nhttps://github.com/omnect/omnect-cli
 pub enum Command {
@@ -177,8 +161,6 @@ pub enum Command {
     Wifi(WifiConfig),
     #[command(subcommand)]
     IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
-    #[command(subcommand)]
-    Boot(BootConfig),
 }
 
 pub fn from_args() -> Command {

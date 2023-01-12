@@ -6,7 +6,6 @@ use omnect_crypto;
 pub mod docker;
 mod validators;
 
-use cli::BootConfig::Set as BootSet;
 use cli::Command;
 use cli::FileConfig::Copy;
 use cli::IdentityConfig::SetConfig;
@@ -92,15 +91,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             generate_bmap,
         }) => docker::set_iot_hub_device_update_config(
             &iot_hub_device_update_config,
-            &image,
-            img_to_bmap_path!(generate_bmap, &image),
-        )?,
-        Command::Boot(BootSet {
-            boot_script,
-            image,
-            generate_bmap,
-        }) => docker::set_boot_config(
-            &boot_script,
             &image,
             img_to_bmap_path!(generate_bmap, &image),
         )?,
