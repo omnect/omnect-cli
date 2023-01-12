@@ -1,6 +1,6 @@
 mod common;
 use common::Testrunner;
-use omnect_cli::{docker, img_to_bmap_path};
+use omnect_cli::{cli, docker, img_to_bmap_path};
 use omnect_crypto;
 use stdext::function_name;
 #[macro_use]
@@ -295,7 +295,7 @@ fn check_set_iot_hub_device_update_template_bmap() {
 }
 
 #[test]
-fn check_set_boot_config() {
+fn check_file_copy() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
     let boot_config_file_path = tr.to_pathbuf("testfiles/boot.scr");
@@ -303,12 +303,19 @@ fn check_set_boot_config() {
 
     assert_eq!(
         true,
-        docker::set_boot_config(&boot_config_file_path, &image_path, None).is_ok()
+        docker::file_copy(
+            &boot_config_file_path,
+            &image_path,
+            cli::Partition::boot,
+            String::from("/test/test.scr"),
+            None
+        )
+        .is_ok()
     );
 }
 
 #[test]
-fn check_set_boot_config_bmap() {
+fn check_file_copy_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
     let boot_config_file_path = tr.to_pathbuf("testfiles/boot.scr");
@@ -316,9 +323,11 @@ fn check_set_boot_config_bmap() {
 
     assert_eq!(
         true,
-        docker::set_boot_config(
+        docker::file_copy(
             &boot_config_file_path,
             &image_path,
+            cli::Partition::boot,
+            String::from("/test/test.scr"),
             img_to_bmap_path!(true, &image_path)
         )
         .is_ok()

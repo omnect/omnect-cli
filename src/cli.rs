@@ -1,7 +1,41 @@
 use clap::Parser;
 
+const COPYRIGHT: &'static str = "Copyright © 2021 by conplement AG";
+
 #[derive(Parser, Debug)]
-#[command(after_help = "Copyright © 2021 by conplement AG")]
+#[command(after_help = COPYRIGHT)]
+/// file handling
+pub enum FileConfig {
+    /// copy file into image
+    Copy {
+        /// path to input file
+        #[arg(short = 'f', long = "file")]
+        file: std::path::PathBuf,
+        /// path to wic image file
+        #[arg(short = 'i', long = "image")]
+        image: std::path::PathBuf,
+        /// destination partition
+        #[arg(short = 'p', long = "partition", value_enum)]
+        partition: Partition,
+        /// destination path
+        #[arg(short = 'd', long = "destination")]
+        destination: std::string::String,
+        /// optional: generate bmap file
+        #[arg(short = 'b', long = "generate-bmap-file")]
+        generate_bmap: bool,
+    },
+}
+
+#[derive(clap::ValueEnum, Debug, Clone)]
+#[allow(non_camel_case_types)]
+pub enum Partition {
+    boot,
+    cert,
+    factory,
+}
+
+#[derive(Parser, Debug)]
+#[command(after_help = COPYRIGHT)]
 /// pre-configure device identity settings
 pub enum IdentityConfig {
     /// set general config.toml file
@@ -79,7 +113,7 @@ pub enum IdentityConfig {
 }
 
 #[derive(Parser, Debug)]
-#[command(after_help = "Copyright © 2021 by conplement AG")]
+#[command(after_help = COPYRIGHT)]
 /// pre-configure wifi settings
 pub enum WifiConfig {
     /// set wpa_supplicant.conf to pre-configure wifi settings
@@ -97,7 +131,7 @@ pub enum WifiConfig {
 }
 
 #[derive(Parser, Debug)]
-#[command(after_help = "Copyright © 2021 by conplement AG")]
+#[command(after_help = COPYRIGHT)]
 /// pre-configure ADU settings
 pub enum IotHubDeviceUpdateConfig {
     /// set ADU configuration
@@ -115,26 +149,11 @@ pub enum IotHubDeviceUpdateConfig {
 }
 
 #[derive(Parser, Debug)]
-#[command(after_help = "Copyright © 2021 by conplement AG")]
-/// pre-configure boot settings
-pub enum BootConfig {
-    Set {
-        /// path to boot.scr file
-        #[arg(short = 'c', long = "config")]
-        boot_script: std::path::PathBuf,
-        /// path to wic image file
-        #[arg(short = 'i', long = "image")]
-        image: std::path::PathBuf,
-        /// optional: generate bmap file
-        #[arg(short = 'b', long = "generate-bmap-file")]
-        generate_bmap: bool,
-    },
-}
-
-#[derive(Parser, Debug)]
-#[command(version, after_help = "Copyright © 2021 by conplement AG")]
+#[command(version, after_help = COPYRIGHT)]
 /// This tools helps to manage your omnect devices. For more information visit:\nhttps://github.com/omnect/omnect-cli
 pub enum Command {
+    #[command(subcommand)]
+    File(FileConfig),
     #[command(subcommand)]
     Identity(IdentityConfig),
     DockerInfo,
@@ -142,8 +161,6 @@ pub enum Command {
     Wifi(WifiConfig),
     #[command(subcommand)]
     IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
-    #[command(subcommand)]
-    Boot(BootConfig),
 }
 
 pub fn from_args() -> Command {

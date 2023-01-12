@@ -14,6 +14,8 @@ omnect-cli provides commands to inject various configurations into a flash image
   - Inject [`du-config.json`](https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
 - Boot configuration
   - Inject `boot.scr`
+- File
+  - Copy a file into the image, restricted to partitions boot, cert, factory
 
 # Download prebuild Docker image
 - login to azure docker registry either via admin user
@@ -130,11 +132,32 @@ Options:
   -b create bmap file
 ```
 
-# Boot configuration
+# Copy Files into Image
+
+Copying files into the image is restricted to partions `boot`, `cert` and `factory`.
+
+Note: If you need special permissions on copied files, you have to additionally copy a systemd-tmpfiles.d configuration file which handles these permissions.
+
 ## Inject `boot.scr`
 
 ```sh
-omnect-cli boot set -c <path>/boot.scr -i <path>/image.wic
+omnect-cli file copy -f <path>/boot.scr -i <path>/image.wic -p boot -d /boot.scr
+
+Options:
+  -b create bmap file
+```
+
+## Inject iptables configuration
+```sh
+omnect-cli file copy -f <path>/iptables.rules -i <path>/image.wic -p factory -d /etc/iptables/iptables.rules
+
+Options:
+  -b create bmap file
+```
+
+## Inject systemd-tmpfiles.d configuration
+```sh
+omnect-cli file copy -f <path>/my_custom_tmpfilesd.conf -i <path>/image.wic -p factory -d /etc/tmpfiles.d/my_custom_tmpfilesd.conf
 
 Options:
   -b create bmap file
