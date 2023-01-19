@@ -486,7 +486,7 @@ mod tests {
         let result = validate_identity(
             IdentityType::Standalone,
             &PathBuf::from("testfiles/identity_config_dps_payload.toml"),
-            &Some(PathBuf::from("testfiles/dsp-payload.json")),
+            &Some(PathBuf::from("testfiles/dps-payload.json")),
         )
         .unwrap();
         assert_eq!(0, result.len());

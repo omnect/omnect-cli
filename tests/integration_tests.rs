@@ -165,7 +165,7 @@ fn check_set_identity_config_payload_template() {
 
     let config_file_path = tr.to_pathbuf("conf/config.toml.est.dsp-payload.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
-    let payload_path = tr.to_pathbuf("testfiles/dsp-payload.json");
+    let payload_path = tr.to_pathbuf("testfiles/dps-payload.json");
 
     assert_eq!(
         true,
