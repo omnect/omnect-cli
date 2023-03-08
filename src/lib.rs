@@ -2,7 +2,7 @@
 extern crate lazy_static;
 
 pub mod cli;
-use omnect_crypto;
+
 pub mod docker;
 mod validators;
 

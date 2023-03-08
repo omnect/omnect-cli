@@ -21,8 +21,8 @@ use path_absolutize::Absolutize;
 use tempfile::NamedTempFile;
 use uuid::Uuid;
 
-const DOCKER_IMAGE_NAME: &'static str = "omnect-cli-backend";
-const DOCKER_IMAGE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const DOCKER_IMAGE_NAME: &str = "omnect-cli-backend";
+const DOCKER_IMAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[macro_export]
 macro_rules! img_to_bmap_path {
@@ -79,7 +79,7 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
     let reg_name = DOCKER_REG_NAME.as_str();
     let identitytoken = json["auths"][reg_name]["identitytoken"]
         .to_string()
-        .replace("\"", "");
+        .replace('\"', "");
 
     if "null" != identitytoken {
         return Ok(DockerCredentials {
@@ -90,11 +90,11 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
 
     let auth = json["auths"][reg_name]["auth"]
         .to_string()
-        .replace("\"", "");
+        .replace('\"', "");
 
     if "null" != auth {
         let byte_auth = base64::decode_config(auth, base64::STANDARD)?;
-        let v: Vec<&str> = std::str::from_utf8(&byte_auth)?.split(":").collect();
+        let v: Vec<&str> = std::str::from_utf8(&byte_auth)?.split(':').collect();
 
         return Ok(DockerCredentials {
             username: Some(v[0].to_string()),
@@ -103,9 +103,9 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
         });
     }
 
-    return Ok(DockerCredentials {
+    Ok(DockerCredentials {
         ..Default::default()
-    });
+    })
 }
 
 #[tokio::main]
@@ -128,7 +128,7 @@ async fn docker_exec(
             ..Default::default()
         }));
 
-        if true == image_list.await?.is_empty() {
+        if image_list.await?.is_empty() {
             debug!("Image not already present, creating it.");
             docker
                 .create_image(
@@ -163,23 +163,21 @@ async fn docker_exec(
 
         let host_config = HostConfig {
             auto_remove: Some(true),
-            binds: binds,
+            binds,
             ..Default::default()
         };
 
         let mut env: Option<Vec<&str>> = None;
         if cfg!(debug_assertions) {
-            let mut _env = Vec::new();
-            _env.push("DEBUG=1");
-            env = Some(_env);
+            env = Some(vec!["DEBUG=1"]);
         }
 
         let container_config = Config {
             image: Some(img_id),
             tty: Some(true),
             host_config: Some(host_config),
-            env: env,
-            cmd: cmd,
+            env,
+            cmd,
             attach_stdout: Some(true),
             attach_stderr: Some(true),
             entrypoint: Some(vec!["entrypoint.sh", &target_error_file_path]),
@@ -258,11 +256,8 @@ async fn docker_exec(
         if !contents.is_empty() {
             docker_run_result = Err(Box::<dyn std::error::Error>::from(contents))
         }
-        match docker_run_result {
-            Ok(()) => {
-                debug!("Command ran successfully.");
-            }
-            _ => {} // Error will be printed by caller.
+        if let Ok(()) = docker_run_result {
+            debug!("Command ran successfully.");
         }
 
         docker_run_result
@@ -299,7 +294,7 @@ pub fn set_iotedge_gateway_config(
     edge_device_identity_key_file: &PathBuf,
     bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    validate_identity(IdentityType::Gateway, &config_file, &None)?
+    validate_identity(IdentityType::Gateway, config_file, &None)?
         .iter()
         .for_each(|x| warn!("{}", x));
 
@@ -332,7 +327,7 @@ pub fn set_iot_leaf_sas_config(
     root_ca_file: &PathBuf,
     bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    validate_identity(IdentityType::Leaf, &config_file, &None)?
+    validate_identity(IdentityType::Leaf, config_file, &None)?
         .iter()
         .for_each(|x| warn!("{}", x));
 
@@ -359,15 +354,14 @@ pub fn set_identity_config(
     bmap_file: Option<PathBuf>,
     payload: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    validate_identity(IdentityType::Standalone, &config_file, &payload)?
+    validate_identity(IdentityType::Standalone, config_file, &payload)?
         .iter()
         .for_each(|x| warn!("{}", x));
 
     super::validators::image::validate_and_decompress_image(
         image_file,
         move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
-            if payload.is_some() {
-                let payload = payload.unwrap().clone();
+            if let Some(payload) = payload {
                 cmd_exec(
                     vec![&payload, image_file],
                     |files| -> String {
@@ -460,7 +454,7 @@ pub fn set_iot_hub_device_update_config(
     image_file: &PathBuf,
     bmap_file: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let file = File::open(&config_file)?;
+    let file = File::open(config_file)?;
     serde_json::from_reader::<_, serde_json::Value>(BufReader::new(file)).map_err(|e| {
         format!(
             "Input {:?} seems not to be a valid json file: {}",
@@ -533,7 +527,7 @@ where
     // validate input files
     // create temporary bind paths
     files.iter().try_for_each(|&f| -> Result<(), Error> {
-        let path = ensure_filepath(&f)?;
+        let path = ensure_filepath(f)?;
         let bind_path = format!(
             "/tmp/{}/{}",
             tmp_folder,
@@ -545,10 +539,10 @@ where
     })?;
 
     // format cmdline
-    let mut cmdline: Vec<String> = f(&bind_files).split(",").map(|s| s.to_string()).collect();
+    let mut cmdline: Vec<String> = f(&bind_files).split(',').map(|s| s.to_string()).collect();
 
     if bmap_file.is_some() {
-        let bmap_file = &bmap_file.unwrap().clone().absolutize()?.to_path_buf();
+        let bmap_file = &bmap_file.unwrap().absolutize()?.to_path_buf();
         File::create(bmap_file)?;
         let bmap_bind_path = format!(
             "/tmp/{}/{}",
@@ -572,7 +566,7 @@ where
 }
 
 fn ensure_filepath(filepath: &PathBuf) -> Result<String, Error> {
-    error_on_file_not_exists(&filepath)?;
+    error_on_file_not_exists(filepath)?;
 
     Ok(Path::new(filepath)
         .absolutize()
@@ -583,14 +577,16 @@ fn ensure_filepath(filepath: &PathBuf) -> Result<String, Error> {
 }
 
 fn error_on_file_not_exists(file: &PathBuf) -> Result<(), Error> {
-    std::fs::metadata(&file)
+    std::fs::metadata(file)
         .map_err(|e| Error::new(e.kind(), e.to_string() + ": " + file.to_str().unwrap()))?
         .is_file()
-        .then(|| ())
-        .ok_or(Error::new(
-            ErrorKind::InvalidInput,
-            file.to_str().unwrap().to_owned() + &" is not a file path",
-        ))?;
+        .then_some(())
+        .ok_or_else(|| {
+            Error::new(
+                ErrorKind::InvalidInput,
+                file.to_str().unwrap().to_owned() + " is not a file path",
+            )
+        })?;
 
     Ok(())
 }

@@ -3,7 +3,7 @@ use std::fs::copy;
 use std::fs::{create_dir_all, remove_dir_all};
 use std::path::PathBuf;
 
-const TMPDIR_FORMAT_STR: &'static str = "/tmp/omnect-cli-integration-tests/";
+const TMPDIR_FORMAT_STR: &str = "/tmp/omnect-cli-integration-tests/";
 
 lazy_static! {
     static ref LOG: () = if cfg!(debug_assertions) {

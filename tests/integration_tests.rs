@@ -1,7 +1,7 @@
 mod common;
 use common::Testrunner;
 use omnect_cli::{cli, docker, img_to_bmap_path};
-use omnect_crypto;
+
 use stdext::function_name;
 #[macro_use]
 extern crate lazy_static;
@@ -235,7 +235,7 @@ fn check_set_device_cert() {
     let intermediate_full_chain_crt = std::fs::read_to_string(&intermediate_full_chain_crt_path)
         .expect("could not read intermediate full-chain-certificate");
     let intermediate_full_chain_crt_key =
-        std::fs::read_to_string(&intermediate_full_chain_crt_key_path)
+        std::fs::read_to_string(intermediate_full_chain_crt_key_path)
             .expect("could not read intermediate certificate key");
 
     let crypto = omnect_crypto::Crypto::new(
