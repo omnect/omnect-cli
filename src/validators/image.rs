@@ -1,9 +1,9 @@
+use anyhow::{anyhow, Result};
 use filemagic::Magic;
 use log::{debug, info};
 use std::env;
 use std::fs::remove_file;
 use std::fs::File;
-use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
 
 trait CompressionGenerator {
@@ -138,24 +138,18 @@ const COMPRESSION_TABLE: [CompressionAlternative; 3] = [
 
 pub fn validate_and_decompress_image(
     image_file_name: &PathBuf,
-    action: impl FnOnce(&PathBuf) -> Result<(), Box<dyn std::error::Error>>,
-) -> Result<(), Box<dyn std::error::Error>> {
+    action: impl FnOnce(&PathBuf) -> Result<()>,
+) -> Result<()> {
     debug!("Detecting magic for {}", image_file_name.to_string_lossy());
     let detector = Magic::open(Default::default());
     let detector = match detector {
         Err(e) => {
-            return Err(Box::new(Error::new(
-                ErrorKind::Other,
-                format!("libmagic open failed with error {}", e),
-            )));
+            return Err(anyhow!("libmagic open failed with error {}", e));
         }
         Ok(d) => d,
     };
     if let Err(e) = detector.load::<String>(&[]) {
-        return Err(Box::new(Error::new(
-            ErrorKind::Other,
-            format!("libmagic load failed with error {}", e),
-        )));
+        return Err(anyhow!("libmagic load failed with error {}", e));
     }
     let magic = detector.file(image_file_name)?;
     for elem in COMPRESSION_TABLE {
@@ -175,18 +169,12 @@ pub fn validate_and_decompress_image(
                         debug!("Compression complete.");
                     }
                     Err(e) => {
-                        success = Err(Box::new(Error::new(
-                            ErrorKind::Other,
-                            format!("Recompressing failed with error {}", e),
-                        )));
+                        success = Err(anyhow!("Recompressing failed with error {}", e));
                     }
                 }
             }
             if let Err(e) = remove_file(new_image_file) {
-                success = Err(Box::new(Error::new(
-                    ErrorKind::Other,
-                    format!("Deleting temporary file failed with error {}", e),
-                )));
+                success = Err(anyhow!("Deleting temporary file failed with error {}", e));
             }
             return success;
         }
