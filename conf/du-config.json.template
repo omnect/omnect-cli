@@ -17,7 +17,7 @@
         "connectionData": ""
       },
       "manufacturer": "<Place your device property manufacturer here>",
-      "model": "<Place your device property model here>"
+      "model": "<Place your device property model here>",
       "additionalDeviceProperties": {
         "compatibilityId": "<Place your compatibility id here>"
       }
