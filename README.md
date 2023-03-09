@@ -194,6 +194,7 @@ systemctl status wpa_supplicant@wlan0
 # ToDo's
 - [ ] Describe local build and overwriting backend docker registry via `OMNECT_CLI_DOCKER_REG_NAME`
       at buildtime and at runtime
+- [ ] replace link to internal wiki and describe omnect image variants
 
 # License
 Licensed under either of

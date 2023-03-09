@@ -122,8 +122,8 @@ struct Urls {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[allow(dead_code)]
-struct Est {
+#[allow(dead_code, clippy::upper_case_acronyms)]
+struct EST {
     auth: Auth,
     urls: Urls,
     trusted_certs: Vec<String>,
@@ -133,7 +133,7 @@ struct Est {
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
 struct CertIssuance {
-    est: Option<Est>,
+    est: Option<EST>,
 }
 
 #[derive(Debug, Validate, Deserialize)]
