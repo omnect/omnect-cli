@@ -1,6 +1,6 @@
 use clap::Parser;
 
-const COPYRIGHT: &'static str = "Copyright © 2021 by conplement AG";
+const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 
 #[derive(Parser, Debug)]
 #[command(after_help = COPYRIGHT)]

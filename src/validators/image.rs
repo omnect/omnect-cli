@@ -1,18 +1,18 @@
+use anyhow::{anyhow, Result};
 use filemagic::Magic;
 use log::{debug, info};
 use std::env;
 use std::fs::remove_file;
 use std::fs::File;
-use std::io::{Error, ErrorKind};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 trait CompressionGenerator {
-    fn compress<'a>(
+    fn compress(
         &self,
         source: &mut std::fs::File,
         destination: &mut std::fs::File,
     ) -> std::io::Result<u64>;
-    fn decompress<'a>(
+    fn decompress(
         &self,
         source: &mut std::fs::File,
         destination: &mut std::fs::File,
@@ -52,7 +52,7 @@ impl XzGenerator {
     fn get_level() -> u32 {
         let range = 0..9;
         let level = env::var("XZ_COMPRESSION_LEVEL")
-            .unwrap_or("9".to_string())
+            .unwrap_or_else(|_| "9".to_string())
             .parse()
             .unwrap_or(9);
 
@@ -138,67 +138,43 @@ const COMPRESSION_TABLE: [CompressionAlternative; 3] = [
 
 pub fn validate_and_decompress_image(
     image_file_name: &PathBuf,
-    action: impl FnOnce(&PathBuf) -> Result<(), Box<dyn std::error::Error>>,
-) -> Result<(), Box<dyn std::error::Error>> {
+    action: impl FnOnce(&PathBuf) -> Result<()>,
+) -> Result<()> {
     debug!("Detecting magic for {}", image_file_name.to_string_lossy());
     let detector = Magic::open(Default::default());
     let detector = match detector {
         Err(e) => {
-            return Err(Box::new(Error::new(
-                ErrorKind::Other,
-                format!("libmagic open failed with error {}", e.to_string()),
-            )));
+            return Err(anyhow!("libmagic open failed with error {}", e));
         }
         Ok(d) => d,
     };
-    match detector.load::<String>(&[]) {
-        Err(e) => {
-            return Err(Box::new(Error::new(
-                ErrorKind::Other,
-                format!("libmagic load failed with error {}", e.to_string()),
-            )));
-        }
-        _ => {}
+    if let Err(e) = detector.load::<String>(&[]) {
+        return Err(anyhow!("libmagic load failed with error {}", e));
     }
-    let magic = detector.file(&image_file_name)?;
+    let magic = detector.file(image_file_name)?;
     for elem in COMPRESSION_TABLE {
-        if magic.find(elem.marker) != None {
+        if magic.contains(elem.marker) {
             info!("Compressed image file found, decompressing...");
             let new_image_file = decompress(image_file_name, elem.extension, elem.generator)?;
             debug!("Decompressed to {}", new_image_file.to_string_lossy());
             let mut success = action(&new_image_file);
-            match success {
-                Ok(_n) => {
-                    info!(
-                        "Recompressing image from {} to {}",
-                        new_image_file.to_string_lossy(),
-                        image_file_name.to_string_lossy()
-                    );
-                    match compress(&new_image_file, image_file_name, elem.generator) {
-                        Ok(_e) => {
-                            debug!("Compression complete.");
-                        }
-                        Err(e) => {
-                            success = Err(Box::new(Error::new(
-                                ErrorKind::Other,
-                                format!("Recompressing failed with error {}", e.to_string()),
-                            )));
-                        }
+            if let Ok(_n) = success {
+                info!(
+                    "Recompressing image from {} to {}",
+                    new_image_file.to_string_lossy(),
+                    image_file_name.to_string_lossy()
+                );
+                match compress(&new_image_file, image_file_name, elem.generator) {
+                    Ok(_e) => {
+                        debug!("Compression complete.");
+                    }
+                    Err(e) => {
+                        success = Err(anyhow!("Recompressing failed with error {}", e));
                     }
                 }
-                _ => {}
             }
-            match remove_file(new_image_file) {
-                Err(e) => {
-                    success = Err(Box::new(Error::new(
-                        ErrorKind::Other,
-                        format!(
-                            "Deleting temporary file failed with error {}",
-                            e.to_string()
-                        ),
-                    )));
-                }
-                _ => {}
+            if let Err(e) = remove_file(new_image_file) {
+                success = Err(anyhow!("Deleting temporary file failed with error {}", e));
             }
             return success;
         }
@@ -222,10 +198,10 @@ fn decompress(
 
 fn compress(
     uncompressed_file_name: &PathBuf,
-    compressed_file_name: &PathBuf,
+    compressed_file_name: &Path,
     generator: &'static dyn CompressionGenerator,
 ) -> Result<(), std::io::Error> {
-    let mut destination = File::create(compressed_file_name.clone())?;
+    let mut destination = File::create(compressed_file_name)?;
     let mut source = File::open(uncompressed_file_name)?;
     let bytes_written = generator.compress(&mut source, &mut destination)?;
     debug!("Compress: copied {} bytes.", bytes_written);

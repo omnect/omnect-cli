@@ -1,8 +1,8 @@
+use anyhow::{anyhow, Result};
 use log::info;
 use regex::Regex;
 use serde::Deserialize;
 use std::collections::BTreeMap;
-use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use validator::Validate;
 
@@ -122,7 +122,7 @@ struct Urls {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[allow(dead_code)]
+#[allow(dead_code, clippy::upper_case_acronyms)]
 struct EST {
     auth: Auth,
     urls: Urls,
@@ -159,33 +159,31 @@ pub enum IdentityType {
     Gateway,
 }
 
-const PAYLOAD_FILEPATH: &'static str = "file:///etc/omnect/dps-payload.json";
-const WARN_MISSING_PROVISIONING: &'static str = "A provisioning section should be specified.";
-const WARN_MISSING_DPS_PARAMS: &'static str =
+const PAYLOAD_FILEPATH: &str = "file:///etc/omnect/dps-payload.json";
+const WARN_MISSING_PROVISIONING: &str = "A provisioning section should be specified.";
+const WARN_MISSING_DPS_PARAMS: &str =
     "For provisioning source dps, global_endpoint and id_scope should be specified.";
-const WARN_MISSING_MANUAL_PARAMS: &'static str =
+const WARN_MISSING_MANUAL_PARAMS: &str =
     "For provisioning source manual, either connection_string or iothub_hostname and device_id are required.";
-const WARN_MISSING_AUTHENTICATION: &'static str =
+const WARN_MISSING_AUTHENTICATION: &str =
     "For provisioning source manual, an authentication section should be present in the provisioning section.";
-const WARN_MISSING_ATTESTATION: &'static str =
+const WARN_MISSING_ATTESTATION: &str =
     "For provisioning source dps an attestation section should be present in the provisioning section.";
-const WARN_ATTESTATION_VALID_METHOD_EXPECTED: &'static str =
+const WARN_ATTESTATION_VALID_METHOD_EXPECTED: &str =
     "The attestation method should be tpm, x509 or symmetric_key.";
-const WARN_INVALID_SOURCE: &'static str = "The provisioning source should be dps or manual.";
-const WARN_AUTHENTICATION_VALID_METHOD_EXPECTED: &'static str =
-    "The authentication method should be sas.";
-const WARN_UNEXPECTED_PATH: &'static str = "Unexpected path found.";
-const WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID: &'static str =
+const WARN_INVALID_SOURCE: &str = "The provisioning source should be dps or manual.";
+const WARN_AUTHENTICATION_VALID_METHOD_EXPECTED: &str = "The authentication method should be sas.";
+const WARN_UNEXPECTED_PATH: &str = "Unexpected path found.";
+const WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID: &str =
     "provisioning.attestation.registration_id is not equal to provisioning.attestation.identity_cert.common_name";
-const WARN_PAYLOAD_FILEPATH_MISSING: &'static str =
-    "Payload file is configred but file is missing.";
-const WARN_PAYLOAD_CONFIG_MISSING: &'static str = "Payload file is passed but not configred.";
+const WARN_PAYLOAD_FILEPATH_MISSING: &str = "Payload file is configred but file is missing.";
+const WARN_PAYLOAD_CONFIG_MISSING: &str = "Payload file is passed but not configred.";
 
 pub fn validate_identity(
     _id_type: IdentityType,
     config_file_name: &PathBuf,
     payload: &Option<PathBuf>,
-) -> Result<Vec<&'static str>, Box<dyn std::error::Error>> {
+) -> Result<Vec<&'static str>> {
     let mut out = Vec::<&'static str>::new();
     let file_content = std::fs::read_to_string(config_file_name)?;
     info!("validate identity for:\n{}", file_content);
@@ -193,14 +191,11 @@ pub fn validate_identity(
     let body: Result<IdentityConfig, _> = serde_path_to_error::deserialize(des);
     let body = match body {
         Err(e) => {
-            return Err(Box::new(Error::new(
-                ErrorKind::Other,
-                format!(
-                    "{} parsing failed with error {}",
-                    config_file_name.to_string_lossy(),
-                    e.to_string()
-                ),
-            )));
+            return Err(anyhow!(
+                "{} parsing failed with error {}",
+                config_file_name.to_string_lossy(),
+                e
+            ));
         }
         Ok(body) => body,
     };
@@ -221,9 +216,8 @@ pub fn validate_identity(
                     Some(a) => match a.method.as_str() {
                         "x509" => {
                             if Some(false)
-                                == a.identity_cert.and_then(|ic| {
-                                    Some(ic.common_name == a.registration_id.unwrap())
-                                })
+                                == a.identity_cert
+                                    .map(|ic| ic.common_name == a.registration_id.unwrap())
                             {
                                 out.push(WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID)
                             }
@@ -242,10 +236,10 @@ pub fn validate_identity(
                         let file_content = std::fs::read_to_string(payload.unwrap())?;
                         let _: serde::de::IgnoredAny = serde_json::from_str(&file_content)
                             .map_err(|e| {
-                                format!(
+                                anyhow!(
                                     "{} parsing failed with error {}",
                                     payload.unwrap().to_string_lossy(),
-                                    e.to_string()
+                                    e
                                 )
                             })?;
                     }
@@ -284,17 +278,15 @@ pub fn validate_identity(
             .cert_issuance
             .as_ref()
             .and_then(|ci| ci.est.as_ref())
-            .and_then(|est| {
-                Some(
-                    est.auth.bootstrap_identity_cert.as_str()
+            .map(|est| {
+                est.auth.bootstrap_identity_cert.as_str()
+                    == "file:///mnt/cert/priv/device_id_cert.pem"
+                    && est.auth.bootstrap_identity_cert.as_str()
                         == "file:///mnt/cert/priv/device_id_cert.pem"
-                        && est.auth.bootstrap_identity_cert.as_str()
-                            == "file:///mnt/cert/priv/device_id_cert.pem"
-                        && est
-                            .trusted_certs
-                            .iter()
-                            .any(|e| e == "file:///mnt/cert/ca/ca.crt"),
-                )
+                    && est
+                        .trusted_certs
+                        .iter()
+                        .any(|e| e == "file:///mnt/cert/ca/ca.crt")
             })
     {
         out.push(WARN_UNEXPECTED_PATH)

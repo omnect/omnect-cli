@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.2] Q1 2023
+- fixed cargo clippy warnings
+- switched to anyhow based error handling
+- added compatibility id to du-config.json.template
+
 ## [0.15.1] Q1 2023
 - fixed misleading dps-payload.json test file
 

@@ -1,28 +1,26 @@
+use super::cli::Partition;
+use super::validators::identity::{validate_identity, IdentityType};
+use anyhow::{anyhow, Result};
+use bollard::auth::DockerCredentials;
+use bollard::container::{Config, LogOutput, LogsOptions};
+use bollard::image::{CreateImageOptions, ListImagesOptions};
+use bollard::models::HostConfig;
+use bollard::Docker;
+use futures_executor::block_on;
+use futures_util::TryStreamExt;
 use log::{debug, error, info, warn};
+use path_absolutize::Absolutize;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Error, ErrorKind};
 use std::path::{Path, PathBuf};
-
-use bollard::auth::DockerCredentials;
-use bollard::container::{Config, LogOutput, LogsOptions};
-use bollard::image::{CreateImageOptions, ListImagesOptions};
-use bollard::models::HostConfig;
-use bollard::Docker;
-
-use futures_executor::block_on;
-use futures_util::TryStreamExt;
-
-use super::cli::Partition;
-use super::validators::identity::{validate_identity, IdentityType};
-use path_absolutize::Absolutize;
 use tempfile::NamedTempFile;
 use uuid::Uuid;
 
-const DOCKER_IMAGE_NAME: &'static str = "omnect-cli-backend";
-const DOCKER_IMAGE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const DOCKER_IMAGE_NAME: &str = "omnect-cli-backend";
+const DOCKER_IMAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[macro_export]
 macro_rules! img_to_bmap_path {
@@ -68,7 +66,7 @@ lazy_static! {
     static ref DOCKER_IMAGE_ID: String = format!("{}/{}:{}", *DOCKER_REG_NAME, DOCKER_IMAGE_NAME, DOCKER_IMAGE_VERSION);
 }
 
-fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
+fn get_docker_cred() -> Result<DockerCredentials> {
     let mut path = PathBuf::new();
     path.push(dirs::home_dir().unwrap());
     path.push(".docker/config.json");
@@ -79,7 +77,7 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
     let reg_name = DOCKER_REG_NAME.as_str();
     let identitytoken = json["auths"][reg_name]["identitytoken"]
         .to_string()
-        .replace("\"", "");
+        .replace('\"', "");
 
     if "null" != identitytoken {
         return Ok(DockerCredentials {
@@ -90,11 +88,11 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
 
     let auth = json["auths"][reg_name]["auth"]
         .to_string()
-        .replace("\"", "");
+        .replace('\"', "");
 
     if "null" != auth {
         let byte_auth = base64::decode_config(auth, base64::STANDARD)?;
-        let v: Vec<&str> = std::str::from_utf8(&byte_auth)?.split(":").collect();
+        let v: Vec<&str> = std::str::from_utf8(&byte_auth)?.split(':').collect();
 
         return Ok(DockerCredentials {
             username: Some(v[0].to_string()),
@@ -103,16 +101,16 @@ fn get_docker_cred() -> Result<DockerCredentials, Box<dyn std::error::Error>> {
         });
     }
 
-    return Ok(DockerCredentials {
+    Ok(DockerCredentials {
         ..Default::default()
-    });
+    })
 }
 
 #[tokio::main]
 async fn docker_exec(
     mut binds: Option<Vec<std::string::String>>,
     cmd: Option<Vec<&str>>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<()> {
     block_on(async move {
         let docker = Docker::connect_with_local_defaults().unwrap();
         let mut filters = HashMap::new();
@@ -128,7 +126,7 @@ async fn docker_exec(
             ..Default::default()
         }));
 
-        if true == image_list.await?.is_empty() {
+        if image_list.await?.is_empty() {
             debug!("Image not already present, creating it.");
             docker
                 .create_image(
@@ -163,23 +161,21 @@ async fn docker_exec(
 
         let host_config = HostConfig {
             auto_remove: Some(true),
-            binds: binds,
+            binds,
             ..Default::default()
         };
 
         let mut env: Option<Vec<&str>> = None;
         if cfg!(debug_assertions) {
-            let mut _env = Vec::new();
-            _env.push("DEBUG=1");
-            env = Some(_env);
+            env = Some(vec!["DEBUG=1"]);
         }
 
         let container_config = Config {
             image: Some(img_id),
             tty: Some(true),
             host_config: Some(host_config),
-            env: env,
-            cmd: cmd,
+            env,
+            cmd,
             attach_stdout: Some(true),
             attach_stderr: Some(true),
             entrypoint: Some(vec!["entrypoint.sh", &target_error_file_path]),
@@ -248,7 +244,7 @@ async fn docker_exec(
 
         match run_container_result.await {
             // if result has error string convert it to error
-            Ok(Some(msg)) => docker_run_result = Err(Box::<dyn std::error::Error>::from(msg)),
+            Ok(Some(msg)) => docker_run_result = Err(anyhow!(msg)),
             Err(e) => docker_run_result = Err(e),
             _ => {}
         };
@@ -256,13 +252,10 @@ async fn docker_exec(
         let contents = fs::read_to_string(path)?;
 
         if !contents.is_empty() {
-            docker_run_result = Err(Box::<dyn std::error::Error>::from(contents))
+            docker_run_result = Err(anyhow!(contents))
         }
-        match docker_run_result {
-            Ok(()) => {
-                debug!("Command ran successfully.");
-            }
-            _ => {} // Error will be printed by caller.
+        if let Ok(()) = docker_run_result {
+            debug!("Command ran successfully.");
         }
 
         docker_run_result
@@ -273,10 +266,10 @@ pub fn set_wifi_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
     bmap_file: Option<PathBuf>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<()> {
     super::validators::image::validate_and_decompress_image(
         image_file,
-        move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
+        move |image_file: &PathBuf| -> Result<()> {
             cmd_exec(
                 vec![config_file, image_file],
                 |files| -> String {
@@ -298,14 +291,14 @@ pub fn set_iotedge_gateway_config(
     edge_device_identity_full_chain_file: &PathBuf,
     edge_device_identity_key_file: &PathBuf,
     bmap_file: Option<PathBuf>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    validate_identity(IdentityType::Gateway, &config_file, &None)?
+) -> Result<()> {
+    validate_identity(IdentityType::Gateway, config_file, &None)?
         .iter()
         .for_each(|x| warn!("{}", x));
 
     super::validators::image::validate_and_decompress_image(
         image_file,
-        move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
+        move |image_file: &PathBuf| -> Result<()> {
             cmd_exec(
                 vec![
                     config_file,
@@ -331,14 +324,14 @@ pub fn set_iot_leaf_sas_config(
     image_file: &PathBuf,
     root_ca_file: &PathBuf,
     bmap_file: Option<PathBuf>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    validate_identity(IdentityType::Leaf, &config_file, &None)?
+) -> Result<()> {
+    validate_identity(IdentityType::Leaf, config_file, &None)?
         .iter()
         .for_each(|x| warn!("{}", x));
 
     super::validators::image::validate_and_decompress_image(
         image_file,
-        move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
+        move |image_file: &PathBuf| -> Result<()> {
             cmd_exec(
                 vec![config_file, root_ca_file, image_file],
                 |files| -> String {
@@ -358,16 +351,15 @@ pub fn set_identity_config(
     image_file: &PathBuf,
     bmap_file: Option<PathBuf>,
     payload: Option<PathBuf>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    validate_identity(IdentityType::Standalone, &config_file, &payload)?
+) -> Result<()> {
+    validate_identity(IdentityType::Standalone, config_file, &payload)?
         .iter()
         .for_each(|x| warn!("{}", x));
 
     super::validators::image::validate_and_decompress_image(
         image_file,
-        move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
-            if payload.is_some() {
-                let payload = payload.unwrap().clone();
+        move |image_file: &PathBuf| -> Result<()> {
+            if let Some(payload) = payload {
                 cmd_exec(
                     vec![&payload, image_file],
                     |files| -> String {
@@ -400,7 +392,7 @@ pub fn set_device_cert(
     device_key: &Vec<u8>,
     image_file: &PathBuf,
     bmap_file: Option<PathBuf>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<()> {
     let uuid = Uuid::new_v4();
     let device_cert_path = &PathBuf::from(format!("/tmp/{}.pem", uuid));
     let device_key_path = &PathBuf::from(format!("/tmp/{}.key.pem", uuid));
@@ -410,7 +402,7 @@ pub fn set_device_cert(
 
     super::validators::image::validate_and_decompress_image(
         image_file,
-        move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
+        move |image_file: &PathBuf| -> Result<()> {
             cmd_exec(
                 vec![device_cert_path, image_file],
                 |files| -> String {
@@ -459,18 +451,19 @@ pub fn set_iot_hub_device_update_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
     bmap_file: Option<PathBuf>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let file = File::open(&config_file)?;
+) -> Result<()> {
+    let file = File::open(config_file)?;
     serde_json::from_reader::<_, serde_json::Value>(BufReader::new(file)).map_err(|e| {
-        format!(
+        anyhow!(
             "Input {:?} seems not to be a valid json file: {}",
-            &config_file, &e
+            &config_file,
+            &e
         )
     })?;
 
     super::validators::image::validate_and_decompress_image(
         image_file,
-        move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
+        move |image_file: &PathBuf| -> Result<()> {
             cmd_exec(
                 vec![config_file, image_file],
                 |files| -> String {
@@ -490,10 +483,10 @@ pub fn file_copy(
     partition: Partition,
     destination: String,
     bmap_file: Option<PathBuf>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<()> {
     super::validators::image::validate_and_decompress_image(
         image_file,
-        move |image_file: &PathBuf| -> Result<(), Box<(dyn std::error::Error)>> {
+        move |image_file: &PathBuf| -> Result<()> {
             cmd_exec(
                 vec![file, image_file],
                 |files| -> String {
@@ -518,11 +511,7 @@ pub async fn docker_version() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn cmd_exec<F>(
-    files: Vec<&PathBuf>,
-    f: F,
-    bmap_file: Option<PathBuf>,
-) -> Result<(), Box<dyn std::error::Error>>
+pub fn cmd_exec<F>(files: Vec<&PathBuf>, f: F, bmap_file: Option<PathBuf>) -> Result<()>
 where
     F: Fn(&Vec<String>) -> String,
 {
@@ -533,7 +522,7 @@ where
     // validate input files
     // create temporary bind paths
     files.iter().try_for_each(|&f| -> Result<(), Error> {
-        let path = ensure_filepath(&f)?;
+        let path = ensure_filepath(f)?;
         let bind_path = format!(
             "/tmp/{}/{}",
             tmp_folder,
@@ -545,10 +534,10 @@ where
     })?;
 
     // format cmdline
-    let mut cmdline: Vec<String> = f(&bind_files).split(",").map(|s| s.to_string()).collect();
+    let mut cmdline: Vec<String> = f(&bind_files).split(',').map(|s| s.to_string()).collect();
 
     if bmap_file.is_some() {
-        let bmap_file = &bmap_file.unwrap().clone().absolutize()?.to_path_buf();
+        let bmap_file = &bmap_file.unwrap().absolutize()?.to_path_buf();
         File::create(bmap_file)?;
         let bmap_bind_path = format!(
             "/tmp/{}/{}",
@@ -572,7 +561,7 @@ where
 }
 
 fn ensure_filepath(filepath: &PathBuf) -> Result<String, Error> {
-    error_on_file_not_exists(&filepath)?;
+    error_on_file_not_exists(filepath)?;
 
     Ok(Path::new(filepath)
         .absolutize()
@@ -583,14 +572,16 @@ fn ensure_filepath(filepath: &PathBuf) -> Result<String, Error> {
 }
 
 fn error_on_file_not_exists(file: &PathBuf) -> Result<(), Error> {
-    std::fs::metadata(&file)
+    std::fs::metadata(file)
         .map_err(|e| Error::new(e.kind(), e.to_string() + ": " + file.to_str().unwrap()))?
         .is_file()
-        .then(|| ())
-        .ok_or(Error::new(
-            ErrorKind::InvalidInput,
-            file.to_str().unwrap().to_owned() + &" is not a file path",
-        ))?;
+        .then_some(())
+        .ok_or_else(|| {
+            Error::new(
+                ErrorKind::InvalidInput,
+                file.to_str().unwrap().to_owned() + " is not a file path",
+            )
+        })?;
 
     Ok(())
 }

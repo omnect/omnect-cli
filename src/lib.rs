@@ -2,10 +2,10 @@
 extern crate lazy_static;
 
 pub mod cli;
-use omnect_crypto;
+
 pub mod docker;
 mod validators;
-
+use anyhow::Result;
 use cli::Command;
 use cli::FileConfig::Copy;
 use cli::IdentityConfig::SetConfig;
@@ -15,7 +15,7 @@ use cli::IdentityConfig::SetIotedgeGatewayConfig;
 use cli::IotHubDeviceUpdateConfig::Set as IotHubDeviceUpdateSet;
 use cli::WifiConfig::Set as WifiSet;
 
-pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+pub fn run() -> Result<()> {
     match cli::from_args() {
         Command::DockerInfo => docker::docker_version()?,
         Command::Wifi(WifiSet {
