@@ -5,7 +5,7 @@
     "do"
   ],
   "iotHubProtocol": "mqtt",
-  "compatPropertyNames": "manufacturer,model,compatibilityId",
+  "compatPropertyNames": "manufacturer,model,compatibilityid",
   "manufacturer": "<Place your device info manufacturer here>",
   "model": "<Place your device info model here>",
   "agents": [
@@ -19,7 +19,7 @@
       "manufacturer": "<Place your device property manufacturer here>",
       "model": "<Place your device property model here>",
       "additionalDeviceProperties": {
-        "compatibilityId": "<Place your compatibility id here>"
+        "compatibilityid": "<Place your compatibility id here>"
       }
     }
   ]
