@@ -31,7 +31,7 @@ omnect-cli is a cli tool to manage your omnect-device [variants](https://wiki.co
     ```sh
     docker pull omnectweucopsacr.azurecr.io/omnect-cli-backend:latest
     ```
-If you want to use a specific version, look for available versions in the [registry](https://portal.azure.com/#@CONPLEMENTAG1.onmicrosoft.com/resource/subscriptions/ff939028-597d-472b-a7cc-bca2ac8f96bd/resourceGroups/dmdev-weu-cops-acrrg/providers/Microsoft.ContainerRegistry/registries/omnectweucopsacr/overview).
+If you want to use a specific version, look for available versions in the [registry](https://portal.azure.com/#@conplementag2.onmicrosoft.com/resource/subscriptions/ebaba6ec-e467-4409-b73e-bdd5e34a34c1/resourceGroups/omnect-weu-cops-acrrg/providers/Microsoft.ContainerRegistry/registries/omnectweucopsacr/overview).
 
 # Installation
 Ensure ~/bin/ exists and is in your $PATH before executing:
