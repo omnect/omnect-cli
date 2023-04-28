@@ -1,6 +1,6 @@
 [package]
 name = "omnect-cli"
-version = "0.15.4"
+version = "0.15.5"
 authors = ["omnect@conplement.de>"]
 edition = "2021"
 build = "src/build.rs"

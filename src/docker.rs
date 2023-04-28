@@ -51,7 +51,7 @@ lazy_static! {
             def_reg_name
         }
         else {
-            "dmdevweucopsacr.azurecr.io"
+            "omnectweucopsacr.azurecr.io"
         }
     };
     // read at run time
