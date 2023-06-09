@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+pub mod auth;
 pub mod cli;
 
 pub mod docker;
