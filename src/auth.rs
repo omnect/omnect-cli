@@ -1,5 +1,4 @@
 use std::convert::Infallible;
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use http_body_util::{combinators::BoxBody, BodyExt, Full};
@@ -22,31 +21,14 @@ use oauth2::{
 };
 
 const RETRY_THRESHOLD: usize = 8;
-
-#[cfg(test)]
-const AUTH_SERVER: &str = "http://localhost:8080";
-#[cfg(not(test))]
-const AUTH_SERVER: &str = "http://localhost:8080";
-const REALM: &str = "dev";
-
-const REDIRECT_PORT: u16 = 8181;
-const REDIRECT_ADDR: ([u8; 4], u16) = ([127, 0, 0, 1], REDIRECT_PORT);
-
 const CODE_QUERY_KEY: &str = "code";
 
-fn get_auth_url() -> String {
-    format!("{AUTH_SERVER}/realms/{REALM}/protocol/openid-connect/auth")
+pub trait AuthInfo: Send {
+    fn auth_url(&self) -> String;
+    fn token_url(&self) -> String;
+    fn redirect_addr(&self) -> String;
+    fn client_id(&self) -> String;
 }
-
-fn get_token_url() -> String {
-    format!("{AUTH_SERVER}/realms/{REALM}/protocol/openid-connect/token")
-}
-
-fn get_redirect_url() -> String {
-    format!("http://localhost:{REDIRECT_PORT}")
-}
-
-const CLIENT_ID: &str = "dbg-client";
 
 fn ok_msg(msg: &str) -> Response<BoxBody<Bytes, Infallible>> {
     let data = Bytes::from(msg.to_owned());
@@ -69,7 +51,7 @@ async fn redirect(
     log::debug!("Received callback from OAuth2 service");
 
     // hyper only provides a relative URL. However, url operates only on
-    // absolute URLs, so build one
+    // absolute URLs, so we have build one to parse query parameters
     let url = url::Url::parse("http://tld")
         .unwrap()
         .join(&request.uri().to_string())
@@ -77,7 +59,7 @@ async fn redirect(
 
     let result = url.query_pairs().find(|(key, _)| key == CODE_QUERY_KEY);
 
-    // if the response does not contain the code we have to give up
+    // if the response does not contain a code we give up on this request
     anyhow::ensure!(matches!(result, Some(_)));
 
     match result {
@@ -98,15 +80,13 @@ async fn redirect(
     }
 }
 
-async fn redirect_server(completion_signal: Arc<Notify>) -> Result<String> {
-    let addr: SocketAddr = REDIRECT_ADDR.into();
-
-    let listener = TcpListener::bind(addr).await?;
+async fn redirect_server(redirect_addr: String, completion_signal: Arc<Notify>) -> Result<String> {
+    let listener = TcpListener::bind(&redirect_addr).await?;
 
     // signal that the server is up and running
     completion_signal.notify_one();
 
-    log::debug!("Started redirect server at {:#?}", addr);
+    log::debug!("Started redirect server at {:#?}", redirect_addr);
 
     let mut retry_count: usize = 0;
     loop {
@@ -143,8 +123,8 @@ async fn redirect_server(completion_signal: Arc<Notify>) -> Result<String> {
     }
 }
 
-fn get_refresh_token_from_key_ring() -> Option<String> {
-    let entry = match keyring::Entry::new("omnect-cli", CLIENT_ID) {
+fn get_refresh_token_from_key_ring<A: AuthInfo>(auth_info: &A) -> Option<String> {
+    let entry = match keyring::Entry::new("omnect-cli", &auth_info.client_id()) {
         Ok(entry) => entry,
         Err(err) => {
             log::warn!("Failed to get entry from key ring: {}", err);
@@ -155,8 +135,8 @@ fn get_refresh_token_from_key_ring() -> Option<String> {
     entry.get_password().ok()
 }
 
-fn store_refresh_token_in_key_ring(refresh_token: String) {
-    let entry = match keyring::Entry::new("omnect-cli", CLIENT_ID) {
+fn store_refresh_token_in_key_ring<A: AuthInfo>(auth_info: &A, refresh_token: String) {
+    let entry = match keyring::Entry::new("omnect-cli", &auth_info.client_id()) {
         Ok(entry) => entry,
         Err(err) => {
             log::warn!("Failed to store token into key ring: {}", err);
@@ -172,14 +152,14 @@ fn store_refresh_token_in_key_ring(refresh_token: String) {
 type Token =
     oauth2::StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>;
 
-async fn create_access_token() -> Result<Token> {
+async fn request_access_token<A: AuthInfo>(auth_info: &A) -> Result<Token> {
     let client = BasicClient::new(
-        ClientId::new(CLIENT_ID.to_string()),
+        ClientId::new(auth_info.client_id()),
         None,
-        AuthUrl::new(get_auth_url()).unwrap(),
-        Some(TokenUrl::new(get_token_url()).unwrap()),
+        AuthUrl::new(auth_info.auth_url()).unwrap(),
+        Some(TokenUrl::new(auth_info.token_url()).unwrap()),
     )
-    .set_redirect_uri(RedirectUrl::new(get_redirect_url()).unwrap());
+    .set_redirect_uri(RedirectUrl::new(auth_info.redirect_addr()).unwrap());
 
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
@@ -190,7 +170,10 @@ async fn create_access_token() -> Result<Token> {
 
     // start the redirect server so that clients may connect to them.
     let server_setup_complete = Arc::new(Notify::new());
-    let server_task = tokio::spawn(redirect_server(server_setup_complete.clone()));
+    let server_task = tokio::spawn(redirect_server(
+        auth_info.redirect_addr(),
+        server_setup_complete.clone(),
+    ));
     server_setup_complete.notified().await;
 
     log::info!("Redirecting to authentication provider.");
@@ -212,15 +195,15 @@ async fn create_access_token() -> Result<Token> {
     Ok(token_result)
 }
 
-async fn refresh_access_token() -> Option<Token> {
-    let refresh_token = get_refresh_token_from_key_ring()?;
+async fn refresh_access_token<A: AuthInfo>(auth_info: &A) -> Option<Token> {
+    let refresh_token = get_refresh_token_from_key_ring(auth_info)?;
     log::debug!("Found refresh token in key ring.");
 
     let client = BasicClient::new(
-        ClientId::new(CLIENT_ID.to_string()),
+        ClientId::new(auth_info.client_id()),
         None,
-        AuthUrl::new(get_auth_url()).unwrap(),
-        Some(TokenUrl::new(get_token_url()).unwrap()),
+        AuthUrl::new(auth_info.auth_url()).unwrap(),
+        Some(TokenUrl::new(auth_info.token_url()).unwrap()),
     );
 
     let access_token = client
@@ -231,21 +214,72 @@ async fn refresh_access_token() -> Option<Token> {
     access_token.ok()
 }
 
-pub async fn authorize() -> Result<oauth2::AccessToken> {
+pub async fn authorize<A: AuthInfo>(auth_info: A) -> Result<oauth2::AccessToken> {
     // If there is a refresh token from previous runs, try to create our access
     // token from that. Note, that we don't store access tokens themselves as
     // they are far too short lived.
-    let token = if let Some(token) = refresh_access_token().await {
+    let token = if let Some(token) = refresh_access_token(&auth_info).await {
         log::debug!("Access token refresh successful.");
         token
     } else {
         log::debug!("Could not refresh access token, use authorization code flow instead.");
-        create_access_token().await?
+        request_access_token(&auth_info).await?
     };
 
     if let Some(refresh_token) = token.refresh_token() {
-        store_refresh_token_in_key_ring(refresh_token.secret().to_string());
+        store_refresh_token_in_key_ring(&auth_info, refresh_token.secret().to_string());
     }
 
     Ok(token.access_token().clone())
+}
+
+pub struct KeycloakInfo {
+    provider: String,
+    realm: String,
+    client_id: String,
+    redirect: String,
+}
+
+impl KeycloakInfo {
+    pub fn new(provider: &str, realm: &str, client_id: &str, redirect: &str) -> KeycloakInfo {
+        KeycloakInfo {
+            provider: provider.to_string(),
+            realm: realm.to_string(),
+            client_id: client_id.to_string(),
+            redirect: redirect.to_string(),
+        }
+    }
+}
+
+impl AuthInfo for KeycloakInfo {
+    fn auth_url(&self) -> String {
+        format!(
+            "{}/realms/{}/protocol/openid-connect/auth",
+            self.provider, self.realm
+        )
+    }
+
+    fn token_url(&self) -> String {
+        format!(
+            "{}/realms/{}/protocol/openid-connect/token",
+            self.provider, self.realm
+        )
+    }
+
+    fn redirect_addr(&self) -> String {
+        self.redirect.clone()
+    }
+
+    fn client_id(&self) -> String {
+        self.client_id.clone()
+    }
+}
+
+lazy_static! {
+    pub static ref AUTH_INFO_DEV: KeycloakInfo = KeycloakInfo::new(
+        "https://keycloak.omnect.conplement.cloud",
+        "cp-dev",
+        "cp-development",
+        "http://localhost:4000",
+    );
 }
