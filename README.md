@@ -2,7 +2,7 @@
 **Product page: https://www.omnect.io/home**
 
 # Features
-omnect-cli is a cli tool to manage your omnect-device [variants](https://wiki.conplement.de/x/EQVlBw). It provides commands to inject various configurations into a flash image (wic) build with [meta-omnect](https://github.com/omnect/meta-omnect). Currently the following configurations options are supported:
+omnect-cli is a cli tool to manage your omnect-devices. It provides commands to inject various configurations into a flash image (wic) build with [meta-omnect](https://github.com/omnect/meta-omnect). Currently the following configurations options are supported:
 - Wifi configuration
   - Inject wifi configuration via wpa_supplicant into all omnect-device variants
 - Identity configuration
