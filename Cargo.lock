@@ -883,7 +883,7 @@ dependencies = [
 [[package]]
 name = "omnect-crypto"
 version = "0.3.0"
-source = "git+ssh://git@github.com/omnect/omnect-crypto.git?tag=0.3.0#14c95a75ecf930feced0931e59fffc14d0623210"
+source = "git+https://github.com/omnect/omnect-crypto.git?tag=0.3.0#14c95a75ecf930feced0931e59fffc14d0623210"
 dependencies = [
  "anyhow",
  "log",
