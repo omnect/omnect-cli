@@ -149,8 +149,38 @@ pub enum IotHubDeviceUpdateConfig {
 }
 
 #[derive(Parser, Debug)]
-#[command(version, after_help = COPYRIGHT)]
-/// This tools helps to manage your omnect devices. For more information visit:\nhttps://github.com/omnect/omnect-cli
+#[command(after_help = COPYRIGHT)]
+/// establish ssh connections to devices
+pub struct SshConfig {
+    /// username for the login on the device.
+    #[arg(short = 'u', long = "user", default_value = "omnect")]
+    pub username: String,
+    /// optional: path where the ssh key pair, the certificates, and the
+    /// temporary ssh configuration is stored. Defaults to system local data
+    /// directories (e.g. ${XDG_RUNTIME_DIR}/omnect-cli on Linux).
+    #[arg(short = 'd', long = "dir")]
+    pub dir: Option<std::path::PathBuf>,
+    /// optional: path to a pre-existing ssh private key that is used. Note:
+    /// this expects the existence of a corresponding <key-path>.pub file.
+    /// If not specified, omnect-cli creates a key pair for this connection.
+    #[arg(short = 'k', long = "key")]
+    pub priv_key_path: Option<std::path::PathBuf>,
+    /// optional: path where the ssh configuration is stored. Defaults to system
+    /// local data directories (e.g. ${XDG_RUNTIME_DIR}/omnect-cli/ssh_config on
+    /// Linux).
+    #[arg(short = 'c', long = "config-path")]
+    pub config_path: Option<std::path::PathBuf>,
+    /// address of the backend API
+    #[arg(short = 'b', long = "backend")]
+    pub backend: String,
+    /// name of the device for which the ssh tunnel should be created.
+    pub device: String,
+}
+
+#[derive(Parser, Debug)]
+#[command(version, after_help = COPYRIGHT, verbatim_doc_comment)]
+/// This tools helps to manage your omnect devices. For more information visit:
+/// https://github.com/omnect/omnect-cli
 pub enum Command {
     #[command(subcommand)]
     File(FileConfig),
@@ -161,6 +191,7 @@ pub enum Command {
     Wifi(WifiConfig),
     #[command(subcommand)]
     IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
+    Ssh(SshConfig),
 }
 
 pub fn from_args() -> Command {
