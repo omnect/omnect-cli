@@ -1,6 +1,8 @@
 mod common;
 use common::Testrunner;
-use omnect_cli::{cli, docker, img_to_bmap_path};
+use omnect_cli::{cli, docker, img_to_bmap_path, ssh};
+
+use httpmock::prelude::*;
 
 use stdext::function_name;
 #[macro_use]
@@ -287,4 +289,71 @@ fn check_file_copy_bmap() {
         img_to_bmap_path!(true, &image_path)
     )
     .is_ok());
+}
+
+#[tokio::test]
+async fn check_ssh_tunnel_setup() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let mock_access_token = oauth2::AccessToken::new("test_token_mock".to_string());
+
+    let mut config =
+        ssh::Config::new("test-backend".to_string(), Some(tr.pathbuf()), None, None).unwrap();
+
+    let server = MockServer::start();
+
+    let request_reply = r#"{
+	"clientBastionCert": "-----BEGIN CERTIFICATE-----\nMIIFrjCCA5agAwIBAgIBATANBgkqhkiG...",
+	"clientDeviceCert": "-----BEGIN CERTIFICATE-----\nMIIFrjCCA5agAwIBAgIBATANBgkqhkiG...",
+	"host": "132.23.0.1",
+	"port": 22,
+	"bastionUser": "bastion_user"
+}
+"#;
+
+    let _ = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/devices/prepareSSHConnection")
+            .header("authorization", "Bearer test_token_mock");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(request_reply);
+    });
+
+    config.set_backend(url::Url::parse(&server.base_url()).unwrap());
+
+    ssh::ssh_create_tunnel("test_device", "test_user", config, mock_access_token)
+        .await
+        .unwrap();
+
+    assert!(tr.pathbuf().join("ssh_config").exists());
+    assert!(tr.pathbuf().join("id_ed25519").exists());
+    assert!(tr.pathbuf().join("id_ed25519.pub").exists());
+    assert!(tr.pathbuf().join("bastion-cert.pub").exists());
+    assert!(tr.pathbuf().join("device-cert.pub").exists());
+
+    let ssh_config = std::fs::read_to_string(tr.pathbuf().join("ssh_config")).unwrap();
+    let expected_config = format!(
+        r#"Host bastion
+	User bastion_user
+	Hostname 132.23.0.1
+	Port 22
+	IdentityFile {}/id_ed25519
+	CertificateFile {}/bastion-cert.pub
+	ProxyCommand none
+
+Host test_device
+	User test_user
+	IdentityFile {}/id_ed25519
+	CertificateFile {}/device-cert.pub
+	ProxyCommand ssh -F {}/ssh_config bastion
+"#,
+        tr.pathbuf().to_string_lossy(),
+        tr.pathbuf().to_string_lossy(),
+        tr.pathbuf().to_string_lossy(),
+        tr.pathbuf().to_string_lossy(),
+        tr.pathbuf().to_string_lossy()
+    );
+
+    assert_eq!(ssh_config, expected_config);
 }
