@@ -16,6 +16,8 @@ omnect-cli is a cli tool to manage your omnect-devices. It provides commands to 
   - Inject `boot.scr`
 - File
   - Copy a file into the image, restricted to partitions boot, cert, factory
+- SSH
+  - Open an ssh tunnel on a device in the field to connect to it.
 
 # Download prebuild Docker image
 - login to azure docker registry either via admin user
@@ -161,6 +163,43 @@ omnect-cli file copy -f <path>/my_custom_tmpfilesd.conf -i <path>/image.wic -p f
 
 Options:
   -b create bmap file
+```
+
+# Creating an SSH Tunnel
+
+One can use `omnect-cli` to create a tunneled SSH connection to a device in the field. This is especially useful if the device is behind a NAT and can not directly be contacted. The device must have the `ssh` activated for this. Per default, this command will create a single use ssh key pair, certificate, and ssh configuration to establish a connection to the device.
+
+Note: if unused, the tunnel will close after 5 minutes.
+
+Creating the ssh tunnel:
+```sh
+omnect-cli ssh <device>
+
+Options:
+  -u <name> optional: name of the user on the device
+  -d <dir> optional: directory where the ssh key pair, certificate, and configuration are stored to
+  -k <key> optional: path to an existing private ssh key to use for the connection. Requires the existance of the public key <key>.pub
+  -c <config_path> optional: path where the ssh configuration should be stored to
+```
+
+## Example Usage
+
+Open an ssh tunnel to the device `test_device` as follows:
+```sh
+~ omnect-cli ssh test_device
+
+Successfully established ssh tunnel!
+Certificate dir: /run/user/1000/omnect-cli
+Configuration path: /run/user/1000/omnect-cli/ssh_config
+Use the configuration in "/run/user/1000/omnect-cli/ssh_config" to use the tunnel, e.g.:
+ssh -F /run/user/1000/omnect-cli/ssh_config test_device
+```
+Now follow the command output to establish a connection to the device as such:
+
+```sh
+~ ssh -F /run/user/1000/omnect-cli/ssh_config test_device
+
+[omnect@test_device ~]$
 ```
 
 # Troubleshooting
