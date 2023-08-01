@@ -110,6 +110,21 @@ pub enum IdentityConfig {
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
     },
+    /// set ssh tunnel certificate
+    SetSshTunnelCertificate {
+        /// path to wic image file
+        #[arg(short = 'i', long = "image")]
+        image: std::path::PathBuf,
+        /// path to public key of the ssh root ca
+        #[arg(short = 'r', long = "root_ca")]
+        root_ca: std::path::PathBuf,
+        /// device-id
+        #[arg(short = 'p', long = "device-principal")]
+        device_principal: String,
+        /// optional: generate bmap file
+        #[arg(short = 'b', long = "generate-bmap-file")]
+        generate_bmap: bool,
+    },
 }
 
 #[derive(Parser, Debug)]

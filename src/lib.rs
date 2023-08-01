@@ -14,6 +14,7 @@ use cli::IdentityConfig::SetConfig;
 use cli::IdentityConfig::SetDeviceCertificate;
 use cli::IdentityConfig::SetIotLeafSasConfig;
 use cli::IdentityConfig::SetIotedgeGatewayConfig;
+use cli::IdentityConfig::SetSshTunnelCertificate;
 use cli::IotHubDeviceUpdateConfig::Set as IotHubDeviceUpdateSet;
 use cli::SshConfig;
 use cli::WifiConfig::Set as WifiSet;
@@ -87,6 +88,17 @@ pub fn run() -> Result<()> {
             &config,
             &image,
             &root_ca,
+            img_to_bmap_path!(generate_bmap, &image),
+        )?,
+        Command::Identity(SetSshTunnelCertificate {
+            image,
+            root_ca,
+            device_principal,
+            generate_bmap,
+        }) => docker::set_ssh_tunnel_certificate(
+            &image,
+            &root_ca,
+            &device_principal,
             img_to_bmap_path!(generate_bmap, &image),
         )?,
         Command::IotHubDeviceUpdate(IotHubDeviceUpdateSet {
