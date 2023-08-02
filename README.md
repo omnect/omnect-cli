@@ -10,6 +10,7 @@ omnect-cli is a cli tool to manage your omnect-devices. It provides commands to 
   - Inject an iotedge gateway identity configuration for AIS
   - Inject an iot leaf identity configuration for AIS
   - Inject a device certificate with corresponding key from a given intermediate full-chain-certificate and corresponding key
+  - Inject an ssh root ca and device principal for ssh tunnel creation.
 - Device Update for IoT Hub configuration
   - Inject [`du-config.json`](https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
 - Boot configuration
@@ -123,6 +124,13 @@ Please get into contact with us in case you want to use our existing cloud servi
 
 ### Generate your own full-chain intermediate certificate and key
 In case you intend to use your own certificates (e.g. because you want to use your own `PKI` and/or `EST service`), you can find some information about generating certificate and key here: https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11.
+
+## SSH Tunnel configuration
+
+For the ssh feature, the device requires the public key of the ssh root ca and the principal. The latter should be the device id.
+```sh
+omnect-cli identity set-ssh-tunnel-certificate --image <path>/image.wic --root_ca <path>/ssh_ca.pub --device-principal "device_id"
+```
 
 # Device Update for IoT Hub configuration
 ## Inject `du-config.json`
