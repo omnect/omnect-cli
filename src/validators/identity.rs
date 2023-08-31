@@ -340,14 +340,12 @@ mod tests {
     #[test]
     fn identity_config_hostname_valid() {
         lazy_static::initialize(&LOG);
-        assert!(
-            validate_identity(
-                IdentityType::Standalone,
-                &PathBuf::from("testfiles/identity_config_hostname_valid.toml"),
-                &None,
-            )
-            .is_ok()
-        );
+        assert!(validate_identity(
+            IdentityType::Standalone,
+            &PathBuf::from("testfiles/identity_config_hostname_valid.toml"),
+            &None,
+        )
+        .is_ok());
     }
 
     #[test]

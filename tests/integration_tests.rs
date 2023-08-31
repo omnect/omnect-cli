@@ -13,9 +13,7 @@ fn check_set_wifi_template() {
     let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(
-        docker::set_wifi_config(&config_file_path, &image_path, None).is_ok()
-    );
+    assert!(docker::set_wifi_config(&config_file_path, &image_path, None).is_ok());
 }
 
 #[test]
@@ -25,9 +23,7 @@ fn check_set_wifi_template_bmap() {
     let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(
-        docker::set_wifi_config(&config_file_path, &image_path, None).is_ok()
-    );
+    assert!(docker::set_wifi_config(&config_file_path, &image_path, None).is_ok());
 }
 
 #[test]
@@ -37,9 +33,7 @@ fn check_set_wifi_template_simple() {
     let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.simple.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(
-        docker::set_wifi_config(&config_file_path, &image_path, None).is_ok()
-    );
+    assert!(docker::set_wifi_config(&config_file_path, &image_path, None).is_ok());
 }
 
 #[test]
@@ -49,14 +43,12 @@ fn check_set_wifi_template_simple_bmap() {
     let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.simple.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(
-        docker::set_wifi_config(
-            &config_file_path,
-            &image_path,
-            img_to_bmap_path!(true, &image_path)
-        )
-        .is_ok()
-    );
+    assert!(docker::set_wifi_config(
+        &config_file_path,
+        &image_path,
+        img_to_bmap_path!(true, &image_path)
+    )
+    .is_ok());
 }
 
 #[test]
@@ -69,17 +61,15 @@ fn check_set_identity_gateway_config() {
     let edge_device_identity_full_chain_file_path = tr.to_pathbuf("testfiles/full-chain.cert.pem");
     let edge_device_identity_key_file_path = tr.to_pathbuf("testfiles/device-ca.key.pem");
 
-    assert!(
-        docker::set_iotedge_gateway_config(
-            &config_file_path,
-            &image_path,
-            &root_ca_file_path,
-            &edge_device_identity_full_chain_file_path,
-            &edge_device_identity_key_file_path,
-            None
-        )
-        .is_ok()
-    );
+    assert!(docker::set_iotedge_gateway_config(
+        &config_file_path,
+        &image_path,
+        &root_ca_file_path,
+        &edge_device_identity_full_chain_file_path,
+        &edge_device_identity_key_file_path,
+        None
+    )
+    .is_ok());
 }
 
 #[test]
@@ -92,17 +82,15 @@ fn check_set_identity_gateway_config_bmap() {
     let edge_device_identity_full_chain_file_path = tr.to_pathbuf("testfiles/full-chain.cert.pem");
     let edge_device_identity_key_file_path = tr.to_pathbuf("testfiles/device-ca.key.pem");
 
-    assert!(
-        docker::set_iotedge_gateway_config(
-            &config_file_path,
-            &image_path,
-            &root_ca_file_path,
-            &edge_device_identity_full_chain_file_path,
-            &edge_device_identity_key_file_path,
-            img_to_bmap_path!(true, &image_path)
-        )
-        .is_ok()
-    );
+    assert!(docker::set_iotedge_gateway_config(
+        &config_file_path,
+        &image_path,
+        &root_ca_file_path,
+        &edge_device_identity_full_chain_file_path,
+        &edge_device_identity_key_file_path,
+        img_to_bmap_path!(true, &image_path)
+    )
+    .is_ok());
 }
 
 #[test]
@@ -113,10 +101,13 @@ fn check_set_identity_leaf_config() {
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
 
-    assert!(
-        docker::set_iot_leaf_sas_config(&config_file_path, &image_path, &root_ca_file_path, None)
-            .is_ok()
-    );
+    assert!(docker::set_iot_leaf_sas_config(
+        &config_file_path,
+        &image_path,
+        &root_ca_file_path,
+        None
+    )
+    .is_ok());
 }
 
 #[test]
@@ -127,15 +118,13 @@ fn check_set_identity_leaf_config_bmap() {
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
 
-    assert!(
-        docker::set_iot_leaf_sas_config(
-            &config_file_path,
-            &image_path,
-            &root_ca_file_path,
-            img_to_bmap_path!(true, &image_path)
-        )
-        .is_ok()
-    );
+    assert!(docker::set_iot_leaf_sas_config(
+        &config_file_path,
+        &image_path,
+        &root_ca_file_path,
+        img_to_bmap_path!(true, &image_path)
+    )
+    .is_ok());
 }
 
 #[test]
@@ -145,9 +134,7 @@ fn check_set_identity_config_est_template() {
     let config_file_path = tr.to_pathbuf("conf/config.toml.est.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(
-        docker::set_identity_config(&config_file_path, &image_path, None, None).is_ok()
-    );
+    assert!(docker::set_identity_config(&config_file_path, &image_path, None, None).is_ok());
 }
 
 #[test]
@@ -171,15 +158,13 @@ fn check_set_identity_config_est_template_bmap() {
     let config_file_path = tr.to_pathbuf("conf/config.toml.est.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(
-        docker::set_identity_config(
-            &config_file_path,
-            &image_path,
-            img_to_bmap_path!(true, &image_path),
-            None
-        )
-        .is_ok()
-    );
+    assert!(docker::set_identity_config(
+        &config_file_path,
+        &image_path,
+        img_to_bmap_path!(true, &image_path),
+        None
+    )
+    .is_ok());
 }
 
 #[test]
@@ -189,9 +174,7 @@ fn check_set_identity_config_tpm_template() {
     let config_file_path = tr.to_pathbuf("conf/config.toml.tpm.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(
-        docker::set_identity_config(&config_file_path, &image_path, None, None).is_ok()
-    );
+    assert!(docker::set_identity_config(&config_file_path, &image_path, None, None).is_ok());
 }
 
 #[test]
@@ -201,15 +184,13 @@ fn check_set_identity_config_tpm_template_bmap() {
     let config_file_path = tr.to_pathbuf("conf/config.toml.tpm.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(
-        docker::set_identity_config(
-            &config_file_path,
-            &image_path,
-            img_to_bmap_path!(true, &image_path),
-            None
-        )
-        .is_ok()
-    );
+    assert!(docker::set_identity_config(
+        &config_file_path,
+        &image_path,
+        img_to_bmap_path!(true, &image_path),
+        None
+    )
+    .is_ok());
 }
 
 #[test]
@@ -237,16 +218,14 @@ fn check_set_device_cert() {
 
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(
-        docker::set_device_cert(
-            &intermediate_full_chain_crt_path,
-            &device_cert_pem,
-            &device_key_pem,
-            &image_path,
-            None
-        )
-        .is_ok()
-    );
+    assert!(docker::set_device_cert(
+        &intermediate_full_chain_crt_path,
+        &device_cert_pem,
+        &device_key_pem,
+        &image_path,
+        None
+    )
+    .is_ok());
 }
 
 #[test]
@@ -268,14 +247,12 @@ fn check_set_iot_hub_device_update_template_bmap() {
     let adu_config_file_path = tr.to_pathbuf("conf/du-config.json.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(
-        docker::set_iot_hub_device_update_config(
-            &adu_config_file_path,
-            &image_path,
-            img_to_bmap_path!(true, &image_path)
-        )
-        .is_ok()
-    );
+    assert!(docker::set_iot_hub_device_update_config(
+        &adu_config_file_path,
+        &image_path,
+        img_to_bmap_path!(true, &image_path)
+    )
+    .is_ok());
 }
 
 #[test]
@@ -285,16 +262,14 @@ fn check_file_copy() {
     let boot_config_file_path = tr.to_pathbuf("testfiles/boot.scr");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(
-        docker::file_copy(
-            &boot_config_file_path,
-            &image_path,
-            cli::Partition::boot,
-            String::from("/test/test.scr"),
-            None
-        )
-        .is_ok()
-    );
+    assert!(docker::file_copy(
+        &boot_config_file_path,
+        &image_path,
+        cli::Partition::boot,
+        String::from("/test/test.scr"),
+        None
+    )
+    .is_ok());
 }
 
 #[test]
@@ -304,14 +279,12 @@ fn check_file_copy_bmap() {
     let boot_config_file_path = tr.to_pathbuf("testfiles/boot.scr");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(
-        docker::file_copy(
-            &boot_config_file_path,
-            &image_path,
-            cli::Partition::boot,
-            String::from("/test/test.scr"),
-            img_to_bmap_path!(true, &image_path)
-        )
-        .is_ok()
-    );
+    assert!(docker::file_copy(
+        &boot_config_file_path,
+        &image_path,
+        cli::Partition::boot,
+        String::from("/test/test.scr"),
+        img_to_bmap_path!(true, &image_path)
+    )
+    .is_ok());
 }
