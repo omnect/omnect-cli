@@ -12,7 +12,6 @@ repository = "https://github.com/omnect/omnect-cli"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
 anyhow = "1"
 base64 = "0.13.0"
 bollard = { version = "0.13", features = ["ssl"] }
