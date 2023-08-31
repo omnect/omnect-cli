@@ -1,17 +1,12 @@
-use std::convert::Infallible;
 use std::sync::Arc;
-
-use http_body_util::{combinators::BoxBody, BodyExt, Full};
-use hyper::body::Bytes;
-use hyper::server::conn::http1;
-use hyper::service::service_fn;
-use hyper::{Request, Response};
-use tokio::net::TcpListener;
 
 use tokio::sync::mpsc;
 use tokio::sync::Notify;
 
 use anyhow::Result;
+
+use actix_web::{error, get, web, App, HttpServer};
+use serde::Deserialize;
 
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::async_http_client;
@@ -21,7 +16,6 @@ use oauth2::{
 };
 
 const RETRY_THRESHOLD: usize = 8;
-const CODE_QUERY_KEY: &str = "code";
 
 pub trait AuthInfo: Send {
     fn auth_url(&self) -> String;
@@ -31,73 +25,49 @@ pub trait AuthInfo: Send {
     fn client_id(&self) -> String;
 }
 
-fn ok_msg(msg: &str) -> Response<BoxBody<Bytes, Infallible>> {
-    let data = Bytes::from(msg.to_owned());
-
-    Response::new(Full::new(data).boxed())
+#[derive(Deserialize)]
+struct QueryCode {
+    code: String,
 }
 
-fn error_msg(msg: &str) -> Response<BoxBody<Bytes, Infallible>> {
-    let mut error = ok_msg(msg);
-
-    *error.status_mut() = http::StatusCode::INTERNAL_SERVER_ERROR;
-
-    error
-}
-
-async fn redirect(
-    request: Request<hyper::body::Incoming>,
-    tx: mpsc::Sender<String>,
-) -> Result<Response<BoxBody<Bytes, Infallible>>> {
+#[get("/")]
+async fn index(
+    query: web::Query<QueryCode>,
+    tx: web::Data<mpsc::Sender<String>>,
+) -> Result<String, error::Error> {
     log::debug!("Received callback from OAuth2 service");
 
-    // hyper only provides a relative URL. However, url operates only on
-    // absolute URLs, so we have build one to parse query parameters
-    let url = url::Url::parse("http://tld")
-        .unwrap() // safe
-        .join(&request.uri().to_string())?;
-
-    let result = url.query_pairs().find(|(key, _)| key == CODE_QUERY_KEY);
-
-    // if the response does not contain a code we give up on this request
-    anyhow::ensure!(result.is_some());
-
-    match result {
-        Some(value) => {
-            // got our code, send it to the cli app
-            match tx.send(value.1.to_string()).await {
-                Ok(_) => Ok(ok_msg(
-                    "Got authorization token. You can close this tab and go back to omnect-cli.",
-                )),
-                Err(err) => {
-                    log::error!("channel closed upon sending code: {:?}", err);
-
-                    Ok(error_msg("Something went wrong, please try again."))
-                }
-            }
+    match tx.send(query.code.clone()).await {
+        Ok(_) => Ok(
+            "Got authorization token. You can close this tab and go back to omnect-cli."
+                .to_string(),
+        ),
+        Err(err) => {
+            log::error!("channel closed upon sending code: {:?}", err);
+            Err(error::ErrorBadRequest(err))
         }
-        _ => unreachable!(),
     }
 }
 
-async fn redirect_server(bind_addr: String, completion_signal: Arc<Notify>) -> Result<String> {
-    let listener = TcpListener::bind(&bind_addr).await?;
-
-    // signal that the server is up and running
-    completion_signal.notify_one();
-
-    log::debug!("Started redirect server at {:#?}", bind_addr);
-
+async fn redirect_server(bind_addr: String, server_setup_complete: Arc<Notify>) -> Result<String> {
     let mut retry_count: usize = 0;
     loop {
-        let (stream, _) = listener.accept().await?;
-
-        // Logically, a oneshot channel would be sufficient here, but the hyper
+        // Logically, a oneshot channel would be sufficient here, but the actix
         // server expects the handler to be possibly called multiple times.
         let (tx, mut rx) = mpsc::channel(1);
 
-        let server = http1::Builder::new()
-            .serve_connection(stream, service_fn(move |req| redirect(req, tx.clone())));
+        let server = HttpServer::new(move || {
+            App::new()
+                .app_data(web::Data::new(tx.clone()))
+                .service(index)
+        })
+        .bind(bind_addr.clone())?
+        .disable_signals() // actix is not the main application so it must not handle signals
+        .run();
+
+        log::debug!("Started redirect server at {:#?}", &bind_addr);
+
+        server_setup_complete.notify_one();
 
         tokio::select! {
             code = rx.recv() => {
