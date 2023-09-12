@@ -1,5 +1,6 @@
 use super::cli::Partition;
 use super::validators::identity::{validate_identity, IdentityType};
+use super::validators::ssh::validate_ssh_pub_key;
 use anyhow::{anyhow, Result};
 use bollard::auth::DockerCredentials;
 use bollard::container::{Config, LogOutput, LogsOptions};
@@ -338,6 +339,31 @@ pub fn set_iot_leaf_sas_config(
                     format!(
                         "set_iot_leaf_config.sh, -c, {0}, -r, {1}, -w, {2}",
                         files[0], files[1], files[2]
+                    )
+                },
+                bmap_file,
+            )
+        },
+    )
+}
+
+pub fn set_ssh_tunnel_certificate(
+    image_file: &PathBuf,
+    root_ca_file: &PathBuf,
+    device_principal: &str,
+    bmap_file: Option<PathBuf>,
+) -> Result<()> {
+    validate_ssh_pub_key(root_ca_file)?;
+
+    super::validators::image::validate_and_decompress_image(
+        image_file,
+        move |image_file: &PathBuf| -> Result<()> {
+            cmd_exec(
+                vec![root_ca_file, image_file],
+                |files| -> String {
+                    format!(
+                        "set_ssh_tunnel_cert.sh, -r, {0}, -d, {1}, -w, {2}",
+                        files[0], device_principal, files[1]
                     )
                 },
                 bmap_file,

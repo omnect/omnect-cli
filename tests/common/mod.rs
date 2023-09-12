@@ -25,6 +25,10 @@ impl Testrunner {
         Testrunner { dirpath }
     }
 
+    pub fn pathbuf(&self) -> PathBuf {
+        PathBuf::from(&self.dirpath)
+    }
+
     pub fn to_pathbuf(&self, file: &str) -> PathBuf {
         let destfile = String::from(file);
         let destfile = destfile.split('/').last().unwrap();

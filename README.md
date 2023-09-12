@@ -10,12 +10,15 @@ omnect-cli is a cli tool to manage your omnect-devices. It provides commands to 
   - Inject an iotedge gateway identity configuration for AIS
   - Inject an iot leaf identity configuration for AIS
   - Inject a device certificate with corresponding key from a given intermediate full-chain-certificate and corresponding key
+  - Inject an ssh root ca and device principal for ssh tunnel creation.
 - Device Update for IoT Hub configuration
   - Inject [`du-config.json`](https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
 - Boot configuration
   - Inject `boot.scr`
 - File
   - Copy a file into the image, restricted to partitions boot, cert, factory
+- SSH
+  - Open an ssh tunnel on a device in the field to connect to it.
 
 # Download prebuild Docker image
 - login to azure docker registry either via admin user
@@ -122,6 +125,13 @@ Please get into contact with us in case you want to use our existing cloud servi
 ### Generate your own full-chain intermediate certificate and key
 In case you intend to use your own certificates (e.g. because you want to use your own `PKI` and/or `EST service`), you can find some information about generating certificate and key here: https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11.
 
+## SSH Tunnel configuration
+
+For the ssh feature, the device requires the public key of the ssh root ca and the principal. The latter should be the device id.
+```sh
+omnect-cli identity set-ssh-tunnel-certificate --image <path>/image.wic --root_ca <path>/ssh_ca.pub --device-principal "device_id"
+```
+
 # Device Update for IoT Hub configuration
 ## Inject `du-config.json`
 
@@ -161,6 +171,43 @@ omnect-cli file copy -f <path>/my_custom_tmpfilesd.conf -i <path>/image.wic -p f
 
 Options:
   -b create bmap file
+```
+
+# Creating an SSH Tunnel
+
+One can use `omnect-cli` to create a tunneled SSH connection to a device in the field. This is especially useful if the device is behind a NAT and can not directly be contacted. The device must have the `ssh` activated for this. Per default, this command will create a single use ssh key pair, certificate, and ssh configuration to establish a connection to the device.
+
+Note: if unused, the tunnel will close after 5 minutes.
+
+Creating the ssh tunnel:
+```sh
+omnect-cli ssh <device>
+
+Options:
+  -u <name> optional: name of the user on the device
+  -d <dir> optional: directory where the ssh key pair, certificate, and configuration are stored to
+  -k <key> optional: path to an existing private ssh key to use for the connection. Requires the existance of the public key <key>.pub
+  -c <config_path> optional: path where the ssh configuration should be stored to
+```
+
+## Example Usage
+
+Open an ssh tunnel to the device `test_device` as follows:
+```sh
+~ omnect-cli ssh test_device
+
+Successfully established ssh tunnel!
+Certificate dir: /run/user/1000/omnect-cli
+Configuration path: /run/user/1000/omnect-cli/ssh_config
+Use the configuration in "/run/user/1000/omnect-cli/ssh_config" to use the tunnel, e.g.:
+ssh -F /run/user/1000/omnect-cli/ssh_config test_device
+```
+Now follow the command output to establish a connection to the device as such:
+
+```sh
+~ ssh -F /run/user/1000/omnect-cli/ssh_config test_device
+
+[omnect@test_device ~]$
 ```
 
 # Troubleshooting
