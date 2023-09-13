@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.1] Q3 2023
+- updated openssl to 0.10.57
+- updated rustls-webpki to 0.100.2
+- updated webpki to 0.22.1
+- updated bumpalo to 3.13.0
+- updated hermit-abi to 0.3.2
+
 ## [0.16.0] Q3 2023
 - added support for oauth2 authentication with keycloak
 - added support for device ssh connections
