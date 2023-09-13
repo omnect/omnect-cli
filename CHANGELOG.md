@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.1] Q3 2023
+- fixed RUSTSEC-2023-0044 (explicit `cargo update`)
+- fixed RUSTSEC-2023-0052 (explicit `cargo update`)
+- fixed RUSTSEC-2023-0053 (explicit `cargo update`)
+- fixed yanked dependency warnings (explicit `cargo update`)
+
 ## [0.16.0] Q3 2023
 - added support for oauth2 authentication with keycloak
 - added support for device ssh connections
