@@ -20,6 +20,13 @@ omnect-cli is a cli tool to manage your omnect-devices. It provides commands to 
 - SSH
   - Open an ssh tunnel on a device in the field to connect to it.
 
+# Prerequisites
+
+Depending on your intended use use you want to install the following packages.
+
+- openssh: For the `ssh` command.
+- docker: For the `file`, `iot-hub-device-update`, `identity` and `wifi` commands.
+
 # Download prebuild Docker image
 - login to azure docker registry either via admin user
     ```sh
