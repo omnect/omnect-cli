@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.2] Q3 2023
+- added prerequisites to readme
+- downgraded tracing to 0.1.37
+- updated webpki to 0.22.2
+- fixed missing copy script for ssh tunnel setup
+- fixed file copy scripts to skip existing files
+
 ## [0.16.1] Q3 2023
 - updated openssl to 0.10.57
 - updated rustls-webpki to 0.100.2
