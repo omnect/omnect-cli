@@ -61,7 +61,7 @@ if [ "${p}" != "boot" ]; then
 else
     if [ ! -d $(dirname ${o}) ]; then
         d_echo "mmd -D sS -i /tmp/${uuid}/${p}.img ::$(dirname ${o})"
-        mmd -D sS -i /tmp/${uuid}/${p}.img ::$(dirname ${o})
+        mmd -D sS -i /tmp/${uuid}/${p}.img ::$(dirname ${o}) || true
     fi
 
     d_echo "mcopy -o -i /tmp/${uuid}/${p}.img ${i} ::${o})"
