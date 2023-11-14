@@ -59,13 +59,14 @@ if [ "${p}" != "boot" ]; then
     e2mkdir /tmp/${uuid}/${p}.img:$(dirname ${o})
     e2cp ${i} /tmp/${uuid}/${p}.img:${o}
 else
-    if [ ! -d $(dirname ${o}) ]; then
-        d_echo "mmd -D sS -i /tmp/${uuid}/${p}.img ::$(dirname ${o})"
-        mmd -D sS -i /tmp/${uuid}/${p}.img ::$(dirname ${o})
-    fi
+    # ToDo: mmd only supports adding one single directory to a existing one.
+    # consequently the current code would fail when adding a directory with sub dir(s).
+    # calling mmd recursively for each dir would be a solution. 
+    d_echo "mmd -D sS -i /tmp/${uuid}/${p}.img ::$(dirname ${o})"
+    mmd -D sS -i /tmp/"${uuid}"/"${p}".img ::$(dirname "${o}") || d_echo "mmd failed: maybe the directory already exists?"
 
     d_echo "mcopy -o -i /tmp/${uuid}/${p}.img ${i} ::${o})"
-    mcopy -o -i /tmp/${uuid}/${p}.img ${i} ::${o}
+    mcopy -o -i /tmp/"${uuid}"/"${p}".img "${i}" ::"${o}" || (error "mcopy failed: maybe target directory doesn't exist?" && exit 1)
 fi
 
 write_back_partition
