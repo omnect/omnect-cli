@@ -263,28 +263,6 @@ async fn docker_exec(
     })
 }
 
-pub fn set_wifi_config(
-    config_file: &PathBuf,
-    image_file: &PathBuf,
-    bmap_file: Option<PathBuf>,
-) -> Result<()> {
-    super::validators::image::validate_and_decompress_image(
-        image_file,
-        move |image_file: &PathBuf| -> Result<()> {
-            cmd_exec(
-                vec![config_file, image_file],
-                |files| -> String {
-                    format!(
-                        "copy_file_to_image.sh, -i, {0}, -o, /etc/wpa_supplicant/wpa_supplicant-wlan0.conf, -p, factory, -w, {1}",
-                        files[0], files[1]
-                    )
-                },
-                bmap_file,
-            )
-        },
-    )
-}
-
 pub fn set_iotedge_gateway_config(
     config_file: &PathBuf,
     image_file: &PathBuf,
@@ -297,8 +275,9 @@ pub fn set_iotedge_gateway_config(
         .iter()
         .for_each(|x| warn!("{}", x));
 
-    super::validators::image::validate_and_decompress_image(
+    super::validators::image::image_action(
         image_file,
+        true,
         move |image_file: &PathBuf| -> Result<()> {
             cmd_exec(
                 vec![
@@ -330,8 +309,9 @@ pub fn set_iot_leaf_sas_config(
         .iter()
         .for_each(|x| warn!("{}", x));
 
-    super::validators::image::validate_and_decompress_image(
+    super::validators::image::image_action(
         image_file,
+        true,
         move |image_file: &PathBuf| -> Result<()> {
             cmd_exec(
                 vec![config_file, root_ca_file, image_file],
@@ -355,8 +335,9 @@ pub fn set_ssh_tunnel_certificate(
 ) -> Result<()> {
     validate_ssh_pub_key(root_ca_file)?;
 
-    super::validators::image::validate_and_decompress_image(
+    super::validators::image::image_action(
         image_file,
+        true,
         move |image_file: &PathBuf| -> Result<()> {
             cmd_exec(
                 vec![root_ca_file, image_file],
@@ -382,8 +363,9 @@ pub fn set_identity_config(
         .iter()
         .for_each(|x| warn!("{}", x));
 
-    super::validators::image::validate_and_decompress_image(
+    super::validators::image::image_action(
         image_file,
+        true,
         move |image_file: &PathBuf| -> Result<()> {
             if let Some(payload) = payload {
                 cmd_exec(
@@ -426,8 +408,9 @@ pub fn set_device_cert(
     fs::write(device_cert_path, device_full_chain_cert)?;
     fs::write(device_key_path, device_key)?;
 
-    super::validators::image::validate_and_decompress_image(
+    super::validators::image::image_action(
         image_file,
+        true,
         move |image_file: &PathBuf| -> Result<()> {
             cmd_exec(
                 vec![device_cert_path, image_file],
@@ -487,15 +470,33 @@ pub fn set_iot_hub_device_update_config(
         )
     })?;
 
-    super::validators::image::validate_and_decompress_image(
+    copy_to_image(
+        config_file,
         image_file,
+        Partition::factory,
+        "/etc/adu/du-config.json".to_string(),
+        bmap_file,
+    )
+}
+
+pub fn copy_to_image(
+    file: &PathBuf,
+    image_file: &PathBuf,
+    partition: Partition,
+    destination: String,
+    bmap_file: Option<PathBuf>,
+) -> Result<()> {
+    super::validators::image::image_action(
+        image_file,
+        true,
         move |image_file: &PathBuf| -> Result<()> {
             cmd_exec(
-                vec![config_file, image_file],
+                vec![file, image_file],
                 |files| -> String {
-                    format!("copy_file_to_image.sh, -i, {0}, -o, /etc/adu/du-config.json, -p, factory, -w {1}",
-                        files[0], files[1]
-                    )
+                    format!(
+                    "copy_file_to_image.sh, -i, {0}, -o, {destination}, -p, {partition:?}, -w {1}",
+                    files[0], files[1],
+                )
                 },
                 bmap_file,
             )
@@ -503,28 +504,38 @@ pub fn set_iot_hub_device_update_config(
     )
 }
 
-pub fn file_copy(
-    file: &PathBuf,
+pub fn copy_from_image(
+    file: String,
     image_file: &PathBuf,
     partition: Partition,
-    destination: String,
-    bmap_file: Option<PathBuf>,
+    destination: &PathBuf,
 ) -> Result<()> {
-    super::validators::image::validate_and_decompress_image(
+    let tmp_file = PathBuf::from(format!("/tmp/{}", Uuid::new_v4()));
+    let tmp_file_clone = tmp_file.clone();
+    File::create(&tmp_file)?;
+
+    super::validators::image::image_action(
         image_file,
+        false,
         move |image_file: &PathBuf| -> Result<()> {
             cmd_exec(
-                vec![file, image_file],
+                vec![&tmp_file, image_file],
                 |files| -> String {
                     format!(
-                        "copy_file_to_image.sh, -i, {0}, -o, {destination}, -p, {partition:?}, -w {1}",
+                        "copy_file_from_image.sh, -i, {file}, -o, {0}, -p, {partition:?}, -w {1}",
                         files[0], files[1],
                     )
                 },
-                bmap_file,
+                None,
             )
         },
     )
+    .and_then(|_| {
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::rename(tmp_file_clone, destination).map_err(anyhow::Error::from)
+    })
 }
 
 #[tokio::main]

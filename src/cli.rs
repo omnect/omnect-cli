@@ -7,7 +7,7 @@ const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 /// file handling
 pub enum FileConfig {
     /// copy file into image
-    Copy {
+    CopyToImage {
         /// path to input file
         #[arg(short = 'f', long = "file")]
         file: std::path::PathBuf,
@@ -23,6 +23,21 @@ pub enum FileConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
+    },
+    /// copy file from image
+    CopyFromImage {
+        /// path to file in wic image partition
+        #[arg(short = 'f', long = "file")]
+        file: std::string::String,
+        /// path to wic image file
+        #[arg(short = 'i', long = "image")]
+        image: std::path::PathBuf,
+        /// source partition
+        #[arg(short = 'p', long = "partition", value_enum)]
+        partition: Partition,
+        /// destination path
+        #[arg(short = 'd', long = "destination")]
+        destination: std::path::PathBuf,
     },
 }
 
@@ -129,24 +144,6 @@ pub enum IdentityConfig {
 
 #[derive(Parser, Debug)]
 #[command(after_help = COPYRIGHT)]
-/// pre-configure wifi settings
-pub enum WifiConfig {
-    /// set wpa_supplicant.conf to pre-configure wifi settings
-    Set {
-        /// path to config file
-        #[arg(short = 'c', long = "config")]
-        config: std::path::PathBuf,
-        /// path to wic image file
-        #[arg(short = 'i', long = "image")]
-        image: std::path::PathBuf,
-        /// optional: generate bmap file
-        #[arg(short = 'b', long = "generate-bmap-file")]
-        generate_bmap: bool,
-    },
-}
-
-#[derive(Parser, Debug)]
-#[command(after_help = COPYRIGHT)]
 /// pre-configure ADU settings
 pub enum IotHubDeviceUpdateConfig {
     /// set ADU configuration
@@ -202,8 +199,6 @@ pub enum Command {
     #[command(subcommand)]
     Identity(IdentityConfig),
     DockerInfo,
-    #[command(subcommand)]
-    Wifi(WifiConfig),
     #[command(subcommand)]
     IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
     Ssh(SshConfig),

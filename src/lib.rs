@@ -9,7 +9,7 @@ pub mod ssh;
 mod validators;
 use anyhow::{Context, Result};
 use cli::Command;
-use cli::FileConfig::Copy;
+use cli::FileConfig::{CopyFromImage, CopyToImage};
 use cli::IdentityConfig::SetConfig;
 use cli::IdentityConfig::SetDeviceCertificate;
 use cli::IdentityConfig::SetIotLeafSasConfig;
@@ -17,17 +17,11 @@ use cli::IdentityConfig::SetIotedgeGatewayConfig;
 use cli::IdentityConfig::SetSshTunnelCertificate;
 use cli::IotHubDeviceUpdateConfig::Set as IotHubDeviceUpdateSet;
 use cli::SshConfig;
-use cli::WifiConfig::Set as WifiSet;
 use std::path::PathBuf;
 
 pub fn run() -> Result<()> {
     match cli::from_args() {
         Command::DockerInfo => docker::docker_version()?,
-        Command::Wifi(WifiSet {
-            config,
-            image,
-            generate_bmap,
-        }) => docker::set_wifi_config(&config, &image, img_to_bmap_path!(generate_bmap, &image))?,
         Command::Identity(SetConfig {
             config,
             image,
@@ -138,19 +132,25 @@ pub fn run() -> Result<()> {
 
             create_ssh_tunnel(&device, &username, dir, priv_key_path, config_path, backend)?;
         }
-        Command::File(Copy {
+        Command::File(CopyToImage {
             file,
             image,
             partition,
             destination,
             generate_bmap,
-        }) => docker::file_copy(
+        }) => docker::copy_to_image(
             &file,
             &image,
             partition,
             destination,
             img_to_bmap_path!(generate_bmap, &image),
         )?,
+        Command::File(CopyFromImage {
+            file,
+            image,
+            partition,
+            destination,
+        }) => docker::copy_from_image(file, &image, partition, &destination)?,
     }
 
     Ok(())

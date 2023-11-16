@@ -55,3 +55,4 @@ xz2 = "0.1"
 
 [dev-dependencies]
 httpmock = "0.6"
+file_diff = "1.0"

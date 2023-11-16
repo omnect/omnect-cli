@@ -6,7 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.16.3] Q4 2023
-- fixed copy file to image script
+- added copy from image command
+- removed dedicated wifi command but added example with copy-to-image command in README
+- fixed `mmd` in copy_file_to_image.sh
+- integration tests:
+  - test bmap creation only once
+  - read back injected file and check for equality with injected one as part of file copy tests
 
 ## [0.16.2] Q3 2023
 - added prerequisites to readme

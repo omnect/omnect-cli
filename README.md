@@ -25,7 +25,7 @@ omnect-cli is a cli tool to manage your omnect-devices. It provides commands to 
 Depending on your intended use use you want to install the following packages.
 
 - openssh: For the `ssh` command.
-- docker: For the `file`, `iot-hub-device-update`, `identity` and `wifi` commands.
+- docker: For the image manipulation commands.
 
 # Download prebuild Docker image
 - login to azure docker registry either via admin user
@@ -48,18 +48,6 @@ Ensure ~/bin/ exists and is in your $PATH before executing:
 
 ```sh
 docker run --rm --entrypoint cat omnectweucopsacr.azurecr.io/omnect-cli-backend:latest /install/omnect-cli > ~/bin/omnect-cli && chmod +x ~/bin/omnect-cli
-```
-
-# Wifi configuration
-## Inject wifi configuration
-Adapt either [wpa_supplicant.conf.simple.template](conf/wpa_supplicant.conf.simple.template) or [wpa_supplicant.conf.template](conf/wpa_supplicant.conf.template).
-Use `wpa_passphrase` to generate your `psk`. Depending on your host system you may have to install `wpa_supplicant` to be able to use `wpa_passphrase`.
-
-```sh
-omnect-cli wifi set -c <path>/wpa_supplicant.conf -i <path>/image.wic
-
-Options:
-  -b create bmap file
 ```
 
 # Identity configuration
@@ -149,32 +137,47 @@ Options:
   -b create bmap file
 ```
 
-# Copy Files into Image
+# Copy Files into or from Image
 
-Copying files into the image is restricted to partions `boot`, `cert` and `factory`.
+Copying files into or from the image is restricted to partions `boot`, `cert` and `factory`.
 
 Note: If you need special permissions on copied files, you have to additionally copy a systemd-tmpfiles.d configuration file which handles these permissions.
+## Read e.g. `boot.scr`
 
+```sh
+omnect-cli file copy-from-image -f /boot.scr -i <path>/image.wic -p boot -d boot.scr
+```
 ## Inject `boot.scr`
 
 ```sh
-omnect-cli file copy -f <path>/boot.scr -i <path>/image.wic -p boot -d /boot.scr
+omnect-cli file copy-to-image -f <path>/boot.scr -i <path>/image.wic -p boot -d /boot.scr
 
 Options:
   -b create bmap file
 ```
 
-## Inject iptables configuration
+## Inject `iptables.rules` configuration
 ```sh
-omnect-cli file copy -f <path>/iptables.rules -i <path>/image.wic -p factory -d /etc/iptables/iptables.rules
+omnect-cli file copy-to-image -f <path>/iptables.rules -i <path>/image.wic -p factory -d /etc/iptables/iptables.rules
 
 Options:
   -b create bmap file
 ```
 
-## Inject systemd-tmpfiles.d configuration
+## Inject `systemd-tmpfiles.d`` configuration
 ```sh
-omnect-cli file copy -f <path>/my_custom_tmpfilesd.conf -i <path>/image.wic -p factory -d /etc/tmpfiles.d/my_custom_tmpfilesd.conf
+omnect-cli file copy-to-image -f <path>/my_custom_tmpfilesd.conf -i <path>/image.wic -p factory -d /etc/tmpfiles.d/my_custom_tmpfilesd.conf
+
+Options:
+  -b create bmap file
+```
+
+## Inject `wpa_supplicant-wlan0.conf` wifi configuration
+Adapt either [wpa_supplicant.conf.simple.template](conf/wpa_supplicant.conf.simple.template) or [wpa_supplicant.conf.template](conf/wpa_supplicant.conf.template).
+Use `wpa_passphrase` to generate your `psk`. Depending on your host system you may have to install `wpa_supplicant` to be able to use `wpa_passphrase`.
+
+```sh
+omnect-cli file copy-to-image -f <path>/wpa_supplicant.conf -i <path>/image.wic -p factory -d /etc/wpa_supplicant/wpa_supplicant-wlan0.conf
 
 Options:
   -b create bmap file
