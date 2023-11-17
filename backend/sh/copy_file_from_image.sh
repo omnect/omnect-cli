@@ -56,7 +56,7 @@ if [ "${p}" != "boot" ]; then
 else
     out_dir=$(dirname ${o})
     d_echo "mcopy -o -i /tmp/"${uuid}"/"${p}".img ::"${i}" "${out_dir}""
-    mcopy -o -i /tmp/"${uuid}"/"${p}".img ::"${i}" "${out_dir}" || (error "mcopy "${o}" failed" && exit 1)
+    mcopy -o -i /tmp/"${uuid}"/"${p}".img ::"${i}" "${out_dir}"
     
     d_echo "cat "${out_dir}"/$(basename "${i}") > "${o}""
     cat "${out_dir}"/$(basename "${i}") > "${o}"
