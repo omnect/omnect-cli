@@ -1,57 +1,13 @@
 mod common;
+use std::path::PathBuf;
 use common::Testrunner;
-use omnect_cli::{cli, docker, img_to_bmap_path, ssh};
-
+use omnect_cli::{cli::Partition, docker, img_to_bmap_path, ssh};
 use httpmock::prelude::*;
-
+use file_diff;
 use stdext::function_name;
+
 #[macro_use]
 extern crate lazy_static;
-
-#[test]
-fn check_set_wifi_template() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.template");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert!(docker::set_wifi_config(&config_file_path, &image_path, None).is_ok());
-}
-
-#[test]
-fn check_set_wifi_template_bmap() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.template");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert!(docker::set_wifi_config(&config_file_path, &image_path, None).is_ok());
-}
-
-#[test]
-fn check_set_wifi_template_simple() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.simple.template");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert!(docker::set_wifi_config(&config_file_path, &image_path, None).is_ok());
-}
-
-#[test]
-fn check_set_wifi_template_simple_bmap() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let config_file_path = tr.to_pathbuf("conf/wpa_supplicant.conf.simple.template");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert!(docker::set_wifi_config(
-        &config_file_path,
-        &image_path,
-        img_to_bmap_path!(true, &image_path)
-    )
-    .is_ok());
-}
 
 #[test]
 fn check_set_identity_gateway_config() {
@@ -75,27 +31,6 @@ fn check_set_identity_gateway_config() {
 }
 
 #[test]
-fn check_set_identity_gateway_config_bmap() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let config_file_path = tr.to_pathbuf("conf/config.toml.gateway.tpm.template");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-    let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
-    let edge_device_identity_full_chain_file_path = tr.to_pathbuf("testfiles/full-chain.cert.pem");
-    let edge_device_identity_key_file_path = tr.to_pathbuf("testfiles/device-ca.key.pem");
-
-    assert!(docker::set_iotedge_gateway_config(
-        &config_file_path,
-        &image_path,
-        &root_ca_file_path,
-        &edge_device_identity_full_chain_file_path,
-        &edge_device_identity_key_file_path,
-        img_to_bmap_path!(true, &image_path)
-    )
-    .is_ok());
-}
-
-#[test]
 fn check_set_identity_leaf_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -108,23 +43,6 @@ fn check_set_identity_leaf_config() {
         &image_path,
         &root_ca_file_path,
         None
-    )
-    .is_ok());
-}
-
-#[test]
-fn check_set_identity_leaf_config_bmap() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let config_file_path = tr.to_pathbuf("conf/config.toml.iot-leaf.template");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-    let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
-
-    assert!(docker::set_iot_leaf_sas_config(
-        &config_file_path,
-        &image_path,
-        &root_ca_file_path,
-        img_to_bmap_path!(true, &image_path)
     )
     .is_ok());
 }
@@ -154,22 +72,6 @@ fn check_set_identity_config_payload_template() {
 }
 
 #[test]
-fn check_set_identity_config_est_template_bmap() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let config_file_path = tr.to_pathbuf("conf/config.toml.est.template");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert!(docker::set_identity_config(
-        &config_file_path,
-        &image_path,
-        img_to_bmap_path!(true, &image_path),
-        None
-    )
-    .is_ok());
-}
-
-#[test]
 fn check_set_identity_config_tpm_template() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
@@ -177,22 +79,6 @@ fn check_set_identity_config_tpm_template() {
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert!(docker::set_identity_config(&config_file_path, &image_path, None, None).is_ok());
-}
-
-#[test]
-fn check_set_identity_config_tpm_template_bmap() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let config_file_path = tr.to_pathbuf("conf/config.toml.tpm.template");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert!(docker::set_identity_config(
-        &config_file_path,
-        &image_path,
-        img_to_bmap_path!(true, &image_path),
-        None
-    )
-    .is_ok());
 }
 
 #[test]
@@ -243,52 +129,84 @@ fn check_set_iot_hub_device_update_template() {
 }
 
 #[test]
-fn check_set_iot_hub_device_update_template_bmap() {
+fn check_file_copy_dos_partition() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let adu_config_file_path = tr.to_pathbuf("conf/du-config.json.template");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert!(docker::set_iot_hub_device_update_config(
-        &adu_config_file_path,
-        &image_path,
-        img_to_bmap_path!(true, &image_path)
-    )
-    .is_ok());
+    check_file_copy(tr, Partition::boot);
 }
 
 #[test]
-fn check_file_copy() {
+fn ext4() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+    check_file_copy(tr, Partition::factory);
+}
 
+fn check_file_copy(tr: Testrunner, partition: Partition) {
     let boot_config_file_path = tr.to_pathbuf("testfiles/boot.scr");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let mut result_file = tr.pathbuf();
+    result_file.push("result_test.scr");
 
-    assert!(docker::file_copy(
+    assert!(docker::copy_to_image(
         &boot_config_file_path,
         &image_path,
-        cli::Partition::boot,
+        partition.clone(),
         String::from("/test/test.scr"),
         None
     )
     .is_ok());
-}
 
-#[test]
-fn check_file_copy_bmap() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
-    let boot_config_file_path = tr.to_pathbuf("testfiles/boot.scr");
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-
-    assert!(docker::file_copy(
-        &boot_config_file_path,
-        &image_path,
-        cli::Partition::boot,
+    assert!(docker::copy_from_image(
         String::from("/test/test.scr"),
-        img_to_bmap_path!(true, &image_path)
+        &image_path,
+        partition.clone(),
+        &result_file,
     )
     .is_ok());
+
+    assert!(file_diff::diff(
+        boot_config_file_path.to_str().unwrap(),
+        result_file.to_str().unwrap()
+    ));
+
+    // check overwriting
+    assert!(docker::copy_to_image(
+        &boot_config_file_path,
+        &image_path,
+        partition.clone(),
+        String::from("/test/test.scr"),
+        None
+    )
+    .is_ok());
+
+    assert!(docker::copy_to_image(
+        &PathBuf::from("/invalid/file/path"),
+        &image_path,
+        partition.clone(),
+        String::from("/test/test.scr"),
+        None
+    )
+    .is_err());
+
+    assert!(docker::copy_from_image(
+        String::from("/invalid/file/path"),
+        &image_path,
+        partition.clone(),
+        &result_file,
+    )
+    .is_err());
+
+    // check bmap generation
+    let bmap_path = img_to_bmap_path!(true, &image_path);
+    assert!(docker::copy_to_image(
+        &boot_config_file_path,
+        &image_path,
+        partition.clone(),
+        String::from("/test/test.scr"),
+        bmap_path.clone(),
+    )
+    .is_ok());
+
+    assert!(bmap_path.unwrap().as_path().exists())
 }
 
 #[tokio::test]

@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Context, Result};
 use filemagic::Magic;
 use log::{debug, info};
 use std::env;
@@ -136,47 +136,40 @@ const COMPRESSION_TABLE: [CompressionAlternative; 3] = [
     },
 ];
 
-pub fn validate_and_decompress_image(
+pub fn image_action(
     image_file_name: &PathBuf,
+    recompress: bool,
     action: impl FnOnce(&PathBuf) -> Result<()>,
 ) -> Result<()> {
     debug!("Detecting magic for {}", image_file_name.to_string_lossy());
-    let detector = Magic::open(Default::default());
-    let detector = match detector {
-        Err(e) => {
-            return Err(anyhow!("libmagic open failed with error {}", e));
-        }
-        Ok(d) => d,
-    };
-    if let Err(e) = detector.load::<String>(&[]) {
-        return Err(anyhow!("libmagic load failed with error {}", e));
-    }
+    let detector = Magic::open(Default::default()).context("libmagic open failed")?;
+
+    detector
+        .load::<String>(&[])
+        .context("libmagic load failed")?;
+
     let magic = detector.file(image_file_name)?;
+    
     for elem in COMPRESSION_TABLE {
         if magic.contains(elem.marker) {
             info!("Compressed image file found, decompressing...");
             let new_image_file = decompress(image_file_name, elem.extension, elem.generator)?;
             debug!("Decompressed to {}", new_image_file.to_string_lossy());
-            let mut success = action(&new_image_file);
-            if let Ok(_n) = success {
+            action(&new_image_file)?;
+            if recompress {
                 info!(
                     "Recompressing image from {} to {}",
                     new_image_file.to_string_lossy(),
                     image_file_name.to_string_lossy()
                 );
-                match compress(&new_image_file, image_file_name, elem.generator) {
-                    Ok(_e) => {
-                        debug!("Compression complete.");
-                    }
-                    Err(e) => {
-                        success = Err(anyhow!("Recompressing failed with error {}", e));
-                    }
-                }
+                let success = compress(&new_image_file, image_file_name, elem.generator);
+
+                remove_file(new_image_file).context("Deleting temporary file failed")?;
+                success.context("Recompressing failed")?;
+                debug!("Compression complete.");
             }
-            if let Err(e) = remove_file(new_image_file) {
-                success = Err(anyhow!("Deleting temporary file failed with error {}", e));
-            }
-            return success;
+
+            return Ok(());
         }
     }
     action(image_file_name)

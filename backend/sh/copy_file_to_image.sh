@@ -59,13 +59,21 @@ if [ "${p}" != "boot" ]; then
     e2mkdir /tmp/${uuid}/${p}.img:$(dirname ${o})
     e2cp ${i} /tmp/${uuid}/${p}.img:${o}
 else
-    if [ ! -d $(dirname ${o}) ]; then
-        d_echo "mmd -D sS -i /tmp/${uuid}/${p}.img ::$(dirname ${o})"
-        mmd -D sS -i /tmp/${uuid}/${p}.img ::$(dirname ${o})
-    fi
+    lastdir=""
+    IFS='/' read -ra path <<< $(dirname ${o})
+    for dir in "${path[@]}"; do
+        if [ ! -z "$dir" ]; then
+            dir="${lastdir}"/"${dir}"
+            # we ignore errors in order to ignore potential name clashes here
+            # in case mmd fails mcopy will fail respectivly with a reasonable error putput
+            d_echo "mmd -D sS -i /tmp/""${uuid}""/""${p}"".img ::""${dir}"""
+            mmd -D sS -i /tmp/"${uuid}"/"${p}".img ::"${dir}" || true
+            lastdir="$dir"
+        fi
+    done
 
-    d_echo "mcopy -o -i /tmp/${uuid}/${p}.img ${i} ::${o})"
-    mcopy -o -i /tmp/${uuid}/${p}.img ${i} ::${o}
+    d_echo "mcopy -o -i /tmp/${uuid}/${p}.img ${i} ::${o}"
+    mcopy -o -i /tmp/"${uuid}"/"${p}".img "${i}" ::"${o}"
 fi
 
 write_back_partition
