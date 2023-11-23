@@ -183,7 +183,7 @@ pub struct SshConfig {
     #[arg(short = 'c', long = "config-path")]
     pub config_path: Option<std::path::PathBuf>,
     /// address of the backend API
-    #[arg(short = 'b', long = "backend")]
+    #[arg(short = 'b', long = "backend", default_value = "https://cp.omnect.conplement.cloud")]
     pub backend: String,
     /// name of the device for which the ssh tunnel should be created.
     pub device: String,

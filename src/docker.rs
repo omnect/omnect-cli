@@ -1,7 +1,7 @@
 use super::cli::Partition;
 use super::validators::identity::{validate_identity, IdentityType};
 use super::validators::ssh::validate_ssh_pub_key;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use bollard::auth::DockerCredentials;
 use bollard::container::{Config, LogOutput, LogsOptions};
 use bollard::image::{CreateImageOptions, ListImagesOptions};
@@ -72,9 +72,10 @@ fn get_docker_cred() -> Result<DockerCredentials> {
     path.push(dirs::home_dir().unwrap());
     path.push(".docker/config.json");
 
-    let file = File::open(&path)?;
+    let file = File::open(&path).context("get_docker_cred: open docker/config.json")?;
     let reader = BufReader::new(file);
-    let json: serde_json::Value = serde_json::from_reader(reader)?;
+    let json: serde_json::Value =
+        serde_json::from_reader(reader).context("get_docker_cred: read docker/config.json")?;
     let reg_name = DOCKER_REG_NAME.as_str();
     let identitytoken = json["auths"][reg_name]["identitytoken"]
         .to_string()
@@ -92,8 +93,12 @@ fn get_docker_cred() -> Result<DockerCredentials> {
         .replace('\"', "");
 
     if "null" != auth {
-        let byte_auth = base64::decode_config(auth, base64::STANDARD)?;
-        let v: Vec<&str> = std::str::from_utf8(&byte_auth)?.split(':').collect();
+        let byte_auth = base64::decode_config(auth, base64::STANDARD)
+            .context("get_docker_cred: decode auth")?;
+        let v: Vec<&str> = std::str::from_utf8(&byte_auth)
+            .context("get_docker_cred: split auth")?
+            .split(':')
+            .collect();
 
         return Ok(DockerCredentials {
             username: Some(v[0].to_string()),
@@ -108,16 +113,16 @@ fn get_docker_cred() -> Result<DockerCredentials> {
 }
 
 #[tokio::main]
-async fn docker_exec(
-    mut binds: Option<Vec<std::string::String>>,
-    cmd: Option<Vec<&str>>,
-) -> Result<()> {
+async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Vec<&str>) -> Result<()> {
     block_on(async move {
-        let docker = Docker::connect_with_local_defaults().unwrap();
+        let docker = Docker::connect_with_local_defaults()
+            .context("docker_exec: connect to local docker")?;
         let mut filters = HashMap::new();
         let img_id = DOCKER_IMAGE_ID.as_str();
 
-        info!("backend image id: {}", img_id);
+        anyhow::ensure!(!cmd.is_empty(), "docker_exec: empty command was passed");
+
+        info!("docker_exec: try running {cmd:?} on image: {img_id}");
 
         filters.insert("reference", vec![img_id]);
 
@@ -158,7 +163,7 @@ async fn docker_exec(
             binds = Some(vec);
         }
 
-        debug!("Using binds: {:?}", binds);
+        info!("Using binds: {:?}", binds);
 
         let host_config = HostConfig {
             auto_remove: Some(true),
@@ -176,7 +181,7 @@ async fn docker_exec(
             tty: Some(true),
             host_config: Some(host_config),
             env,
-            cmd,
+            cmd: Some(cmd),
             attach_stdout: Some(true),
             attach_stderr: Some(true),
             entrypoint: Some(vec!["entrypoint.sh", &target_error_file_path]),
@@ -405,8 +410,9 @@ pub fn set_device_cert(
     let device_cert_path = &PathBuf::from(format!("/tmp/{}.pem", uuid));
     let device_key_path = &PathBuf::from(format!("/tmp/{}.key.pem", uuid));
 
-    fs::write(device_cert_path, device_full_chain_cert)?;
-    fs::write(device_key_path, device_key)?;
+    fs::write(device_cert_path, device_full_chain_cert)
+        .context("set_device_cert: write device_cert_path")?;
+    fs::write(device_key_path, device_key).context("set_device_cert: write device_key_path")?;
 
     super::validators::image::image_action(
         image_file,
@@ -461,14 +467,10 @@ pub fn set_iot_hub_device_update_config(
     image_file: &PathBuf,
     bmap_file: Option<PathBuf>,
 ) -> Result<()> {
-    let file = File::open(config_file)?;
-    serde_json::from_reader::<_, serde_json::Value>(BufReader::new(file)).map_err(|e| {
-        anyhow!(
-            "Input {:?} seems not to be a valid json file: {}",
-            &config_file,
-            &e
-        )
-    })?;
+    let file =
+        File::open(config_file).context("set_iot_hub_device_update_config: open config_file")?;
+    serde_json::from_reader::<_, serde_json::Value>(BufReader::new(file))
+        .context("set_iot_hub_device_update_config: read config_file")?;
 
     copy_to_image(
         config_file,
@@ -512,7 +514,7 @@ pub fn copy_from_image(
 ) -> Result<()> {
     let tmp_file = PathBuf::from(format!("/tmp/{}", Uuid::new_v4()));
     let tmp_file_clone = tmp_file.clone();
-    File::create(&tmp_file)?;
+    File::create(&tmp_file).context("copy_from_image: create temporary destination")?;
 
     super::validators::image::image_action(
         image_file,
@@ -532,9 +534,11 @@ pub fn copy_from_image(
     )
     .and_then(|_| {
         if let Some(parent) = destination.parent() {
-            fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent).context("copy_from_image: create destination folder")?;
         }
-        fs::rename(tmp_file_clone, destination).map_err(anyhow::Error::from)
+        fs::rename(tmp_file_clone, destination)
+            .map_err(anyhow::Error::from)
+            .context("copy_from_image: move temporary file to destination")
     })
 }
 
@@ -574,8 +578,12 @@ where
     let mut cmdline: Vec<String> = f(&bind_files).split(',').map(|s| s.to_string()).collect();
 
     if bmap_file.is_some() {
-        let bmap_file = &bmap_file.unwrap().absolutize()?.to_path_buf();
-        File::create(bmap_file)?;
+        let bmap_file = &bmap_file
+            .unwrap()
+            .absolutize()
+            .context("cmd_exec: get bmap file path")?
+            .to_path_buf();
+        File::create(bmap_file).context("cmd_exec: create bmap file")?;
         let bmap_bind_path = format!(
             "/tmp/{}/{}",
             tmp_folder,
@@ -591,10 +599,7 @@ where
         cmdline.push(bind_files.last().unwrap().to_string());
     }
 
-    docker_exec(
-        Some(binds),
-        Some(cmdline.iter().map(AsRef::as_ref).collect()),
-    )
+    docker_exec(Some(binds), cmdline.iter().map(AsRef::as_ref).collect())
 }
 
 fn ensure_filepath(filepath: &PathBuf) -> Result<String, Error> {
