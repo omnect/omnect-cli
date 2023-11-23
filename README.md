@@ -198,6 +198,7 @@ Options:
   -d <dir> optional: directory where the ssh key pair, certificate, and configuration are stored to
   -k <key> optional: path to an existing private ssh key to use for the connection. Requires the existance of the public key <key>.pub
   -c <config_path> optional: path where the ssh configuration should be stored to
+  -b <backend address> optional: address of omnect cloud service, defaults to https://cp.omnect.conplement.cloud
 ```
 
 ## Example Usage

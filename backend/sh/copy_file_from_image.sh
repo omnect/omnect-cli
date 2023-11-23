@@ -43,7 +43,7 @@ d_echo "p = ${p}"
 d_echo "w = ${w}"
 
 [[ ! -f ${w} ]] && error "input device image not found"     && exit 1
-[[ ! -f ${o} ]] && error "output file file \"${i}\" not found"    && exit 1
+[[ ! -f ${o} ]] && error "output file \"${o}\" not found"   && exit 1
 
 uuid_gen
 handle_partition_type
