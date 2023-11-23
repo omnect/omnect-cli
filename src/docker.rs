@@ -512,11 +512,11 @@ pub fn copy_from_image(
     partition: Partition,
     destination: &PathBuf,
 ) -> Result<()> {
-    let tmp_file = PathBuf::from(format!("/tmp/{}", Uuid::new_v4()));
+    let tmp_file = PathBuf::from(format!("{}", Uuid::new_v4()));
     let tmp_file_clone = tmp_file.clone();
     File::create(&tmp_file).context("copy_from_image: create temporary destination")?;
 
-    super::validators::image::image_action(
+    let result = super::validators::image::image_action(
         image_file,
         false,
         move |image_file: &PathBuf| -> Result<()> {
@@ -531,15 +531,22 @@ pub fn copy_from_image(
                 None,
             )
         },
-    )
-    .and_then(|_| {
+    );
+
+    if result.is_ok() {
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent).context("copy_from_image: create destination folder")?;
         }
-        fs::rename(tmp_file_clone, destination)
+        fs::rename(tmp_file_clone.clone(), destination)
             .map_err(anyhow::Error::from)
-            .context("copy_from_image: move temporary file to destination")
-    })
+            .context("copy_from_image: move temporary file to destination")?;
+    }
+
+    if Path::new(&tmp_file_clone).exists() {
+        fs::remove_file(tmp_file_clone).context("copy_from_image: remove temporary")?;
+    }
+
+    result
 }
 
 #[tokio::main]

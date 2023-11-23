@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - set 'https://cp.omnect.conplement.cloud' as default backend
   - updated ssh tunnel readme
 - improved error handling and output
+- refactored copy-from-image: use temp file in current directory instead of /tmp/
 
 ## [0.16.3] Q4 2023
 - added copy from image command
