@@ -512,6 +512,7 @@ pub fn copy_from_image(
     partition: Partition,
     destination: &PathBuf,
 ) -> Result<()> {
+    // ToDo: as soon as we get rid of docker create temp file under /tmp/
     let tmp_file = PathBuf::from(format!("{}", Uuid::new_v4()));
     let tmp_file_clone = tmp_file.clone();
     File::create(&tmp_file).context("copy_from_image: create temporary destination")?;

@@ -143,8 +143,8 @@ fn ext4() {
 fn check_file_copy(tr: Testrunner, partition: Partition) {
     let boot_config_file_path = tr.to_pathbuf("testfiles/boot.scr");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
-    let mut result_file = tr.pathbuf();
-    result_file.push("result_test.scr");
+    // ToDo: as soon as we get rid of docker create temp file under /tmp/
+    let result_file = PathBuf::from("result_test.scr");
 
     assert!(docker::copy_to_image(
         &boot_config_file_path,
