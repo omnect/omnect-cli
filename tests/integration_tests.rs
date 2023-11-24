@@ -1,7 +1,7 @@
 mod common;
 use std::path::PathBuf;
 use common::Testrunner;
-use omnect_cli::{cli::Partition, docker, img_to_bmap_path, ssh};
+use omnect_cli::{cli::Partition, file, img_to_bmap_path, ssh};
 use httpmock::prelude::*;
 use file_diff;
 use stdext::function_name;
@@ -19,7 +19,7 @@ fn check_set_identity_gateway_config() {
     let edge_device_identity_full_chain_file_path = tr.to_pathbuf("testfiles/full-chain.cert.pem");
     let edge_device_identity_key_file_path = tr.to_pathbuf("testfiles/device-ca.key.pem");
 
-    assert!(docker::set_iotedge_gateway_config(
+    assert!(file::set_iotedge_gateway_config(
         &config_file_path,
         &image_path,
         &root_ca_file_path,
@@ -38,7 +38,7 @@ fn check_set_identity_leaf_config() {
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
 
-    assert!(docker::set_iot_leaf_sas_config(
+    assert!(file::set_iot_leaf_sas_config(
         &config_file_path,
         &image_path,
         &root_ca_file_path,
@@ -54,7 +54,7 @@ fn check_set_identity_config_est_template() {
     let config_file_path = tr.to_pathbuf("conf/config.toml.est.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(docker::set_identity_config(&config_file_path, &image_path, None, None).is_ok());
+    assert!(file::set_identity_config(&config_file_path, &image_path, None, None).is_ok());
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn check_set_identity_config_payload_template() {
     let payload_path = tr.to_pathbuf("testfiles/dps-payload.json");
 
     assert!(
-        docker::set_identity_config(&config_file_path, &image_path, None, Some(payload_path))
+        file::set_identity_config(&config_file_path, &image_path, None, Some(payload_path))
             .is_ok()
     );
 }
@@ -78,7 +78,7 @@ fn check_set_identity_config_tpm_template() {
     let config_file_path = tr.to_pathbuf("conf/config.toml.tpm.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(docker::set_identity_config(&config_file_path, &image_path, None, None).is_ok());
+    assert!(file::set_identity_config(&config_file_path, &image_path, None, None).is_ok());
 }
 
 #[test]
@@ -106,7 +106,7 @@ fn check_set_device_cert() {
 
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
-    assert!(docker::set_device_cert(
+    assert!(file::set_device_cert(
         &intermediate_full_chain_crt_path,
         &device_cert_pem,
         &device_key_pem,
@@ -124,7 +124,7 @@ fn check_set_iot_hub_device_update_template() {
     let image_path = tr.to_pathbuf("testfiles/image.wic");
 
     assert!(
-        docker::set_iot_hub_device_update_config(&adu_config_file_path, &image_path, None).is_ok()
+        file::set_iot_hub_device_update_config(&adu_config_file_path, &image_path, None).is_ok()
     );
 }
 
@@ -146,7 +146,7 @@ fn check_file_copy(tr: Testrunner, partition: Partition) {
     // ToDo: as soon as we get rid of docker create temp file under /tmp/
     let result_file = PathBuf::from("result_test.scr");
 
-    assert!(docker::copy_to_image(
+    assert!(file::copy_to_image(
         &boot_config_file_path,
         &image_path,
         partition.clone(),
@@ -155,7 +155,7 @@ fn check_file_copy(tr: Testrunner, partition: Partition) {
     )
     .is_ok());
 
-    assert!(docker::copy_from_image(
+    assert!(file::copy_from_image(
         String::from("/test/test.scr"),
         &image_path,
         partition.clone(),
@@ -169,7 +169,7 @@ fn check_file_copy(tr: Testrunner, partition: Partition) {
     ));
 
     // check overwriting
-    assert!(docker::copy_to_image(
+    assert!(file::copy_to_image(
         &boot_config_file_path,
         &image_path,
         partition.clone(),
@@ -178,7 +178,7 @@ fn check_file_copy(tr: Testrunner, partition: Partition) {
     )
     .is_ok());
 
-    assert!(docker::copy_to_image(
+    assert!(file::copy_to_image(
         &PathBuf::from("/invalid/file/path"),
         &image_path,
         partition.clone(),
@@ -187,7 +187,7 @@ fn check_file_copy(tr: Testrunner, partition: Partition) {
     )
     .is_err());
 
-    assert!(docker::copy_from_image(
+    assert!(file::copy_from_image(
         String::from("/invalid/file/path"),
         &image_path,
         partition.clone(),
@@ -197,7 +197,7 @@ fn check_file_copy(tr: Testrunner, partition: Partition) {
 
     // check bmap generation
     let bmap_path = img_to_bmap_path!(true, &image_path);
-    assert!(docker::copy_to_image(
+    assert!(file::copy_to_image(
         &boot_config_file_path,
         &image_path,
         partition.clone(),

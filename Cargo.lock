@@ -733,53 +733,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bollard"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f03db470b3c0213c47e978da93200259a1eb4dae2e5512cba9955e2b540a6fc6"
-dependencies = [
- "base64 0.21.5",
- "bollard-stubs",
- "bytes",
- "futures-core",
- "futures-util",
- "hex",
- "home",
- "http",
- "hyper",
- "hyper-rustls",
- "hyperlocal",
- "log",
- "pin-project-lite",
- "rustls",
- "rustls-native-certs",
- "rustls-pemfile",
- "rustls-webpki",
- "serde",
- "serde_derive",
- "serde_json",
- "serde_repr",
- "serde_urlencoded",
- "thiserror",
- "tokio",
- "tokio-util",
- "url",
- "webpki-roots",
- "winapi",
-]
-
-[[package]]
-name = "bollard-stubs"
-version = "1.43.0-rc.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b58071e8fd9ec1e930efd28e3a90c1251015872a2ce49f81f36421b86466932e"
-dependencies = [
- "serde",
- "serde_repr",
- "serde_with",
-]
-
-[[package]]
 name = "brotli"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1073,7 +1026,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f32d04922c60427da6f9fef14d042d9edddef64cb9d4ce0d64d0685fbeb1fd3"
 dependencies = [
  "powerfmt",
- "serde",
 ]
 
 [[package]]
@@ -1595,15 +1547,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "home"
-version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5444c27eef6923071f7ebcc33e3444508466a76f7a2b93da00ed6e19f30c1ddb"
-dependencies = [
- "windows-sys",
-]
-
-[[package]]
 name = "http"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1704,9 +1647,7 @@ dependencies = [
  "futures-util",
  "http",
  "hyper",
- "log",
  "rustls",
- "rustls-native-certs",
  "tokio",
  "tokio-rustls",
 ]
@@ -1722,19 +1663,6 @@ dependencies = [
  "native-tls",
  "tokio",
  "tokio-native-tls",
-]
-
-[[package]]
-name = "hyperlocal"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fafdf7b2b2de7c9784f76e02c0935e65a8117ec3b768644379983ab333ac98c"
-dependencies = [
- "futures-util",
- "hex",
- "hyper",
- "pin-project",
- "tokio",
 ]
 
 [[package]]
@@ -1795,7 +1723,6 @@ checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
 dependencies = [
  "autocfg",
  "hashbrown 0.12.3",
- "serde",
 ]
 
 [[package]]
@@ -1806,7 +1733,6 @@ checksum = "d530e1a18b1cb4c484e6e34556a0d948706958449fca0cab753d649f2bce3d1f"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.2",
- "serde",
 ]
 
 [[package]]
@@ -2312,7 +2238,6 @@ dependencies = [
  "actix-web",
  "anyhow",
  "base64 0.13.1",
- "bollard",
  "bzip2",
  "clap",
  "directories",
@@ -2876,18 +2801,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustls-native-certs"
-version = "0.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9aace74cb666635c918e9c12bc0d348266037aa8eb599b5cba565709a8dff00"
-dependencies = [
- "openssl-probe",
- "rustls-pemfile",
- "schannel",
- "security-framework",
-]
-
-[[package]]
 name = "rustls-pemfile"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3063,22 +2976,6 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "serde_with"
-version = "3.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64cd236ccc1b7a29e7e2739f27c0b2dd199804abc4290e32f59f3b68d6405c23"
-dependencies = [
- "base64 0.21.5",
- "chrono",
- "hex",
- "indexmap 1.9.3",
- "indexmap 2.1.0",
- "serde",
- "serde_json",
- "time",
 ]
 
 [[package]]

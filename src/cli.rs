@@ -198,7 +198,6 @@ pub enum Command {
     File(FileConfig),
     #[command(subcommand)]
     Identity(IdentityConfig),
-    DockerInfo,
     #[command(subcommand)]
     IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
     Ssh(SshConfig),

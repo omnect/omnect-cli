@@ -16,7 +16,6 @@ actix = "0.13"
 actix-web = "4.4"
 anyhow = "1"
 base64 = "0.13.0"
-bollard = { version = "0.15", features = ["ssl"] }
 bzip2 = "0.4.1"
 clap = { version = "4.0", features = ["derive"] }
 directories = "5.0.1"

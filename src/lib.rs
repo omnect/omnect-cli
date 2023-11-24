@@ -4,7 +4,7 @@ extern crate lazy_static;
 pub mod auth;
 pub mod cli;
 
-pub mod docker;
+pub mod file;
 pub mod ssh;
 mod validators;
 use anyhow::{Context, Result};
@@ -21,13 +21,12 @@ use std::path::PathBuf;
 
 pub fn run() -> Result<()> {
     match cli::from_args() {
-        Command::DockerInfo => docker::docker_version()?,
         Command::Identity(SetConfig {
             config,
             image,
             payload,
             generate_bmap,
-        }) => docker::set_identity_config(
+        }) => file::set_identity_config(
             &config,
             &image,
             img_to_bmap_path!(generate_bmap, &image),
@@ -50,7 +49,7 @@ pub fn run() -> Result<()> {
             )?;
             let (device_cert_pem, device_key_pem) =
                 crypto.create_cert_and_key(&device_id, &None, days)?;
-            docker::set_device_cert(
+                file::set_device_cert(
                 &intermediate_full_chain_cert,
                 &device_cert_pem,
                 &device_key_pem,
@@ -65,7 +64,7 @@ pub fn run() -> Result<()> {
             device_identity,
             device_identity_key,
             generate_bmap,
-        }) => docker::set_iotedge_gateway_config(
+        }) => file::set_iotedge_gateway_config(
             &config,
             &image,
             &root_ca,
@@ -78,7 +77,7 @@ pub fn run() -> Result<()> {
             image,
             root_ca,
             generate_bmap,
-        }) => docker::set_iot_leaf_sas_config(
+        }) => file::set_iot_leaf_sas_config(
             &config,
             &image,
             &root_ca,
@@ -89,7 +88,7 @@ pub fn run() -> Result<()> {
             root_ca,
             device_principal,
             generate_bmap,
-        }) => docker::set_ssh_tunnel_certificate(
+        }) => file::set_ssh_tunnel_certificate(
             &image,
             &root_ca,
             &device_principal,
@@ -99,7 +98,7 @@ pub fn run() -> Result<()> {
             iot_hub_device_update_config,
             image,
             generate_bmap,
-        }) => docker::set_iot_hub_device_update_config(
+        }) => file::set_iot_hub_device_update_config(
             &iot_hub_device_update_config,
             &image,
             img_to_bmap_path!(generate_bmap, &image),
@@ -138,7 +137,7 @@ pub fn run() -> Result<()> {
             partition,
             destination,
             generate_bmap,
-        }) => docker::copy_to_image(
+        }) => file::copy_to_image(
             &file,
             &image,
             partition,
@@ -150,7 +149,7 @@ pub fn run() -> Result<()> {
             image,
             partition,
             destination,
-        }) => docker::copy_from_image(file, &image, partition, &destination)?,
+        }) => file::copy_from_image(file, &image, partition, &destination)?,
     }
 
     Ok(())

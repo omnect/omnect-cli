@@ -1,27 +1,14 @@
 use super::cli::Partition;
 use super::validators::identity::{validate_identity, IdentityType};
 use super::validators::ssh::validate_ssh_pub_key;
-use anyhow::{anyhow, Context, Result};
-use bollard::auth::DockerCredentials;
-use bollard::container::{Config, LogOutput, LogsOptions};
-use bollard::image::{CreateImageOptions, ListImagesOptions};
-use bollard::models::HostConfig;
-use bollard::Docker;
-use futures_executor::block_on;
-use futures_util::TryStreamExt;
-use log::{debug, error, info, warn};
+use anyhow::{Context, Result};
+use log::warn;
 use path_absolutize::Absolutize;
-use std::collections::HashMap;
-use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Error, ErrorKind};
 use std::path::{Path, PathBuf};
-use tempfile::NamedTempFile;
 use uuid::Uuid;
-
-const DOCKER_IMAGE_NAME: &str = "omnect-cli-backend";
-const DOCKER_IMAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[macro_export]
 macro_rules! img_to_bmap_path {
@@ -43,229 +30,6 @@ macro_rules! img_to_bmap_path {
             res_image_path
         })
     }};
-}
-
-lazy_static! {
-    // read at compile time
-    static ref DEFAULT_DOCKER_REG_NAME: &'static str = {
-        if let Some(def_reg_name) = option_env!("OMNECT_CLI_DOCKER_REG_NAME") {
-            def_reg_name
-        }
-        else {
-            "omnectweucopsacr.azurecr.io"
-        }
-    };
-    // read at run time
-    static ref DOCKER_REG_NAME: String = {
-        if let Some(reg_name) = env::var_os("OMNECT_CLI_DOCKER_REG_NAME") {
-            reg_name.into_string().unwrap()
-        }
-        else {
-            (*DEFAULT_DOCKER_REG_NAME).to_string()
-        }
-    };
-    static ref DOCKER_IMAGE_ID: String = format!("{}/{}:{}", *DOCKER_REG_NAME, DOCKER_IMAGE_NAME, DOCKER_IMAGE_VERSION);
-}
-
-fn get_docker_cred() -> Result<DockerCredentials> {
-    let mut path = PathBuf::new();
-    path.push(dirs::home_dir().unwrap());
-    path.push(".docker/config.json");
-
-    let file = File::open(&path).context("get_docker_cred: open docker/config.json")?;
-    let reader = BufReader::new(file);
-    let json: serde_json::Value =
-        serde_json::from_reader(reader).context("get_docker_cred: read docker/config.json")?;
-    let reg_name = DOCKER_REG_NAME.as_str();
-    let identitytoken = json["auths"][reg_name]["identitytoken"]
-        .to_string()
-        .replace('\"', "");
-
-    if "null" != identitytoken {
-        return Ok(DockerCredentials {
-            identitytoken: Some(identitytoken),
-            ..Default::default()
-        });
-    }
-
-    let auth = json["auths"][reg_name]["auth"]
-        .to_string()
-        .replace('\"', "");
-
-    if "null" != auth {
-        let byte_auth = base64::decode_config(auth, base64::STANDARD)
-            .context("get_docker_cred: decode auth")?;
-        let v: Vec<&str> = std::str::from_utf8(&byte_auth)
-            .context("get_docker_cred: split auth")?
-            .split(':')
-            .collect();
-
-        return Ok(DockerCredentials {
-            username: Some(v[0].to_string()),
-            password: Some(v[1].to_string()),
-            ..Default::default()
-        });
-    }
-
-    Ok(DockerCredentials {
-        ..Default::default()
-    })
-}
-
-#[tokio::main]
-async fn docker_exec(mut binds: Option<Vec<std::string::String>>, cmd: Vec<&str>) -> Result<()> {
-    block_on(async move {
-        let docker = Docker::connect_with_local_defaults()
-            .context("docker_exec: connect to local docker")?;
-        let mut filters = HashMap::new();
-        let img_id = DOCKER_IMAGE_ID.as_str();
-
-        anyhow::ensure!(!cmd.is_empty(), "docker_exec: empty command was passed");
-
-        info!("docker_exec: try running {cmd:?} on image: {img_id}");
-
-        filters.insert("reference", vec![img_id]);
-
-        let image_list = docker.list_images(Some(ListImagesOptions {
-            all: true,
-            filters,
-            ..Default::default()
-        }));
-
-        if image_list.await?.is_empty() {
-            debug!("Image not already present, creating it.");
-            docker
-                .create_image(
-                    Some(CreateImageOptions {
-                        from_image: img_id,
-                        ..Default::default()
-                    }),
-                    None,
-                    Some(get_docker_cred()?),
-                )
-                .try_collect::<Vec<_>>()
-                .await?;
-            debug!("Image created.");
-        }
-
-        let file = NamedTempFile::new()?;
-        let target_error_file_path = format!(
-            "/tmp/{}",
-            file.as_ref().file_name().unwrap().to_str().unwrap()
-        );
-
-        if let Some(mut vec) = binds {
-            vec.push(format!(
-                "{}:{}",
-                file.as_ref().to_str().unwrap(),
-                target_error_file_path
-            ));
-            binds = Some(vec);
-        }
-
-        info!("Using binds: {:?}", binds);
-
-        let host_config = HostConfig {
-            auto_remove: Some(true),
-            binds,
-            ..Default::default()
-        };
-
-        let mut env: Option<Vec<&str>> = None;
-        if cfg!(debug_assertions) {
-            env = Some(vec!["DEBUG=1"]);
-        }
-
-        let container_config = Config {
-            image: Some(img_id),
-            tty: Some(true),
-            host_config: Some(host_config),
-            env,
-            cmd: Some(cmd),
-            attach_stdout: Some(true),
-            attach_stderr: Some(true),
-            entrypoint: Some(vec!["entrypoint.sh", &target_error_file_path]),
-            ..Default::default()
-        };
-
-        // close temp file, but keep the path to it around
-        let path = file.into_temp_path();
-
-        debug!("Creating container instance.");
-        let container = docker
-            .create_container::<&str, &str>(None, container_config)
-            .await?;
-        debug!("Created container instance.");
-
-        // by this block we ensure that docker.remove_container container is called
-        // even if an error occured before
-        let run_container_result = async {
-            debug!("Starting container instance.");
-            docker
-                .start_container::<String>(&container.id, None)
-                .await?;
-            debug!("Started container instance.");
-
-            let logs_options = Some(LogsOptions {
-                follow: true,
-                stdout: true,
-                stderr: true,
-                tail: "all",
-                ..Default::default()
-            });
-
-            let mut stream_error_log: Option<String> = None;
-            let mut stream = docker.logs(&container.id, logs_options);
-
-            while let Some(log) = stream.try_next().await? {
-                let mut line_without_nl = format!("{}", log);
-                if line_without_nl.ends_with('\n') {
-                    line_without_nl.pop();
-                }
-                if line_without_nl.ends_with('\r') {
-                    line_without_nl.pop();
-                }
-                match log {
-                    LogOutput::StdIn { .. } => {
-                        info!("stdin: {}", line_without_nl)
-                    }
-                    LogOutput::StdOut { .. } => {
-                        info!("stdout: {}", line_without_nl)
-                    }
-                    LogOutput::Console { .. } => {
-                        info!("console: {}", line_without_nl)
-                    }
-                    LogOutput::StdErr { .. } => {
-                        error!("stderr: {}", line_without_nl);
-                        // save error string to
-                        stream_error_log = Some(log.to_string());
-                        break;
-                    }
-                }
-            }
-            Ok(stream_error_log)
-        };
-
-        let mut docker_run_result = Ok(());
-
-        match run_container_result.await {
-            // if result has error string convert it to error
-            Ok(Some(msg)) => docker_run_result = Err(anyhow!(msg)),
-            Err(e) => docker_run_result = Err(e),
-            _ => {}
-        };
-
-        let contents = fs::read_to_string(path)?;
-
-        if !contents.is_empty() {
-            docker_run_result = Err(anyhow!(contents))
-        }
-        if let Ok(()) = docker_run_result {
-            debug!("Command ran successfully.");
-        }
-
-        docker_run_result
-    })
 }
 
 pub fn set_iotedge_gateway_config(
@@ -550,16 +314,6 @@ pub fn copy_from_image(
     result
 }
 
-#[tokio::main]
-pub async fn docker_version() -> Result<(), Error> {
-    block_on(async move {
-        let docker = Docker::connect_with_local_defaults().unwrap();
-        let version = docker.version().await.unwrap();
-        info!("docker version: {:#?}", version);
-    });
-    Ok(())
-}
-
 pub fn cmd_exec<F>(files: Vec<&PathBuf>, f: F, bmap_file: Option<PathBuf>) -> Result<()>
 where
     F: Fn(&Vec<String>) -> String,
@@ -607,7 +361,8 @@ where
         cmdline.push(bind_files.last().unwrap().to_string());
     }
 
-    docker_exec(Some(binds), cmdline.iter().map(AsRef::as_ref).collect())
+    //docker_exec(Some(binds), cmdline.iter().map(AsRef::as_ref).collect())
+    Ok(())
 }
 
 fn ensure_filepath(filepath: &PathBuf) -> Result<String, Error> {
