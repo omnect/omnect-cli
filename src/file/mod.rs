@@ -1,6 +1,7 @@
-use super::cli::Partition;
+pub mod functions;
 use super::validators::identity::{validate_identity, IdentityType};
 use super::validators::ssh::validate_ssh_pub_key;
+use crate::file::functions::Partition;
 use anyhow::{Context, Result};
 use log::warn;
 use path_absolutize::Absolutize;
@@ -256,7 +257,7 @@ pub fn copy_to_image(
         image_file,
         true,
         move |image_file: &PathBuf| -> Result<()> {
-            cmd_exec(
+            /*             cmd_exec(
                 vec![file, image_file],
                 |files| -> String {
                     format!(
@@ -265,7 +266,8 @@ pub fn copy_to_image(
                 )
                 },
                 bmap_file,
-            )
+            ) */
+            functions::copy_to_image(file, image_file, partition, destination)
         },
     )
 }
@@ -318,7 +320,7 @@ pub fn cmd_exec<F>(files: Vec<&PathBuf>, f: F, bmap_file: Option<PathBuf>) -> Re
 where
     F: Fn(&Vec<String>) -> String,
 {
-    let mut binds: Vec<String> = vec![];
+    /*     let mut binds: Vec<String> = vec![];
     let mut bind_files: Vec<String> = vec![];
     let tmp_folder = Uuid::new_v4();
 
@@ -361,7 +363,7 @@ where
         cmdline.push(bind_files.last().unwrap().to_string());
     }
 
-    //docker_exec(Some(binds), cmdline.iter().map(AsRef::as_ref).collect())
+    docker_exec(Some(binds), cmdline.iter().map(AsRef::as_ref).collect()) */
     Ok(())
 }
 

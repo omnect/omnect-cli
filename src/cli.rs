@@ -1,4 +1,5 @@
 use clap::Parser;
+use crate::file::functions::Partition;
 
 const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 
@@ -39,14 +40,6 @@ pub enum FileConfig {
         #[arg(short = 'd', long = "destination")]
         destination: std::path::PathBuf,
     },
-}
-
-#[derive(clap::ValueEnum, Debug, Clone)]
-#[allow(non_camel_case_types)]
-pub enum Partition {
-    boot,
-    cert,
-    factory,
 }
 
 #[derive(Parser, Debug)]

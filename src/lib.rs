@@ -3,8 +3,8 @@ extern crate lazy_static;
 
 pub mod auth;
 pub mod cli;
-
 pub mod file;
+
 pub mod ssh;
 mod validators;
 use anyhow::{Context, Result};
