@@ -141,6 +141,12 @@ pub fn image_action(
     recompress: bool,
     action: impl FnOnce(&PathBuf) -> Result<()>,
 ) -> Result<()> {
+    anyhow::ensure!(
+        image_file_name.exists(),
+        "image doesn't exist: {}",
+        image_file_name.to_str().unwrap()
+    );
+
     debug!("Detecting magic for {}", image_file_name.to_string_lossy());
     let detector = Magic::open(Default::default()).context("libmagic open failed")?;
 
@@ -149,7 +155,7 @@ pub fn image_action(
         .context("libmagic load failed")?;
 
     let magic = detector.file(image_file_name)?;
-    
+
     for elem in COMPRESSION_TABLE {
         if magic.contains(elem.marker) {
             info!("Compressed image file found, decompressing...");

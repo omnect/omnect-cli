@@ -1,5 +1,6 @@
-use clap::Parser;
+use crate::file::functions::FileCopyParams;
 use crate::file::functions::Partition;
+use clap::Parser;
 
 const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 
@@ -9,18 +10,12 @@ const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 pub enum FileConfig {
     /// copy file into image
     CopyToImage {
-        /// path to input file
-        #[arg(short = 'f', long = "file")]
-        file: std::path::PathBuf,
-        /// path to wic image file
+        /// multiple [in-file-path,out-partition:out-file-path]: input file, partition and output file
+        #[clap(short = 'f', long = "files", value_parser = clap::value_parser!(FileCopyParams), required(true))]
+        file_copy_params: Vec<FileCopyParams>,
+        /// path to wic image file (*.wic, *.wic.xz)
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
-        /// destination partition
-        #[arg(short = 'p', long = "partition", value_enum)]
-        partition: Partition,
-        /// destination path
-        #[arg(short = 'd', long = "destination")]
-        destination: std::string::String,
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
@@ -30,7 +25,7 @@ pub enum FileConfig {
         /// path to file in wic image partition
         #[arg(short = 'f', long = "file")]
         file: std::string::String,
-        /// path to wic image file
+        /// path to wic image file (*.wic, *.wic.xz)
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// source partition
@@ -51,7 +46,7 @@ pub enum IdentityConfig {
         /// path to config.toml file
         #[arg(short = 'c', long = "config")]
         config: std::path::PathBuf,
-        /// path to wic image file
+        /// path to wic image file (*.wic, *.wic.xz)
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// optional: path to payload file
@@ -66,7 +61,7 @@ pub enum IdentityConfig {
         /// path to config.toml file
         #[arg(short = 'c', long = "config")]
         config: std::path::PathBuf,
-        /// path to wic image file
+        /// path to wic image file (*.wic, *.wic.xz)
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// path to root ca certificate file
@@ -87,7 +82,7 @@ pub enum IdentityConfig {
         /// path to config.toml file
         #[arg(short = 'c', long = "config")]
         config: std::path::PathBuf,
-        /// path to wic image file
+        /// path to wic image file (*.wic, *.wic.xz)
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// path to root ca certificate file
@@ -105,7 +100,7 @@ pub enum IdentityConfig {
         /// path to intermediate key pem file
         #[arg(short = 'k', long = "intermediate-key")]
         intermediate_key: std::path::PathBuf,
-        /// path to wic image file
+        /// path to wic image file (*.wic, *.wic.xz)
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// device id
@@ -120,7 +115,7 @@ pub enum IdentityConfig {
     },
     /// set ssh tunnel certificate
     SetSshTunnelCertificate {
-        /// path to wic image file
+        /// path to wic image file (*.wic, *.wic.xz)
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// path to public key of the ssh root ca
@@ -144,7 +139,7 @@ pub enum IotHubDeviceUpdateConfig {
         /// path to ADU config file
         #[arg(short = 'c', long = "config")]
         iot_hub_device_update_config: std::path::PathBuf,
-        /// path to wic image file
+        /// path to wic image file (*.wic, *.wic.xz)
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// optional: generate bmap file
@@ -176,7 +171,11 @@ pub struct SshConfig {
     #[arg(short = 'c', long = "config-path")]
     pub config_path: Option<std::path::PathBuf>,
     /// address of the backend API
-    #[arg(short = 'b', long = "backend", default_value = "https://cp.omnect.conplement.cloud")]
+    #[arg(
+        short = 'b',
+        long = "backend",
+        default_value = "https://cp.omnect.conplement.cloud"
+    )]
     pub backend: String,
     /// name of the device for which the ssh tunnel should be created.
     pub device: String,

@@ -1,13 +1,11 @@
 pub mod functions;
 use super::validators::identity::{validate_identity, IdentityType};
 use super::validators::ssh::validate_ssh_pub_key;
-use crate::file::functions::Partition;
+use crate::file::functions::{FileCopyParams, Partition};
 use anyhow::{Context, Result};
 use log::warn;
-use path_absolutize::Absolutize;
 use std::fs;
 use std::fs::File;
-use std::io::{BufReader, Error, ErrorKind};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
@@ -142,7 +140,7 @@ pub fn set_identity_config(
                     vec![&payload, image_file],
                     |files| -> String {
                         format!(
-                            "copy_file_to_image.sh, -i, {0}, -o, /etc/omnect/dsp-payload.json, -p, factory, -w {1}",
+                            "copy_file_to_image.sh, -i, {0}, -o, /etc/omnect/dps-payload.json, -p, factory, -w {1}",
                             files[0], files[1]
                         )
                     },
@@ -228,46 +226,37 @@ pub fn set_device_cert(
 }
 
 pub fn set_iot_hub_device_update_config(
-    config_file: &PathBuf,
+    in_file: &PathBuf,
     image_file: &PathBuf,
     bmap_file: Option<PathBuf>,
 ) -> Result<()> {
-    let file =
-        File::open(config_file).context("set_iot_hub_device_update_config: open config_file")?;
-    serde_json::from_reader::<_, serde_json::Value>(BufReader::new(file))
-        .context("set_iot_hub_device_update_config: read config_file")?;
+    /*     let file =
+            File::open(in_file).context("set_iot_hub_device_update_config: open config_file")?;
+        serde_json::from_reader::<_, serde_json::Value>(BufReader::new(file))
+            .context("set_iot_hub_device_update_config: read config_file")?;
+    */
 
     copy_to_image(
-        config_file,
+        &vec![FileCopyParams::new(
+            in_file.clone(),
+            Partition::factory,
+            PathBuf::from("/etc/adu/du-config.json"),
+        )],
         image_file,
-        Partition::factory,
-        "/etc/adu/du-config.json".to_string(),
         bmap_file,
     )
 }
 
 pub fn copy_to_image(
-    file: &PathBuf,
+    file_copy_params: &Vec<FileCopyParams>,
     image_file: &PathBuf,
-    partition: Partition,
-    destination: String,
-    bmap_file: Option<PathBuf>,
+    _bmap_file: Option<PathBuf>,
 ) -> Result<()> {
     super::validators::image::image_action(
         image_file,
         true,
         move |image_file: &PathBuf| -> Result<()> {
-            /*             cmd_exec(
-                vec![file, image_file],
-                |files| -> String {
-                    format!(
-                    "copy_file_to_image.sh, -i, {0}, -o, {destination}, -p, {partition:?}, -w {1}",
-                    files[0], files[1],
-                )
-                },
-                bmap_file,
-            ) */
-            functions::copy_to_image(file, image_file, partition, destination)
+            functions::copy_to_image(file_copy_params, image_file)
         },
     )
 }
@@ -316,7 +305,7 @@ pub fn copy_from_image(
     result
 }
 
-pub fn cmd_exec<F>(files: Vec<&PathBuf>, f: F, bmap_file: Option<PathBuf>) -> Result<()>
+pub fn cmd_exec<F>(_files: Vec<&PathBuf>, _f: F, _bmap_file: Option<PathBuf>) -> Result<()>
 where
     F: Fn(&Vec<String>) -> String,
 {
@@ -367,7 +356,7 @@ where
     Ok(())
 }
 
-fn ensure_filepath(filepath: &PathBuf) -> Result<String, Error> {
+/* fn ensure_filepath(filepath: &PathBuf) -> Result<String, Error> {
     error_on_file_not_exists(filepath)?;
 
     Ok(Path::new(filepath)
@@ -391,4 +380,4 @@ fn error_on_file_not_exists(file: &PathBuf) -> Result<(), Error> {
         })?;
 
     Ok(())
-}
+} */

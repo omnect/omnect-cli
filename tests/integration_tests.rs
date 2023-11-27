@@ -61,7 +61,7 @@ fn check_set_identity_config_est_template() {
 fn check_set_identity_config_payload_template() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
-    let config_file_path = tr.to_pathbuf("conf/config.toml.est.dsp-payload.template");
+    let config_file_path = tr.to_pathbuf("conf/config.toml.est.dps-payload.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let payload_path = tr.to_pathbuf("testfiles/dps-payload.json");
 

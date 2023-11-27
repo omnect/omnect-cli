@@ -132,16 +132,12 @@ pub fn run() -> Result<()> {
             create_ssh_tunnel(&device, &username, dir, priv_key_path, config_path, backend)?;
         }
         Command::File(CopyToImage {
-            file,
+            file_copy_params,
             image,
-            partition,
-            destination,
             generate_bmap,
         }) => file::copy_to_image(
-            &file,
+            &file_copy_params,
             &image,
-            partition,
-            destination,
             img_to_bmap_path!(generate_bmap, &image),
         )?,
         Command::File(CopyFromImage {

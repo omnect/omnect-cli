@@ -1,10 +1,11 @@
 use anyhow::{Context, Result};
 use log::debug;
 use std::collections::HashMap;
-use std::fmt::format;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::str::FromStr;
+use stdext::function_name;
 use uuid::Uuid;
 
 #[derive(clap::ValueEnum, Debug, Clone, Eq, Hash, PartialEq)]
@@ -16,194 +17,322 @@ pub enum Partition {
     factory,
 }
 
-pub fn copy_to_image(
-    file: &PathBuf,
-    image_file: &PathBuf,
+impl FromStr for Partition {
+    type Err = anyhow::Error;
+
+    fn from_str(input: &str) -> Result<Partition, Self::Err> {
+        match input {
+            "boot" => Ok(Partition::boot),
+            "rootA" => Ok(Partition::rootA),
+            "cert" => Ok(Partition::cert),
+            "factory" => Ok(Partition::factory),
+            _ => anyhow::bail!("unknown partition: use either boot, rootA, cert or factory"),
+        }
+    }
+}
+#[derive(Clone, Debug)]
+pub struct FileCopyParams {
+    in_file: std::path::PathBuf,
     partition: Partition,
-    destination: String,
-) -> Result<()> {
-    let partition_map = get_partition_type(image_file)?;
-
-    let uuid = Uuid::new_v4();
-    let tmp_dir = PathBuf::from(format!("/tmp/{uuid}"));
-    fs::create_dir_all(&tmp_dir).context("copy_to_image: create {tmp_dir}")?;
-
-    read_in_partition(image_file, tmp_dir, partition_map[&partition])?;
-    Ok(())
-    /*
-     get_partition_type
-    read_in_partition
-
-    # copy file
-    if [ "${p}" != "boot" ]; then
-        d_echo "e2cp ${i} /tmp/${uuid}/${p}.img:${o}"
-        e2mkdir /tmp/${uuid}/${p}.img:$(dirname ${o})
-        e2cp ${i} /tmp/${uuid}/${p}.img:${o}
-    else
-        lastdir=""
-        IFS='/' read -ra path <<< $(dirname ${o})
-        for dir in "${path[@]}"; do
-            if [ ! -z "$dir" ]; then
-                dir="${lastdir}"/"${dir}"
-                # we ignore errors in order to ignore potential name clashes here
-                # in case mmd fails mcopy will fail respectivly with a reasonable error putput
-                d_echo "mmd -D sS -i /tmp/""${uuid}""/""${p}"".img ::""${dir}"""
-                mmd -D sS -i /tmp/"${uuid}"/"${p}".img ::"${dir}" || true
-                lastdir="$dir"
-            fi
-        done
-
-        d_echo "mcopy -o -i /tmp/${uuid}/${p}.img ${i} ::${o}"
-        mcopy -o -i /tmp/"${uuid}"/"${p}".img "${i}" ::"${o}"
-    fi
-
-    write_back_partition */
+    out_file: std::path::PathBuf,
 }
 
-fn get_partition_type(image_file: &PathBuf) -> Result<HashMap<Partition, u8>> {
-    let fdisk = Command::new("fdisk")
-        .arg("-l")
-        .arg(image_file)
-        .stdout(Stdio::piped())
-        .spawn()
-        .context("get_partition_type: spawn fdisk")?;
+impl FileCopyParams {
+    pub fn new(
+        in_file: std::path::PathBuf,
+        partition: Partition,
+        out_file: std::path::PathBuf,
+    ) -> Self {
+        FileCopyParams {
+            in_file,
+            partition,
+            out_file,
+        }
+    }
+}
 
-    let fdisk_out = fdisk
-        .stdout
-        .context("get_partition_type: spawn fdisk output")?;
+impl FromStr for FileCopyParams {
+    type Err = anyhow::Error;
 
-    let grep = Command::new("grep")
-        .arg("^Disklabel type:")
-        .stdin(Stdio::from(fdisk_out))
-        .stdout(Stdio::piped())
-        .spawn()
-        .context("get_partition_type: spawn grep")?;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let err_msg = "format not matched: in-file-path,out-partition:out-file-path";
 
-    let grep_out = grep
-        .stdout
-        .context("get_partition_type: spawn grep output")?;
+        anyhow::ensure!(
+            s.matches(',').count() == 1 && s.matches(':').count() == 1,
+            err_msg
+        );
 
-    let awk = Command::new("awk")
-        .arg("{print $NF}")
-        .stdin(Stdio::from(grep_out))
-        .stdout(Stdio::piped())
-        .spawn()
-        .context("get_partition_type: spawn awk")?;
+        let v: Vec<&str> = s.split(&[',', ':']).collect();
 
-    let output = awk
-        .wait_with_output()
-        .context("get_partition_type: spawn awk output")?;
+        anyhow::ensure!(v.len() == 3, err_msg);
 
-    let partition_type =
-        String::from_utf8(output.stdout).context("get_partition_type: get output")?;
+        let in_file = std::path::PathBuf::from(v[0]);
+        let partition = Partition::from_str(v[1])?;
+        let out_file = std::path::PathBuf::from(v[2]);
 
-    let partition_type = partition_type.trim();
+        anyhow::ensure!(in_file.exists(), "in-file-path doesn't exist");
+        anyhow::ensure!(
+            out_file.is_absolute(),
+            "out-file-path isn't an absolute path"
+        );
 
-    debug!("partition type: {partition_type}");
+        Ok(Self {
+            in_file,
+            partition,
+            out_file,
+        })
+    }
+}
 
-    let (factory, cert) = match partition_type {
-        "gpt" => (4u8, 5u8),
-        "dos" => (5u8, 6u8),
-        _ => anyhow::bail!("get_partition_type: unhandled partition type"),
+macro_rules! exec_cmd {
+    ($cmd:ident) => {
+        anyhow::ensure!(
+            $cmd.status()
+                .context(format!("{}: status failed: {:?}", function_name!(), $cmd))?
+                .success(),
+            format!("{}: cmd failed: {:?}", function_name!(), $cmd)
+        );
+        debug!("{}: {:?}", function_name!(), $cmd);
     };
-
-    Ok(HashMap::from([
-        (Partition::boot, 1),
-        (Partition::rootA, 2),
-        (Partition::factory, factory),
-        (Partition::cert, cert),
-    ]))
 }
 
-fn read_in_partition(image_file: &PathBuf, mut tmp_dir: PathBuf, partition: u8) -> Result<()> {
-    let fdisk = Command::new("fdisk")
+macro_rules! exec_pipe_cmd {
+    ($cmd:expr) => {{
+        let res = $cmd.stdout(Stdio::piped()).spawn().context(format!(
+            "{}: spawn {:?}",
+            function_name!(),
+            $cmd
+        ))?;
+
+        let cmd_out = res
+            .stdout
+            .context(format!("{}: output {:?}", function_name!(), $cmd))?;
+
+        debug!("{}: {:?}", function_name!(), $cmd);
+
+        cmd_out
+    }};
+
+    ($cmd:expr, $stdin:expr) => {{
+        let res = $cmd
+            .stdin(Stdio::from($stdin))
+            .stdout(Stdio::piped())
+            .spawn()
+            .context(format!("{}: spawn {:?}", function_name!(), $cmd))?;
+
+        let cmd_out = res
+            .stdout
+            .context(format!("{}: output {:?}", function_name!(), $cmd))?;
+
+        debug!("{}: {:?}", function_name!(), $cmd);
+
+        cmd_out
+    }};
+}
+
+macro_rules! exec_pipe_cmd_finnish {
+    ($cmd:expr, $stdin:expr) => {{
+        let res = $cmd
+            .stdin(Stdio::from($stdin))
+            .stdout(Stdio::piped())
+            .spawn()
+            .context(format!("{}: spawn {:?}", function_name!(), $cmd))?;
+
+        let output = res.wait_with_output().context("{}: spawn awk output")?;
+
+        let output = String::from_utf8(output.stdout)
+            .context(format!("{}: get output", function_name!()))?;
+
+        let output = output.trim();
+
+        debug!("{}: {:?}", function_name!(), $cmd);
+
+        output.to_string()
+    }};
+}
+
+pub fn copy_to_image(file_copy_params: &Vec<FileCopyParams>, image_file: &PathBuf) -> Result<()> {
+    let mut partition_map: HashMap<&Partition, Vec<(&PathBuf, &PathBuf)>> = HashMap::new();
+    let image_file = image_file.to_str().unwrap();
+
+    for params in file_copy_params.iter() {
+        let e = (&params.in_file, &params.out_file);
+        partition_map
+            .entry(&params.partition)
+            .and_modify(|v| v.push(e))
+            .or_insert(vec![e]);
+    }
+
+    // 1. for each involved partition
+    for partition in partition_map.keys().into_iter() {
+        let uuid = Uuid::new_v4();
+        let tmp_dir = PathBuf::from(format!("/tmp/{uuid}"));
+        let mut tmp_file = tmp_dir.clone();
+        let partition_num = get_partition_num(image_file, partition)?.to_string();
+        let partition_num = partition_num.as_str();
+
+        tmp_file.push(Path::new(&format!("{partition_num}.img")));
+        let tmp_file = tmp_file.to_str().unwrap();
+
+        // 2. read partition
+        fs::create_dir_all(&tmp_dir).context("copy_to_image: create {tmp_dir}")?;
+        read_partition(image_file, tmp_file, partition_num)?;
+
+        // 3. copy files
+        for (in_file, out_file) in partition_map.get(partition).unwrap().iter() {
+            let dir_path = out_file.parent().context(format!(
+                "copy_to_image: invalid destination path {}",
+                out_file.to_str().unwrap()
+            ))?;
+
+            let out_file = out_file.to_str().unwrap();
+
+            if **partition == Partition::boot {
+                let mut p = PathBuf::from("/");
+
+                for dir in dir_path.iter().skip(1).map(|d| d.to_str().unwrap()) {
+                    p.push(&dir);
+                    // we ignore errors in order to ignore potential name clashes here
+                    // in case mmd fails mcopy will fail respectivly with a reasonable error output
+                    let mut mmd = Command::new("mmd");
+                    mmd.arg("-D")
+                        .arg("sS")
+                        .arg("-i")
+                        .arg(format!("{tmp_file}"))
+                        .arg(format!("{}", p.to_str().unwrap()));
+                    exec_cmd!(mmd);
+                }
+
+                let mut mcopy = Command::new("mcopy");
+                mcopy
+                    .arg("-o")
+                    .arg("-i")
+                    .arg(format!("{tmp_file}"))
+                    .arg(in_file)
+                    .arg(format!("::{out_file}"));
+                exec_cmd!(mcopy);
+            } else {
+                let mut e2mkdir = Command::new("e2mkdir");
+                e2mkdir.arg(format!("{tmp_file}:{}", dir_path.to_str().unwrap()));
+                exec_cmd!(e2mkdir);
+
+                let mut e2cp = Command::new("e2cp");
+                e2cp.arg(format!("{tmp_file}:{out_file}"));
+                exec_cmd!(e2cp);
+            }
+        }
+
+        // 4. write back partition
+        write_partition(image_file, tmp_file, partition_num)?;
+    }
+    Ok(())
+}
+
+fn get_partition_num(image_file: &str, partition: &Partition) -> Result<u8> {
+    match partition {
+        Partition::boot => Ok(1),
+        Partition::rootA => Ok(2),
+        p @ (Partition::factory | Partition::cert) => {
+            let mut fdisk = Command::new("fdisk");
+            fdisk.arg("-l").arg(image_file);
+            let fdisk_out = exec_pipe_cmd!(fdisk);
+
+            let mut grep = Command::new("grep");
+            grep.arg("^Disklabel type:");
+            let grep_out = exec_pipe_cmd!(grep, fdisk_out);
+
+            let mut awk = Command::new("awk");
+            awk.arg("{print $NF}");
+            let partition_type = exec_pipe_cmd_finnish!(awk, grep_out);
+
+            debug!("partition type: {partition_type}");
+
+            match (p, partition_type.as_str()) {
+                (Partition::factory, "gpt") => Ok(4),
+                (Partition::factory, "dos") => Ok(5),
+                (Partition::cert, "gpt") => Ok(5),
+                (Partition::cert, "dos") => Ok(6),
+                _ => anyhow::bail!("get_partition_num: unhandled partition type"),
+            }
+        }
+    }
+}
+
+fn get_partition_offset(image_file: &str, partition: &str) -> Result<(String, String)> {
+    let mut fdisk = Command::new("fdisk");
+    fdisk
         .arg("-l")
         .arg("-o")
         .arg("Device,Start,End")
-        .arg(image_file)
-        .stdout(Stdio::piped())
-        .spawn()
-        .context("read_in_partition: spawn fdisk")?;
+        .arg(image_file);
+    let fdisk_out = exec_pipe_cmd!(fdisk);
 
-    let fdisk_out = fdisk
-        .stdout
-        .context("read_in_partition: spawn fdisk output")?;
+    let mut grep = Command::new("grep");
+    grep.arg(format!("{image_file}{partition}"));
+    let grep_out = exec_pipe_cmd!(grep, fdisk_out);
 
-    let grep = Command::new("grep")
-        .arg(format!("{}{partition}", image_file.to_str().unwrap()))
-        .stdin(Stdio::from(fdisk_out))
-        .stdout(Stdio::piped())
-        .spawn()
-        .context("read_in_partition: spawn grep")?;
+    let mut awk = Command::new("awk");
+    awk.arg("{print $2 \" \" $3}");
 
-    let grep_out = grep
-        .stdout
-        .context("read_in_partition: spawn grep output")?;
-
-    let awk = Command::new("awk")
-        .arg("{print $2 \" \" $3}")
-        .stdin(Stdio::from(grep_out))
-        .stdout(Stdio::piped())
-        .spawn()
-        .context("read_in_partition: spawn awk")?;
-
-    let output = awk
-        .wait_with_output()
-        .context("read_in_partition: spawn awk output")?;
-
-    let partition_offset =
-        String::from_utf8(output.stdout).context("read_in_partition: get output")?;
-
-    let partition_offset = partition_offset.trim();
+    let partition_offset = exec_pipe_cmd_finnish!(awk, grep_out);
 
     let partition_offset = partition_offset
         .split_once(" ")
-        .context("read_in_partition: split offset")?;
+        .context("read_partition: split offset")?;
 
-    debug!("start: {} end: {}", partition_offset.0, partition_offset.1);
+    debug!(
+        "get_partition_offset: start: {} end: {}",
+        partition_offset.0, partition_offset.1
+    );
 
-    tmp_dir.push(Path::new(&partition.to_string()));
+    Ok((
+        partition_offset.0.to_string(),
+        partition_offset.1.to_string(),
+    ))
+}
 
-    let status = Command::new("dd")
-        .arg(format!("if={}", image_file.to_str().unwrap()))
-        .arg(format!("of={}.img", tmp_dir.to_str().unwrap()))
+fn read_partition(image_file: &str, tmp_file: &str, partition: &str) -> Result<()> {
+    let partition_offset = get_partition_offset(&image_file, partition)?;
+
+    let mut dd = Command::new("dd");
+    dd.arg(format!("if={image_file}"))
+        .arg(format!("of={tmp_file}"))
         .arg("bs=512")
         .arg(format!("skip={}", partition_offset.0))
         .arg(format!("count={}", partition_offset.1))
         .arg("conv=sparse")
-        .arg("status=none")
-        .status()
-        .context("read_in_partition: dd status failed")?;
+        .arg("status=none");
+    exec_cmd!(dd);
 
-    anyhow::ensure!(status.success(), "read_in_partition: dd failed");
+    let mut sync = Command::new("sync");
+    exec_cmd!(sync);
 
     Ok(())
-
-    /*     d_echo read_in_partition ${p}
-    part_offset=($(fdisk -l -o Device,Start,End ${w} | grep ${w}${!p} | awk '{print $2 " " $3}'))
-    dd if=${w} of=/tmp/${uuid}/${p}.img bs=512 skip=${part_offset[0]} count=${part_offset[1]} conv=sparse status=none
-    sync */
 }
 
+pub fn write_partition(image_file: &str, tmp_file: &str, partition: &str) -> Result<()> {
+    let partition_offset = get_partition_offset(&image_file, partition)?;
+
+    let mut dd = Command::new("dd");
+    dd.arg(format!("if={image_file}"))
+        .arg(format!("of={tmp_file}"))
+        .arg("bs=512")
+        .arg(format!("seek={}", partition_offset.0))
+        .arg(format!("count={}", partition_offset.1))
+        .arg("conv=notrunc,sparse")
+        .arg("status=none");
+    exec_cmd!(dd);
+
+    let mut sync = Command::new("sync");
+    exec_cmd!(sync);
+
+    let mut fallocate = Command::new("fallocate");
+    fallocate.arg("-d").arg(image_file);
+    exec_cmd!(fallocate);
+
+    Ok(())
+}
 /*
-function write_back_partition() {
-    d_echo write_back_partition ${p}
-    d_echo "dd if=/tmp/${uuid}/${p}.img of=${w} bs=512 seek=${part_offset[0]} count=${part_offset[1]} conv=notrunc,sparse status=none"
-    dd if=/tmp/${uuid}/${p}.img of=${w} bs=512 seek=${part_offset[0]} count=${part_offset[1]} conv=notrunc,sparse status=none
-    # there are cases where dd with conv=notrunc,sparse is not sufficient:
-    # e.g. the original file lies in a ramdisk
-    fallocate -d ${w}
-    sync
-}
-
-function read_in_rootA() {
-    d_echo read_in_rootA
-    local _part_offset=($(fdisk -l ${w} | grep ${w}${rootA} | awk '{print $2 " " $4}'))
-    d_echo "dd if=${w} of=/tmp/${uuid}/rootA.img bs=512 skip=${_part_offset[0]} count=${_part_offset[1]} conv=sparse status=none"
-    dd if=${w} of=/tmp/${uuid}/rootA.img bs=512 skip=${_part_offset[0]} count=${_part_offset[1]} conv=sparse status=none
-    sync
-}
-
 function config_hostname () {
     d_echo config_hostname
     hostname=$(grep "^hostname" ${1})
