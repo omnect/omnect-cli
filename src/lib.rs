@@ -4,7 +4,6 @@ extern crate lazy_static;
 pub mod auth;
 pub mod cli;
 pub mod file;
-
 pub mod ssh;
 mod validators;
 use anyhow::{Context, Result};
@@ -18,6 +17,38 @@ use cli::IdentityConfig::SetSshTunnelCertificate;
 use cli::IotHubDeviceUpdateConfig::Set as IotHubDeviceUpdateSet;
 use cli::SshConfig;
 use std::path::PathBuf;
+use uuid::Uuid;
+
+fn run_image_command<F>(image_file: PathBuf, generate_bmap: bool, f: F) -> Result<()>
+where
+    F: FnOnce(&PathBuf) -> Result<()>,
+{
+    anyhow::ensure!(
+        image_file.exists(),
+        "image doesn't exist: {}",
+        image_file.to_str().unwrap()
+    );
+
+    // copy image to /tmp/{uuid}
+    let mut tmp_image_file = PathBuf::from(format!("/tmp/{}", Uuid::new_v4()));
+    tmp_image_file.push(image_file.file_name().unwrap());
+    std::fs::copy(&image_file, &tmp_image_file)?;
+
+    // run command
+    f(&tmp_image_file)?;
+
+    // copy back bmap file if one was created
+    if generate_bmap {
+        std::fs::copy(
+            &format!("{}.bmap", tmp_image_file.to_str().unwrap()),
+            format!("{}.bmap", image_file.to_str().unwrap()),
+        )?;
+    }
+
+    // copy back image file
+    std::fs::copy(&tmp_image_file, &image_file)?;
+    Ok(())
+}
 
 pub fn run() -> Result<()> {
     match cli::from_args() {
@@ -26,12 +57,9 @@ pub fn run() -> Result<()> {
             image,
             payload,
             generate_bmap,
-        }) => file::set_identity_config(
-            &config,
-            &image,
-            img_to_bmap_path!(generate_bmap, &image),
-            payload,
-        )?,
+        }) => run_image_command(image, generate_bmap, |img| {
+            file::set_identity_config(&config, &img, generate_bmap, payload)
+        })?,
         Command::Identity(SetDeviceCertificate {
             intermediate_full_chain_cert,
             intermediate_key,
@@ -40,6 +68,7 @@ pub fn run() -> Result<()> {
             days,
             generate_bmap,
         }) => {
+            // ToDo move to mod::set_device_cert
             let intermediate_full_chain_cert_str =
                 std::fs::read_to_string(&intermediate_full_chain_cert)?;
             let intermediate_key_str = std::fs::read_to_string(intermediate_key)?;
@@ -49,13 +78,16 @@ pub fn run() -> Result<()> {
             )?;
             let (device_cert_pem, device_key_pem) =
                 crypto.create_cert_and_key(&device_id, &None, days)?;
+
+            run_image_command(image, generate_bmap, |img| {
                 file::set_device_cert(
-                &intermediate_full_chain_cert,
-                &device_cert_pem,
-                &device_key_pem,
-                &image,
-                img_to_bmap_path!(generate_bmap, &image),
-            )?
+                    &intermediate_full_chain_cert,
+                    &device_cert_pem,
+                    &device_key_pem,
+                    &img,
+                    generate_bmap,
+                )
+            })?
         }
         Command::Identity(SetIotedgeGatewayConfig {
             config,
@@ -64,45 +96,43 @@ pub fn run() -> Result<()> {
             device_identity,
             device_identity_key,
             generate_bmap,
-        }) => file::set_iotedge_gateway_config(
-            &config,
-            &image,
-            &root_ca,
-            &device_identity,
-            &device_identity_key,
-            img_to_bmap_path!(generate_bmap, &image),
-        )?,
+        }) => run_image_command(image, generate_bmap, |img: &PathBuf| {
+            file::set_iotedge_gateway_config(
+                &config,
+                &img,
+                &root_ca,
+                &device_identity,
+                &device_identity_key,
+                generate_bmap,
+            )
+        })?,
         Command::Identity(SetIotLeafSasConfig {
             config,
             image,
             root_ca,
             generate_bmap,
-        }) => file::set_iot_leaf_sas_config(
-            &config,
-            &image,
-            &root_ca,
-            img_to_bmap_path!(generate_bmap, &image),
-        )?,
+        }) => run_image_command(image, generate_bmap, |img: &PathBuf| {
+            file::set_iot_leaf_sas_config(&config, &img, &root_ca, generate_bmap)
+        })?,
         Command::Identity(SetSshTunnelCertificate {
             image,
             root_ca,
             device_principal,
             generate_bmap,
-        }) => file::set_ssh_tunnel_certificate(
-            &image,
-            &root_ca,
-            &device_principal,
-            img_to_bmap_path!(generate_bmap, &image),
-        )?,
+        }) => run_image_command(image, generate_bmap, |img: &PathBuf| {
+            file::set_ssh_tunnel_certificate(&img, &root_ca, &device_principal, generate_bmap)
+        })?,
         Command::IotHubDeviceUpdate(IotHubDeviceUpdateSet {
             iot_hub_device_update_config,
             image,
             generate_bmap,
-        }) => file::set_iot_hub_device_update_config(
-            &iot_hub_device_update_config,
-            &image,
-            img_to_bmap_path!(generate_bmap, &image),
-        )?,
+        }) => run_image_command(image, generate_bmap, |img: &PathBuf| {
+            file::set_iot_hub_device_update_config(
+                &iot_hub_device_update_config,
+                &img,
+                generate_bmap,
+            )
+        })?,
         Command::Ssh(SshConfig {
             device,
             username,
@@ -135,17 +165,14 @@ pub fn run() -> Result<()> {
             file_copy_params,
             image,
             generate_bmap,
-        }) => file::copy_to_image(
-            &file_copy_params,
-            &image,
-            img_to_bmap_path!(generate_bmap, &image),
-        )?,
+        }) => run_image_command(image, generate_bmap, |img: &PathBuf| {
+            file::copy_to_image(&file_copy_params, &img, generate_bmap)
+        })?,
         Command::File(CopyFromImage {
-            file,
+            file_copy_params,
             image,
-            partition,
-            destination,
-        }) => file::copy_from_image(file, &image, partition, &destination)?,
+        }) => run_image_command(image, false, |img: &PathBuf| {
+            file::copy_from_image(&file_copy_params, &img)})?,
     }
 
     Ok(())

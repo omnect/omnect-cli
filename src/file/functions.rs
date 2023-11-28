@@ -30,20 +30,21 @@ impl FromStr for Partition {
         }
     }
 }
+
 #[derive(Clone, Debug)]
-pub struct FileCopyParams {
+pub struct FileCopyToParams {
     in_file: std::path::PathBuf,
     partition: Partition,
     out_file: std::path::PathBuf,
 }
 
-impl FileCopyParams {
+impl FileCopyToParams {
     pub fn new(
         in_file: std::path::PathBuf,
         partition: Partition,
         out_file: std::path::PathBuf,
     ) -> Self {
-        FileCopyParams {
+        FileCopyToParams {
             in_file,
             partition,
             out_file,
@@ -51,7 +52,7 @@ impl FileCopyParams {
     }
 }
 
-impl FromStr for FileCopyParams {
+impl FromStr for FileCopyToParams {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -83,6 +84,63 @@ impl FromStr for FileCopyParams {
         })
     }
 }
+
+//
+
+#[derive(Clone, Debug)]
+pub struct FileCopyFromParams {
+    in_file: std::path::PathBuf,
+    partition: Partition,
+    out_file: std::path::PathBuf,
+}
+
+impl FileCopyFromParams {
+    pub fn new(
+        in_file: std::path::PathBuf,
+        partition: Partition,
+        out_file: std::path::PathBuf,
+    ) -> Self {
+        FileCopyFromParams {
+            in_file,
+            partition,
+            out_file,
+        }
+    }
+}
+
+impl FromStr for FileCopyFromParams {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let err_msg = "format not matched: in-file-path,out-partition:out-file-path";
+
+        anyhow::ensure!(
+            s.matches(',').count() == 1 && s.matches(':').count() == 1,
+            err_msg
+        );
+
+        let v: Vec<&str> = s.split(&[',', ':']).collect();
+
+        anyhow::ensure!(v.len() == 3, err_msg);
+
+        let in_file = std::path::PathBuf::from(v[0]);
+        let partition = Partition::from_str(v[1])?;
+        let out_file = std::path::PathBuf::from(v[2]);
+
+        anyhow::ensure!(in_file.exists(), "in-file-path doesn't exist");
+        anyhow::ensure!(
+            out_file.is_absolute(),
+            "out-file-path isn't an absolute path"
+        );
+
+        Ok(Self {
+            in_file,
+            partition,
+            out_file,
+        })
+    }
+}
+//
 
 macro_rules! exec_cmd {
     ($cmd:ident) => {
@@ -151,9 +209,19 @@ macro_rules! exec_pipe_cmd_finnish {
     }};
 }
 
-pub fn copy_to_image(file_copy_params: &Vec<FileCopyParams>, image_file: &PathBuf) -> Result<()> {
-    let mut partition_map: HashMap<&Partition, Vec<(&PathBuf, &PathBuf)>> = HashMap::new();
+pub fn copy_to_image(
+    file_copy_params: &Vec<FileCopyToParams>,
+    image_file: &PathBuf,
+    generate_bmap: bool,
+) -> Result<()> {
+    // we use the folder the image is located in
+    // the caller is responsible to create a /tmp/ directory if needed
+    let working_dir = image_file
+        .parent()
+        .context("copy_to_image: cannot get directory of image")?
+        .to_path_buf();
     let image_file = image_file.to_str().unwrap();
+    let mut partition_map: HashMap<&Partition, Vec<(&PathBuf, &PathBuf)>> = HashMap::new();
 
     for params in file_copy_params.iter() {
         let e = (&params.in_file, &params.out_file);
@@ -165,18 +233,15 @@ pub fn copy_to_image(file_copy_params: &Vec<FileCopyParams>, image_file: &PathBu
 
     // 1. for each involved partition
     for partition in partition_map.keys().into_iter() {
-        let uuid = Uuid::new_v4();
-        let tmp_dir = PathBuf::from(format!("/tmp/{uuid}"));
-        let mut tmp_file = tmp_dir.clone();
+        let mut partition_file = working_dir.clone();
         let partition_num = get_partition_num(image_file, partition)?.to_string();
         let partition_num = partition_num.as_str();
 
-        tmp_file.push(Path::new(&format!("{partition_num}.img")));
-        let tmp_file = tmp_file.to_str().unwrap();
+        partition_file.push(Path::new(&format!("{partition_num}.img")));
+        let partition_file = partition_file.to_str().unwrap();
 
         // 2. read partition
-        fs::create_dir_all(&tmp_dir).context("copy_to_image: create {tmp_dir}")?;
-        read_partition(image_file, tmp_file, partition_num)?;
+        read_partition(image_file, partition_file, partition_num)?;
 
         // 3. copy files
         for (in_file, out_file) in partition_map.get(partition).unwrap().iter() {
@@ -198,7 +263,7 @@ pub fn copy_to_image(file_copy_params: &Vec<FileCopyParams>, image_file: &PathBu
                     mmd.arg("-D")
                         .arg("sS")
                         .arg("-i")
-                        .arg(format!("{tmp_file}"))
+                        .arg(format!("{partition_file}"))
                         .arg(format!("{}", p.to_str().unwrap()));
                     exec_cmd!(mmd);
                 }
@@ -207,24 +272,89 @@ pub fn copy_to_image(file_copy_params: &Vec<FileCopyParams>, image_file: &PathBu
                 mcopy
                     .arg("-o")
                     .arg("-i")
-                    .arg(format!("{tmp_file}"))
+                    .arg(format!("{partition_file}"))
                     .arg(in_file)
                     .arg(format!("::{out_file}"));
                 exec_cmd!(mcopy);
             } else {
                 let mut e2mkdir = Command::new("e2mkdir");
-                e2mkdir.arg(format!("{tmp_file}:{}", dir_path.to_str().unwrap()));
+                e2mkdir.arg(format!("{partition_file}:{}", dir_path.to_str().unwrap()));
                 exec_cmd!(e2mkdir);
 
                 let mut e2cp = Command::new("e2cp");
-                e2cp.arg(format!("{tmp_file}:{out_file}"));
+                e2cp.arg(in_file)
+                    .arg(format!("{partition_file}:{out_file}"));
                 exec_cmd!(e2cp);
             }
         }
 
         // 4. write back partition
-        write_partition(image_file, tmp_file, partition_num)?;
+        write_partition(image_file, partition_file, partition_num)?;
     }
+
+    if generate_bmap {
+        generate_bmap_file(image_file)?;
+    }
+    Ok(())
+}
+
+pub fn copy_from_image(
+    file_copy_params: &Vec<FileCopyFromParams>,
+    image_file: &PathBuf,
+) -> Result<()> {
+    // we use the folder the image is located in
+    // the caller is responsible to create a /tmp/ directory if needed
+    let working_dir = image_file
+        .parent()
+        .context("copy_to_image: cannot get directory of image")?
+        .to_path_buf();
+    let image_file = image_file.to_str().unwrap();
+
+    for param in file_copy_params.iter() {
+        let mut partition_file = working_dir.clone();
+        let mut tmp_out_file = working_dir.clone();
+        let working_dir = working_dir.to_str().unwrap();
+        let partition_num = get_partition_num(image_file, &param.partition)?.to_string();
+        let partition_num = partition_num.as_str();
+        let in_file = param.in_file.to_str().unwrap();
+
+        tmp_out_file.push(param.out_file.file_name().unwrap());
+        partition_file.push(Path::new(&format!("{partition_num}.img")));
+        let partition_file = partition_file.to_str().unwrap();
+
+        read_partition(image_file, partition_file, partition_num)?;
+
+        // 1. copy to working_dir
+        if param.partition == Partition::boot {
+            let mut mcopy = Command::new("mcopy");
+            mcopy
+                .arg("-o")
+                .arg("-i")
+                .arg(format!("{partition_file}"))
+                .arg(format!("::{in_file}"))
+                .arg(working_dir);
+            exec_cmd!(mcopy);
+        } else {
+            let mut e2cp = Command::new("e2cp");
+            e2cp.arg(format!("{partition_file}:{in_file}"))
+                .arg(tmp_out_file.to_str().unwrap());
+            exec_cmd!(e2cp);
+        }
+
+        // 2. move to final dir
+        if let Some(parent) = param.out_file.parent() {
+            fs::create_dir_all(parent).context(format!(
+                "copy_from_image: couldn't create destination path {}",
+                parent.to_str().unwrap()
+            ))?;
+        }
+        fs::rename(&tmp_out_file, &param.out_file).context(format!(
+            "copy_from_image: couldn't move temp file {} to destination {}",
+            tmp_out_file.to_str().unwrap(),
+            param.out_file.to_str().unwrap()
+        ))?;
+    }
+
     Ok(())
 }
 
@@ -291,12 +421,16 @@ fn get_partition_offset(image_file: &str, partition: &str) -> Result<(String, St
     ))
 }
 
-fn read_partition(image_file: &str, tmp_file: &str, partition: &str) -> Result<()> {
+fn read_partition(image_file: &str, partition_file: &str, partition: &str) -> Result<()> {
+    if PathBuf::from(partition_file).exists() {
+        return Ok(());
+    }
+
     let partition_offset = get_partition_offset(&image_file, partition)?;
 
     let mut dd = Command::new("dd");
     dd.arg(format!("if={image_file}"))
-        .arg(format!("of={tmp_file}"))
+        .arg(format!("of={partition_file}"))
         .arg("bs=512")
         .arg(format!("skip={}", partition_offset.0))
         .arg(format!("count={}", partition_offset.1))
@@ -310,12 +444,12 @@ fn read_partition(image_file: &str, tmp_file: &str, partition: &str) -> Result<(
     Ok(())
 }
 
-pub fn write_partition(image_file: &str, tmp_file: &str, partition: &str) -> Result<()> {
+pub fn write_partition(image_file: &str, partition_file: &str, partition: &str) -> Result<()> {
     let partition_offset = get_partition_offset(&image_file, partition)?;
 
     let mut dd = Command::new("dd");
     dd.arg(format!("if={image_file}"))
-        .arg(format!("of={tmp_file}"))
+        .arg(format!("of={partition_file}"))
         .arg("bs=512")
         .arg(format!("seek={}", partition_offset.0))
         .arg(format!("count={}", partition_offset.1))
@@ -332,6 +466,19 @@ pub fn write_partition(image_file: &str, tmp_file: &str, partition: &str) -> Res
 
     Ok(())
 }
+
+pub fn generate_bmap_file(image_file: &str) -> Result<()> {
+    let mut bmaptool = Command::new("bmaptool");
+    bmaptool
+        .arg("create")
+        .arg("-o")
+        .arg(format!("{image_file}.bmap"))
+        .arg(image_file);
+    exec_cmd!(bmaptool);
+
+    Ok(())
+}
+
 /*
 function config_hostname () {
     d_echo config_hostname

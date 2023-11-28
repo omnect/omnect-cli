@@ -1,5 +1,4 @@
-use crate::file::functions::FileCopyParams;
-use crate::file::functions::Partition;
+use crate::file::functions::{FileCopyFromParams, FileCopyToParams};
 use clap::Parser;
 
 const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
@@ -10,10 +9,10 @@ const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 pub enum FileConfig {
     /// copy file into image
     CopyToImage {
-        /// multiple [in-file-path,out-partition:out-file-path]: input file, partition and output file
-        #[clap(short = 'f', long = "files", value_parser = clap::value_parser!(FileCopyParams), required(true))]
-        file_copy_params: Vec<FileCopyParams>,
-        /// path to wic image file (*.wic, *.wic.xz)
+        /// multiple [in-file-path,out-partition:out-file-path]: input file, output file partition and output file
+        #[clap(short = 'f', long = "files", value_parser = clap::value_parser!(FileCopyToParams), required(true))]
+        file_copy_params: Vec<FileCopyToParams>,
+        /// path to wic image file
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// optional: generate bmap file
@@ -22,18 +21,12 @@ pub enum FileConfig {
     },
     /// copy file from image
     CopyFromImage {
-        /// path to file in wic image partition
-        #[arg(short = 'f', long = "file")]
-        file: std::string::String,
-        /// path to wic image file (*.wic, *.wic.xz)
+        /// multiple [in-partition:in-file-path,out-file-path]: input file partition, input file and output file
+        #[clap(short = 'f', long = "files", value_parser = clap::value_parser!(FileCopyFromParams), required(true))]
+        file_copy_params: Vec<FileCopyFromParams>,
+        /// path to wic image file
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
-        /// source partition
-        #[arg(short = 'p', long = "partition", value_enum)]
-        partition: Partition,
-        /// destination path
-        #[arg(short = 'd', long = "destination")]
-        destination: std::path::PathBuf,
     },
 }
 
@@ -46,7 +39,7 @@ pub enum IdentityConfig {
         /// path to config.toml file
         #[arg(short = 'c', long = "config")]
         config: std::path::PathBuf,
-        /// path to wic image file (*.wic, *.wic.xz)
+        /// path to wic image file
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// optional: path to payload file
@@ -61,7 +54,7 @@ pub enum IdentityConfig {
         /// path to config.toml file
         #[arg(short = 'c', long = "config")]
         config: std::path::PathBuf,
-        /// path to wic image file (*.wic, *.wic.xz)
+        /// path to wic image file
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// path to root ca certificate file
@@ -82,7 +75,7 @@ pub enum IdentityConfig {
         /// path to config.toml file
         #[arg(short = 'c', long = "config")]
         config: std::path::PathBuf,
-        /// path to wic image file (*.wic, *.wic.xz)
+        /// path to wic image file
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// path to root ca certificate file
@@ -100,7 +93,7 @@ pub enum IdentityConfig {
         /// path to intermediate key pem file
         #[arg(short = 'k', long = "intermediate-key")]
         intermediate_key: std::path::PathBuf,
-        /// path to wic image file (*.wic, *.wic.xz)
+        /// path to wic image file
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// device id
@@ -115,7 +108,7 @@ pub enum IdentityConfig {
     },
     /// set ssh tunnel certificate
     SetSshTunnelCertificate {
-        /// path to wic image file (*.wic, *.wic.xz)
+        /// path to wic image file
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// path to public key of the ssh root ca
@@ -139,7 +132,7 @@ pub enum IotHubDeviceUpdateConfig {
         /// path to ADU config file
         #[arg(short = 'c', long = "config")]
         iot_hub_device_update_config: std::path::PathBuf,
-        /// path to wic image file (*.wic, *.wic.xz)
+        /// path to wic image file
         #[arg(short = 'i', long = "image")]
         image: std::path::PathBuf,
         /// optional: generate bmap file
