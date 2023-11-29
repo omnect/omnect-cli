@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::str::FromStr;
 use stdext::function_name;
-use uuid::Uuid;
 
 #[derive(clap::ValueEnum, Debug, Clone, Eq, Hash, PartialEq)]
 #[allow(non_camel_case_types)]
@@ -31,6 +30,7 @@ impl FromStr for Partition {
     }
 }
 
+// ToDo: find a way to use one implementation "FileCopyParams" instead of "FileCopyToParams" and "FileCopyFromParams"
 #[derive(Clone, Debug)]
 pub struct FileCopyToParams {
     in_file: std::path::PathBuf,
@@ -85,8 +85,6 @@ impl FromStr for FileCopyToParams {
     }
 }
 
-//
-
 #[derive(Clone, Debug)]
 pub struct FileCopyFromParams {
     in_file: std::path::PathBuf,
@@ -112,7 +110,7 @@ impl FromStr for FileCopyFromParams {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let err_msg = "format not matched: in-file-path,out-partition:out-file-path";
+        let err_msg = "format not matched: in-partition:in-file-path,out-file-path";
 
         anyhow::ensure!(
             s.matches(',').count() == 1 && s.matches(':').count() == 1,
@@ -123,15 +121,9 @@ impl FromStr for FileCopyFromParams {
 
         anyhow::ensure!(v.len() == 3, err_msg);
 
-        let in_file = std::path::PathBuf::from(v[0]);
-        let partition = Partition::from_str(v[1])?;
+        let partition = Partition::from_str(v[0])?;
+        let in_file = std::path::PathBuf::from(v[1]);
         let out_file = std::path::PathBuf::from(v[2]);
-
-        anyhow::ensure!(in_file.exists(), "in-file-path doesn't exist");
-        anyhow::ensure!(
-            out_file.is_absolute(),
-            "out-file-path isn't an absolute path"
-        );
 
         Ok(Self {
             in_file,
@@ -140,7 +132,6 @@ impl FromStr for FileCopyFromParams {
         })
     }
 }
-//
 
 macro_rules! exec_cmd {
     ($cmd:ident) => {
@@ -240,8 +231,10 @@ pub fn copy_to_image(
         partition_file.push(Path::new(&format!("{partition_num}.img")));
         let partition_file = partition_file.to_str().unwrap();
 
+        let partition_offset = get_partition_offset(&image_file, partition_num)?;
+
         // 2. read partition
-        read_partition(image_file, partition_file, partition_num)?;
+        read_partition(image_file, partition_file, &partition_offset)?;
 
         // 3. copy files
         for (in_file, out_file) in partition_map.get(partition).unwrap().iter() {
@@ -289,7 +282,7 @@ pub fn copy_to_image(
         }
 
         // 4. write back partition
-        write_partition(image_file, partition_file, partition_num)?;
+        write_partition(image_file, partition_file, &partition_offset)?;
     }
 
     if generate_bmap {
@@ -318,14 +311,17 @@ pub fn copy_from_image(
         let partition_num = partition_num.as_str();
         let in_file = param.in_file.to_str().unwrap();
 
-        tmp_out_file.push(param.out_file.file_name().unwrap());
         partition_file.push(Path::new(&format!("{partition_num}.img")));
         let partition_file = partition_file.to_str().unwrap();
 
-        read_partition(image_file, partition_file, partition_num)?;
+        let partition_offset = get_partition_offset(&image_file, partition_num)?;
+
+        read_partition(image_file, partition_file, &partition_offset)?;
 
         // 1. copy to working_dir
         if param.partition == Partition::boot {
+            tmp_out_file.push(param.in_file.file_name().unwrap());
+            
             let mut mcopy = Command::new("mcopy");
             mcopy
                 .arg("-o")
@@ -335,13 +331,15 @@ pub fn copy_from_image(
                 .arg(working_dir);
             exec_cmd!(mcopy);
         } else {
+            tmp_out_file.push(param.out_file.file_name().unwrap());
+
             let mut e2cp = Command::new("e2cp");
             e2cp.arg(format!("{partition_file}:{in_file}"))
                 .arg(tmp_out_file.to_str().unwrap());
             exec_cmd!(e2cp);
         }
 
-        // 2. move to final dir
+        // 2.create final dir and move tmp file into 
         if let Some(parent) = param.out_file.parent() {
             fs::create_dir_all(parent).context(format!(
                 "copy_from_image: couldn't create destination path {}",
@@ -406,9 +404,9 @@ fn get_partition_offset(image_file: &str, partition: &str) -> Result<(String, St
 
     let partition_offset = exec_pipe_cmd_finnish!(awk, grep_out);
 
-    let partition_offset = partition_offset
-        .split_once(" ")
-        .context("read_partition: split offset")?;
+    let partition_offset = partition_offset.split_once(" ").context(format!(
+        "get_partition_offset: split offset {partition_offset}"
+    ))?;
 
     debug!(
         "get_partition_offset: start: {} end: {}",
@@ -421,12 +419,14 @@ fn get_partition_offset(image_file: &str, partition: &str) -> Result<(String, St
     ))
 }
 
-fn read_partition(image_file: &str, partition_file: &str, partition: &str) -> Result<()> {
+fn read_partition(
+    image_file: &str,
+    partition_file: &str,
+    partition_offset: &(String, String),
+) -> Result<()> {
     if PathBuf::from(partition_file).exists() {
         return Ok(());
     }
-
-    let partition_offset = get_partition_offset(&image_file, partition)?;
 
     let mut dd = Command::new("dd");
     dd.arg(format!("if={image_file}"))
@@ -444,12 +444,14 @@ fn read_partition(image_file: &str, partition_file: &str, partition: &str) -> Re
     Ok(())
 }
 
-pub fn write_partition(image_file: &str, partition_file: &str, partition: &str) -> Result<()> {
-    let partition_offset = get_partition_offset(&image_file, partition)?;
-
+pub fn write_partition(
+    image_file: &str,
+    partition_file: &str,
+    partition_offset: &(String, String),
+) -> Result<()> {
     let mut dd = Command::new("dd");
-    dd.arg(format!("if={image_file}"))
-        .arg(format!("of={partition_file}"))
+    dd.arg(format!("if={partition_file}"))
+        .arg(format!("of={image_file}"))
         .arg("bs=512")
         .arg(format!("seek={}", partition_offset.0))
         .arg(format!("count={}", partition_offset.1))
@@ -457,12 +459,12 @@ pub fn write_partition(image_file: &str, partition_file: &str, partition: &str) 
         .arg("status=none");
     exec_cmd!(dd);
 
-    let mut sync = Command::new("sync");
-    exec_cmd!(sync);
-
     let mut fallocate = Command::new("fallocate");
     fallocate.arg("-d").arg(image_file);
     exec_cmd!(fallocate);
+
+    let mut sync = Command::new("sync");
+    exec_cmd!(sync);
 
     Ok(())
 }

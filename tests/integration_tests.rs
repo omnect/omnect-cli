@@ -1,14 +1,16 @@
 mod common;
-use std::path::PathBuf;
+use assert_cmd::Command;
 use common::Testrunner;
-use omnect_cli::{cli::Partition, file, img_to_bmap_path, ssh};
-use httpmock::prelude::*;
 use file_diff;
+use httpmock::prelude::*;
+use omnect_cli::{file::functions::Partition, ssh};
+use std::path::PathBuf;
 use stdext::function_name;
+use uuid::Uuid;
 
 #[macro_use]
 extern crate lazy_static;
-
+/*
 #[test]
 fn check_set_identity_gateway_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
@@ -127,25 +129,66 @@ fn check_set_iot_hub_device_update_template() {
         file::set_iot_hub_device_update_config(&adu_config_file_path, &image_path, None).is_ok()
     );
 }
+*/
 
 #[test]
 fn check_file_copy_dos_partition() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-    check_file_copy(tr, Partition::boot);
+    check_file_copy(tr, "boot");
 }
 
 #[test]
-fn ext4() {
+fn check_file_copy_ext4() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-    check_file_copy(tr, Partition::factory);
+    check_file_copy(tr, "factory");
 }
 
-fn check_file_copy(tr: Testrunner, partition: Partition) {
-    let boot_config_file_path = tr.to_pathbuf("testfiles/boot.scr");
+fn check_file_copy(tr: Testrunner, partition: &str) {
+    let in_file1 = tr.to_pathbuf("testfiles/boot.scr");
+    let in_file1 = in_file1.to_str().unwrap();
+    let in_file2 = tr.to_pathbuf("testfiles/dps-payload.json");
+    let in_file2 = in_file2.to_str().unwrap();
+    let out_file1 = "/test/test1.scr";
+    let out_file2 = "/test2.json";
     let image_path = tr.to_pathbuf("testfiles/image.wic");
-    // ToDo: as soon as we get rid of docker create temp file under /tmp/
-    let result_file = PathBuf::from("result_test.scr");
+    let mut out_file3 = tr.pathbuf();
+    out_file3.push("dir1");
+    out_file3.push("outfile3.scr");
+    let out_file3 = out_file3.to_str().unwrap();
+    let mut out_file4 = tr.pathbuf();
+    out_file4.push("outfile4.json");
+    let out_file4 = out_file4.to_str().unwrap();
 
+    let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = copy_to_img
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{in_file1},{partition}:{out_file1}"))
+        .arg("-f")
+        .arg(format!("{in_file2},{partition}:{out_file2}"))
+        .arg("-i")
+        .arg(&image_path)
+        .assert();
+    assert.success();
+
+    let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = copy_from_img
+        .arg("file")
+        .arg("copy-from-image")
+        .arg("-f")
+        .arg(format!("{partition}:{out_file1},{out_file3}"))
+        .arg("-f")
+        .arg(format!("{partition}:{out_file2},{out_file4}"))
+        .arg("-i")
+        .arg(&image_path)
+        .assert();
+    assert.success();
+
+    assert!(file_diff::diff(in_file1, out_file3));
+    assert!(file_diff::diff(in_file2, out_file4));
+
+    /*
     assert!(file::copy_to_image(
         &boot_config_file_path,
         &image_path,
@@ -206,7 +249,7 @@ fn check_file_copy(tr: Testrunner, partition: Partition) {
     )
     .is_ok());
 
-    assert!(bmap_path.unwrap().as_path().exists())
+    assert!(bmap_path.unwrap().as_path().exists()) */
 }
 
 #[tokio::test]

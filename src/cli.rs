@@ -1,4 +1,7 @@
-use crate::file::functions::{FileCopyFromParams, FileCopyToParams};
+use crate::file::{
+    functions::{FileCopyFromParams, FileCopyToParams},
+    compression::Compression,
+};
 use clap::Parser;
 
 const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
@@ -18,6 +21,9 @@ pub enum FileConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
+        /// optional: pack image
+        #[arg(short = 'p', long = "pack-image", value_enum)]
+        compress_image: Option<Compression>,
     },
     /// copy file from image
     CopyFromImage {
@@ -39,15 +45,18 @@ pub enum IdentityConfig {
         /// path to config.toml file
         #[arg(short = 'c', long = "config")]
         config: std::path::PathBuf,
-        /// path to wic image file
-        #[arg(short = 'i', long = "image")]
-        image: std::path::PathBuf,
         /// optional: path to payload file
         #[arg(short = 'p', long = "payload")]
         payload: Option<std::path::PathBuf>,
+        /// path to wic image file
+        #[arg(short = 'i', long = "image")]
+        image: std::path::PathBuf,
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
+        /// optional: pack image
+        #[arg(short = 'p', long = "pack-image", value_enum)]
+        compress_image: Option<Compression>,
     },
     /// set transparent gateway config.toml file and additional certificates and keys
     SetIotedgeGatewayConfig {
@@ -69,6 +78,9 @@ pub enum IdentityConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
+        /// optional: pack image
+        #[arg(short = 'p', long = "pack-image", value_enum)]
+        compress_image: Option<Compression>,
     },
     /// set leaf device config.toml file and additional certificate
     SetIotLeafSasConfig {
@@ -84,6 +96,9 @@ pub enum IdentityConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
+        /// optional: pack image
+        #[arg(short = 'p', long = "pack-image", value_enum)]
+        compress_image: Option<Compression>,
     },
     /// set certificates in order to support X.509 based DPS provisioning and certificate renewal via EST
     SetDeviceCertificate {
@@ -105,6 +120,9 @@ pub enum IdentityConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
+        /// optional: pack image
+        #[arg(short = 'p', long = "pack-image", value_enum)]
+        compress_image: Option<Compression>,
     },
     /// set ssh tunnel certificate
     SetSshTunnelCertificate {
@@ -120,6 +138,9 @@ pub enum IdentityConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
+        /// optional: pack image
+        #[arg(short = 'p', long = "pack-image", value_enum)]
+        compress_image: Option<Compression>,
     },
 }
 
@@ -138,6 +159,9 @@ pub enum IotHubDeviceUpdateConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
+        /// optional: pack image
+        #[arg(short = 'p', long = "pack-image", value_enum)]
+        compress_image: Option<Compression>,
     },
 }
 

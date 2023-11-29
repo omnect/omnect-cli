@@ -1,7 +1,11 @@
 pub mod functions;
+pub mod compression;
 use super::validators::identity::{validate_identity, IdentityType};
 use super::validators::ssh::validate_ssh_pub_key;
-use crate::file::functions::{FileCopyFromParams, FileCopyToParams, Partition};
+use crate::file::{
+    functions::{FileCopyFromParams, FileCopyToParams, Partition},
+    compression::Compression,
+};
 use anyhow::{Context, Result};
 use log::warn;
 use std::fs;
@@ -21,7 +25,7 @@ pub fn set_iotedge_gateway_config(
         .iter()
         .for_each(|x| warn!("{}", x));
     Ok(())
-/* 
+    /*
     super::validators::image::image_action(
         image_file,
         true,
@@ -56,7 +60,7 @@ pub fn set_iot_leaf_sas_config(
         .iter()
         .for_each(|x| warn!("{}", x));
     Ok(())
-/* 
+    /*
     super::validators::image::image_action(
         image_file,
         true,
@@ -83,7 +87,7 @@ pub fn set_ssh_tunnel_certificate(
 ) -> Result<()> {
     validate_ssh_pub_key(root_ca_file)?;
     Ok(())
-/* 
+    /*
     super::validators::image::image_action(
         image_file,
         true,
@@ -112,7 +116,7 @@ pub fn set_identity_config(
         .iter()
         .for_each(|x| warn!("{}", x));
     Ok(())
-/* 
+    /*
     super::validators::image::image_action(
         image_file,
         true,
