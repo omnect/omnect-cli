@@ -3,35 +3,104 @@ use assert_cmd::Command;
 use common::Testrunner;
 use file_diff;
 use httpmock::prelude::*;
-use omnect_cli::{file::functions::Partition, ssh};
-use std::path::PathBuf;
+use omnect_cli::ssh;
 use stdext::function_name;
-use uuid::Uuid;
 
 #[macro_use]
 extern crate lazy_static;
-/*
+
 #[test]
 fn check_set_identity_gateway_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-
     let config_file_path = tr.to_pathbuf("conf/config.toml.gateway.est.template");
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let root_ca_file_path = tr.to_pathbuf("testfiles/root.ca.cert.pem");
     let edge_device_identity_full_chain_file_path = tr.to_pathbuf("testfiles/full-chain.cert.pem");
     let edge_device_identity_key_file_path = tr.to_pathbuf("testfiles/device-ca.key.pem");
 
-    assert!(file::set_iotedge_gateway_config(
-        &config_file_path,
-        &image_path,
-        &root_ca_file_path,
-        &edge_device_identity_full_chain_file_path,
-        &edge_device_identity_key_file_path,
-        None
-    )
-    .is_ok());
-}
+    let mut set_iotedge_gateway_config = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = set_iotedge_gateway_config
+        .arg("identity")
+        .arg("set-iotedge-gateway-config")
+        .arg("-c")
+        .arg(&config_file_path)
+        .arg("-i")
+        .arg(&image_path)
+        .arg("-r")
+        .arg(&root_ca_file_path)
+        .arg("-d")
+        .arg(&edge_device_identity_full_chain_file_path)
+        .arg("-k")
+        .arg(&edge_device_identity_key_file_path)
+        .assert();
+    assert.success();
 
+    let mut config_file_out_path = tr.pathbuf();
+    config_file_out_path.push("dir1");
+    let mut root_ca_file_out_path = config_file_out_path.clone();
+    let mut edge_device_identity_full_chain_file_out_path = config_file_out_path.clone();
+    let mut edge_device_identity_key_file_out_path = config_file_out_path.clone();
+
+    config_file_out_path.push("config_file_out_path");
+    let config_file_out_path = config_file_out_path.to_str().unwrap();
+
+    root_ca_file_out_path.push("root_ca_file_out_path");
+    let root_ca_file_out_path = root_ca_file_out_path.to_str().unwrap();
+
+    edge_device_identity_full_chain_file_out_path
+        .push("edge_device_identity_full_chain_file_out_path");
+    let edge_device_identity_full_chain_file_out_path =
+        edge_device_identity_full_chain_file_out_path
+            .to_str()
+            .unwrap();
+
+    edge_device_identity_key_file_out_path.push("edge_device_identity_key_file_out_path");
+    let edge_device_identity_key_file_out_path =
+        edge_device_identity_key_file_out_path.to_str().unwrap();
+
+    let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = copy_from_img
+        .arg("file")
+        .arg("copy-from-image")
+        .arg("-f")
+        .arg(format!(
+            "factory:/etc/aziot/config.toml,{config_file_out_path}"
+        ))
+        .arg("-f")
+        .arg(format!(
+            "cert:/ca/trust-bundle.pem.crt,{root_ca_file_out_path}"
+        ))
+        .arg("-f")
+        .arg(format!(
+            "cert:/priv/edge-ca.pem,{edge_device_identity_full_chain_file_out_path}"
+        ))
+        .arg("-f")
+        .arg(format!(
+            "cert:/priv/edge-ca.key.pem,{edge_device_identity_key_file_out_path}"
+        ))
+        .arg("-i")
+        .arg(&image_path)
+        .assert();
+    assert.success();
+
+    assert!(file_diff::diff(
+        config_file_path.to_str().unwrap(),
+        config_file_out_path
+    ));
+    assert!(file_diff::diff(
+        root_ca_file_path.to_str().unwrap(),
+        root_ca_file_out_path
+    ));
+    assert!(file_diff::diff(
+        edge_device_identity_full_chain_file_path.to_str().unwrap(),
+        edge_device_identity_full_chain_file_out_path
+    ));
+    assert!(file_diff::diff(
+        edge_device_identity_key_file_path.to_str().unwrap(),
+        edge_device_identity_key_file_out_path
+    ));
+}
+/*
 #[test]
 fn check_set_identity_leaf_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
@@ -188,69 +257,58 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
     assert!(file_diff::diff(in_file1, out_file3));
     assert!(file_diff::diff(in_file2, out_file4));
 
-    /*
-    assert!(file::copy_to_image(
-        &boot_config_file_path,
-        &image_path,
-        partition.clone(),
-        String::from("/test/test.scr"),
-        None
-    )
-    .is_ok());
+    // test if we can overwrite files
+    let in_file3 = tr.to_pathbuf("testfiles/identity_config_dps_payload.toml");
+    let in_file3 = in_file3.to_str().unwrap();
+    let in_file4 = tr.to_pathbuf("testfiles/identity_config_hostname_valid.toml");
+    let in_file4 = in_file4.to_str().unwrap();
 
-    assert!(file::copy_from_image(
-        String::from("/test/test.scr"),
-        &image_path,
-        partition.clone(),
-        &result_file,
-    )
-    .is_ok());
+    let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = copy_to_img
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{in_file3},{partition}:{out_file1}"))
+        .arg("-f")
+        .arg(format!("{in_file4},{partition}:{out_file2}"))
+        .arg("-i")
+        .arg(&image_path)
+        .assert();
+    assert.success();
 
-    assert!(file_diff::diff(
-        boot_config_file_path.to_str().unwrap(),
-        result_file.to_str().unwrap()
-    ));
+    let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = copy_from_img
+        .arg("file")
+        .arg("copy-from-image")
+        .arg("-f")
+        .arg(format!("{partition}:{out_file1},{out_file3}"))
+        .arg("-f")
+        .arg(format!("{partition}:{out_file2},{out_file4}"))
+        .arg("-i")
+        .arg(&image_path)
+        .assert();
+    assert.success();
 
-    // check overwriting
-    assert!(file::copy_to_image(
-        &boot_config_file_path,
-        &image_path,
-        partition.clone(),
-        String::from("/test/test.scr"),
-        None
-    )
-    .is_ok());
-
-    assert!(file::copy_to_image(
-        &PathBuf::from("/invalid/file/path"),
-        &image_path,
-        partition.clone(),
-        String::from("/test/test.scr"),
-        None
-    )
-    .is_err());
-
-    assert!(file::copy_from_image(
-        String::from("/invalid/file/path"),
-        &image_path,
-        partition.clone(),
-        &result_file,
-    )
-    .is_err());
-
-    // check bmap generation
-    let bmap_path = img_to_bmap_path!(true, &image_path);
-    assert!(file::copy_to_image(
-        &boot_config_file_path,
-        &image_path,
-        partition.clone(),
-        String::from("/test/test.scr"),
-        bmap_path.clone(),
-    )
-    .is_ok());
-
-    assert!(bmap_path.unwrap().as_path().exists()) */
+    assert!(file_diff::diff(in_file3, out_file3));
+    assert!(file_diff::diff(in_file4, out_file4));
 }
+
+/*
+// ToDo
+// check bmap generation
+let bmap_path = img_to_bmap_path!(true, &image_path);
+assert!(file::copy_to_image(
+    &boot_config_file_path,
+    &image_path,
+    partition.clone(),
+    String::from("/test/test.scr"),
+    bmap_path.clone(),
+)
+.is_ok());
+
+assert!(bmap_path.unwrap().as_path().exists()) */
+
+// ToDo img compression tests
 
 #[tokio::test]
 async fn check_ssh_tunnel_setup() {

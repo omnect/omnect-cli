@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use log::debug;
+use log::{debug, warn};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -145,6 +145,26 @@ macro_rules! exec_cmd {
     };
 }
 
+macro_rules! try_exec_cmd {
+    ($cmd:ident) => {
+        /*         anyhow::ensure!(
+            $cmd.status()
+                .context(format!("{}: status failed: {:?}", function_name!(), $cmd))?
+                .success(),
+            format!("{}: cmd failed: {:?}", function_name!(), $cmd)
+        ); */
+        if $cmd
+            .status()
+            .context(format!("{}: status failed: {:?}", function_name!(), $cmd))?
+            .success()
+        {
+            debug!("{}: {:?}", function_name!(), $cmd);
+        } else {
+            warn!("{}: {:?}", function_name!(), $cmd)
+        }
+    };
+}
+
 macro_rules! exec_pipe_cmd {
     ($cmd:expr) => {{
         let res = $cmd.stdout(Stdio::piped()).spawn().context(format!(
@@ -250,15 +270,15 @@ pub fn copy_to_image(
 
                 for dir in dir_path.iter().skip(1).map(|d| d.to_str().unwrap()) {
                     p.push(&dir);
-                    // we ignore errors in order to ignore potential name clashes here
-                    // in case mmd fails mcopy will fail respectivly with a reasonable error output
                     let mut mmd = Command::new("mmd");
                     mmd.arg("-D")
                         .arg("sS")
                         .arg("-i")
                         .arg(format!("{partition_file}"))
                         .arg(format!("{}", p.to_str().unwrap()));
-                    exec_cmd!(mmd);
+                    // we ignore `mmd` errors in order to ignore potential name clashes when a dir already exists
+                    // in case mmd fails mcopy will fail respectively with a reasonable error output
+                    try_exec_cmd!(mmd);
                 }
 
                 let mut mcopy = Command::new("mcopy");
@@ -321,7 +341,7 @@ pub fn copy_from_image(
         // 1. copy to working_dir
         if param.partition == Partition::boot {
             tmp_out_file.push(param.in_file.file_name().unwrap());
-            
+
             let mut mcopy = Command::new("mcopy");
             mcopy
                 .arg("-o")
@@ -337,9 +357,14 @@ pub fn copy_from_image(
             e2cp.arg(format!("{partition_file}:{in_file}"))
                 .arg(tmp_out_file.to_str().unwrap());
             exec_cmd!(e2cp);
+            // since e2cp doesn't return errors in any case we check if output file exists
+            anyhow::ensure!(
+                tmp_out_file.exists(),
+                format!("copy_from_image: cmd failed: {:?}", e2cp)
+            )
         }
 
-        // 2.create final dir and move tmp file into 
+        // 2.create final dir and move tmp file into
         if let Some(parent) = param.out_file.parent() {
             fs::create_dir_all(parent).context(format!(
                 "copy_from_image: couldn't create destination path {}",

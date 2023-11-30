@@ -1,168 +1,171 @@
-pub mod functions;
 pub mod compression;
-use super::validators::identity::{validate_identity, IdentityType};
-use super::validators::ssh::validate_ssh_pub_key;
-use crate::file::{
-    functions::{FileCopyFromParams, FileCopyToParams, Partition},
-    compression::Compression,
+pub mod functions;
+use super::validators::{
+    identity::{validate_identity, IdentityType},
+    ssh::validate_ssh_pub_key,
 };
+use crate::file::functions::{FileCopyFromParams, FileCopyToParams, Partition};
 use anyhow::{Context, Result};
 use log::warn;
 use std::fs;
-use std::fs::File;
-use std::path::{Path, PathBuf};
-use uuid::Uuid;
+use std::path::PathBuf;
 
 pub fn set_iotedge_gateway_config(
     config_file: &PathBuf,
-    _image_file: &PathBuf,
-    _root_ca_file: &PathBuf,
-    _edge_device_identity_full_chain_file: &PathBuf,
-    _edge_device_identity_key_file: &PathBuf,
-    _generate_bmap: bool,
+    image_file: &PathBuf,
+    root_ca_file: &PathBuf,
+    edge_device_identity_full_chain_file: &PathBuf,
+    edge_device_identity_key_file: &PathBuf,
+    generate_bmap: bool,
 ) -> Result<()> {
     validate_identity(IdentityType::Gateway, config_file, &None)?
         .iter()
         .for_each(|x| warn!("{}", x));
-    Ok(())
-    /*
-    super::validators::image::image_action(
+
+    copy_to_image(
+        &vec![
+            FileCopyToParams::new(
+                config_file.to_path_buf(),
+                Partition::factory,
+                PathBuf::from("/etc/aziot/config.toml"),
+            ),
+            FileCopyToParams::new(
+                root_ca_file.to_path_buf(),
+                Partition::cert,
+                PathBuf::from("/ca/trust-bundle.pem.crt"),
+            ),
+            FileCopyToParams::new(
+                edge_device_identity_full_chain_file.to_path_buf(),
+                Partition::cert,
+                PathBuf::from("/priv/edge-ca.pem"),
+            ),
+            FileCopyToParams::new(
+                edge_device_identity_key_file.to_path_buf(),
+                Partition::cert,
+                PathBuf::from("/priv/edge-ca.key.pem"),
+            ),
+        ],
         image_file,
-        true,
-        move |image_file: &PathBuf| -> Result<()> {
-            cmd_exec(
-                vec![
-                    config_file,
-                    edge_device_identity_full_chain_file,
-                    edge_device_identity_key_file,
-                    root_ca_file,
-                    image_file,
-                ],
-                |files| -> String {
-                    format!(
-                        "set_iotedge_gw_config.sh, -c, {0}, -e, {1}, -k, {2}, -r, {3}, -w, {4}",
-                        files[0], files[1], files[2], files[3], files[4]
-                    )
-                },
-                generate_bmap,
-            )
-        },
-    ) */
+        generate_bmap,
+    )
 }
 
 pub fn set_iot_leaf_sas_config(
     config_file: &PathBuf,
-    _image_file: &PathBuf,
-    _root_ca_file: &PathBuf,
-    _generate_bmap: bool,
+    image_file: &PathBuf,
+    root_ca_file: &PathBuf,
+    generate_bmap: bool,
 ) -> Result<()> {
     validate_identity(IdentityType::Leaf, config_file, &None)?
         .iter()
         .for_each(|x| warn!("{}", x));
-    Ok(())
-    /*
-    super::validators::image::image_action(
+
+    let mut root_ca_out_file = PathBuf::from("ca");
+    root_ca_out_file.push(root_ca_file.file_name().unwrap());
+    root_ca_out_file.set_extension("crt");
+
+    copy_to_image(
+        &vec![
+            FileCopyToParams::new(
+                config_file.to_path_buf(),
+                Partition::factory,
+                PathBuf::from("/etc/aziot/config.toml"),
+            ),
+            FileCopyToParams::new(
+                root_ca_file.to_path_buf(),
+                Partition::cert,
+                root_ca_out_file,
+            ),
+        ],
         image_file,
-        true,
-        move |image_file: &PathBuf| -> Result<()> {
-            cmd_exec(
-                vec![config_file, root_ca_file, image_file],
-                |files| -> String {
-                    format!(
-                        "set_iot_leaf_config.sh, -c, {0}, -r, {1}, -w, {2}",
-                        files[0], files[1], files[2]
-                    )
-                },
-                generate_bmap,
-            )
-        },
-    ) */
+        generate_bmap,
+    )
 }
 
 pub fn set_ssh_tunnel_certificate(
-    _image_file: &PathBuf,
+    image_file: &PathBuf,
     root_ca_file: &PathBuf,
-    _device_principal: &str,
-    _generate_bmap: bool,
+    device_principal: &str,
+    generate_bmap: bool,
 ) -> Result<()> {
     validate_ssh_pub_key(root_ca_file)?;
-    Ok(())
-    /*
-    super::validators::image::image_action(
+
+    // we use the folder the image is located in
+    // the caller is responsible to create a /tmp/ directory if needed
+    let mut authorized_principals_file = image_file
+        .parent()
+        .context("copy_to_image: cannot get directory of image")?
+        .to_path_buf();
+
+    authorized_principals_file.push("authorized_principals");
+    fs::write(&authorized_principals_file, device_principal)?;
+
+    copy_to_image(
+        &vec![
+            FileCopyToParams::new(
+                root_ca_file.to_path_buf(),
+                Partition::cert,
+                PathBuf::from("/ssh/root_ca"),
+            ),
+            FileCopyToParams::new(
+                authorized_principals_file.to_path_buf(),
+                Partition::cert,
+                PathBuf::from("/ssh/authorized_principals"),
+            ),
+        ],
         image_file,
-        true,
-        move |image_file: &PathBuf| -> Result<()> {
-            cmd_exec(
-                vec![root_ca_file, image_file],
-                |files| -> String {
-                    format!(
-                        "set_ssh_tunnel_cert.sh, -r, {0}, -d, {1}, -w, {2}",
-                        files[0], device_principal, files[1]
-                    )
-                },
-                generate_bmap,
-            )
-        },
-    ) */
+        generate_bmap,
+    )
 }
 
 pub fn set_identity_config(
     config_file: &PathBuf,
-    _image_file: &PathBuf,
-    _generate_bmap: bool,
+    image_file: &PathBuf,
+    generate_bmap: bool,
     payload: Option<PathBuf>,
 ) -> Result<()> {
     validate_identity(IdentityType::Standalone, config_file, &payload)?
         .iter()
         .for_each(|x| warn!("{}", x));
-    Ok(())
-    /*
-    super::validators::image::image_action(
-        image_file,
-        true,
-        move |image_file: &PathBuf| -> Result<()> {
-            if let Some(payload) = payload {
-                cmd_exec(
-                    vec![&payload, image_file],
-                    |files| -> String {
-                        format!(
-                            "copy_file_to_image.sh, -i, {0}, -o, /etc/omnect/dps-payload.json, -p, factory, -w {1}",
-                            files[0], files[1]
-                        )
-                    },
-                    false,
-                )?;
-            }
 
-            cmd_exec(
-                vec![config_file, image_file],
-                |files| -> String {
-                    format!(
-                        "set_identity_config.sh, -c, {0}, -w, {1}",
-                        files[0], files[1]
-                    )
-                },
-                generate_bmap,
-            )
-        },
-    ) */
+    let mut files = vec![FileCopyToParams::new(
+        config_file.to_path_buf(),
+        Partition::factory,
+        PathBuf::from("/etc/aziot/config.toml"),
+    )];
+
+    if let Some(p) = payload {
+        files.push(FileCopyToParams::new(
+            p.to_path_buf(),
+            Partition::factory,
+            PathBuf::from("/etc/omnect/dps-payload.json"),
+        ));
+    }
+
+    copy_to_image(&files, image_file, generate_bmap)
 }
 
 pub fn set_device_cert(
-    _intermediate_full_chain_cert_path: &PathBuf,
-    _device_full_chain_cert: &Vec<u8>,
-    _device_key: &Vec<u8>,
-    _image_file: &PathBuf,
-    _generate_bmap: bool,
+    intermediate_full_chain_cert_path: &PathBuf,
+    device_full_chain_cert: &Vec<u8>,
+    device_key: &Vec<u8>,
+    image_file: &PathBuf,
+    generate_bmap: bool,
 ) -> Result<()> {
-    /*
-    let uuid = Uuid::new_v4();
-    let device_cert_path = PathBuf::from(format!("/tmp/{}.pem", uuid));
-    let device_key_path = PathBuf::from(format!("/tmp/{}.key.pem", uuid));
+    // we use the folder the image is located in
+    // the caller is responsible to create a /tmp/ directory if needed
+    let mut device_cert_path = image_file
+        .parent()
+        .context("copy_to_image: cannot get directory of image")?
+        .to_path_buf();
+    let mut device_key_path = device_cert_path.clone();
 
-    fs::write(device_cert_path, device_full_chain_cert)
+    device_cert_path.push("device_cert_path.pem");
+    device_key_path.push("device_key_path.key.pem");
+
+    fs::write(&device_cert_path, &device_full_chain_cert)
         .context("set_device_cert: write device_cert_path")?;
-    fs::write(device_key_path, device_key).context("set_device_cert: write device_key_path")?;
+    fs::write(&device_key_path, &device_key).context("set_device_cert: write device_key_path")?;
 
     copy_to_image(
         &vec![
@@ -177,12 +180,12 @@ pub fn set_device_cert(
                 PathBuf::from("/priv/device_id_cert_key.pem"),
             ),
             FileCopyToParams::new(
-                intermediate_full_chain_cert_path,
+                intermediate_full_chain_cert_path.to_path_buf(),
                 Partition::cert,
                 PathBuf::from("/priv/ca.crt.pem"),
             ),
             FileCopyToParams::new(
-                intermediate_full_chain_cert_path,
+                intermediate_full_chain_cert_path.to_path_buf(),
                 Partition::cert,
                 PathBuf::from("/ca/ca.crt"),
             ),
@@ -190,12 +193,6 @@ pub fn set_device_cert(
         image_file,
         generate_bmap,
     )
-        "copy_file_to_image.sh, -i, {0}, -o, /priv/device_id_cert.pem, -p, cert, -w {1}",
-        "copy_file_to_image.sh, -i, {0}, -o, /priv/device_id_cert_key.pem, -p, cert, -w {1}",
-        "copy_file_to_image.sh, -i, {0}, -o, /priv/ca.crt.pem, -p, cert, -w {1}",
-        "copy_file_to_image.sh, -i, {0}, -o, /ca/ca.crt, -p, cert, -w {1}",
-    */
-    Ok(())
 }
 
 pub fn set_iot_hub_device_update_config(
