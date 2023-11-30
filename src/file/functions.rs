@@ -40,14 +40,14 @@ pub struct FileCopyToParams {
 
 impl FileCopyToParams {
     pub fn new(
-        in_file: std::path::PathBuf,
+        in_file: &std::path::Path,
         partition: Partition,
-        out_file: std::path::PathBuf,
+        out_file: &std::path::Path,
     ) -> Self {
         FileCopyToParams {
-            in_file,
+            in_file: in_file.to_path_buf(),
             partition,
-            out_file,
+            out_file: out_file.to_path_buf(),
         }
     }
 }
@@ -221,8 +221,8 @@ macro_rules! exec_pipe_cmd_finnish {
 }
 
 pub fn copy_to_image(
-    file_copy_params: &Vec<FileCopyToParams>,
-    image_file: &PathBuf,
+    file_copy_params: &[FileCopyToParams],
+    image_file: &Path,
     generate_bmap: bool,
 ) -> Result<()> {
     // we use the folder the image is located in
@@ -243,7 +243,7 @@ pub fn copy_to_image(
     }
 
     // 1. for each involved partition
-    for partition in partition_map.keys().into_iter() {
+    for partition in partition_map.keys() {
         let mut partition_file = working_dir.clone();
         let partition_num = get_partition_num(image_file, partition)?.to_string();
         let partition_num = partition_num.as_str();
@@ -251,7 +251,7 @@ pub fn copy_to_image(
         partition_file.push(Path::new(&format!("{partition_num}.img")));
         let partition_file = partition_file.to_str().unwrap();
 
-        let partition_offset = get_partition_offset(&image_file, partition_num)?;
+        let partition_offset = get_partition_offset(image_file, partition_num)?;
 
         // 2. read partition
         read_partition(image_file, partition_file, &partition_offset)?;
@@ -269,13 +269,13 @@ pub fn copy_to_image(
                 let mut p = PathBuf::from("/");
 
                 for dir in dir_path.iter().skip(1).map(|d| d.to_str().unwrap()) {
-                    p.push(&dir);
+                    p.push(dir);
                     let mut mmd = Command::new("mmd");
                     mmd.arg("-D")
                         .arg("sS")
                         .arg("-i")
-                        .arg(format!("{partition_file}"))
-                        .arg(format!("{}", p.to_str().unwrap()));
+                        .arg(partition_file)
+                        .arg(p.to_str().unwrap());
                     // we ignore `mmd` errors in order to ignore potential name clashes when a dir already exists
                     // in case mmd fails mcopy will fail respectively with a reasonable error output
                     try_exec_cmd!(mmd);
@@ -285,7 +285,7 @@ pub fn copy_to_image(
                 mcopy
                     .arg("-o")
                     .arg("-i")
-                    .arg(format!("{partition_file}"))
+                    .arg(partition_file)
                     .arg(in_file)
                     .arg(format!("::{out_file}"));
                 exec_cmd!(mcopy);
@@ -312,8 +312,8 @@ pub fn copy_to_image(
 }
 
 pub fn copy_from_image(
-    file_copy_params: &Vec<FileCopyFromParams>,
-    image_file: &PathBuf,
+    file_copy_params: &[FileCopyFromParams],
+    image_file: &Path,
 ) -> Result<()> {
     // we use the folder the image is located in
     // the caller is responsible to create a /tmp/ directory if needed
@@ -334,7 +334,7 @@ pub fn copy_from_image(
         partition_file.push(Path::new(&format!("{partition_num}.img")));
         let partition_file = partition_file.to_str().unwrap();
 
-        let partition_offset = get_partition_offset(&image_file, partition_num)?;
+        let partition_offset = get_partition_offset(image_file, partition_num)?;
 
         read_partition(image_file, partition_file, &partition_offset)?;
 
@@ -346,7 +346,7 @@ pub fn copy_from_image(
             mcopy
                 .arg("-o")
                 .arg("-i")
-                .arg(format!("{partition_file}"))
+                .arg(partition_file)
                 .arg(format!("::{in_file}"))
                 .arg(working_dir);
             exec_cmd!(mcopy);
@@ -429,7 +429,7 @@ fn get_partition_offset(image_file: &str, partition: &str) -> Result<(String, St
 
     let partition_offset = exec_pipe_cmd_finnish!(awk, grep_out);
 
-    let partition_offset = partition_offset.split_once(" ").context(format!(
+    let partition_offset = partition_offset.split_once(' ').context(format!(
         "get_partition_offset: split offset {partition_offset}"
     ))?;
 

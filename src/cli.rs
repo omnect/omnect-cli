@@ -45,8 +45,8 @@ pub enum IdentityConfig {
         /// path to config.toml file
         #[arg(short = 'c', long = "config")]
         config: std::path::PathBuf,
-        /// optional: path to payload file
-        #[arg(short = 'p', long = "payload")]
+        /// optional: path to extra DPS payload file
+        #[arg(short = 'e', long = "extra-dps-payload")]
         payload: Option<std::path::PathBuf>,
         /// path to wic image file
         #[arg(short = 'i', long = "image")]
