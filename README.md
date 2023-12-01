@@ -20,35 +20,11 @@ omnect-cli is a cli tool to manage your omnect-devices. It provides commands to 
 - SSH
   - Open an ssh tunnel on a device in the field to connect to it.
 
-# Prerequisites
-
-Depending on your intended use use you want to install the following packages.
-
-- openssh: For the `ssh` command.
-- docker: For the image manipulation commands.
-
-# Download prebuild Docker image
-- login to azure docker registry either via admin user
-    ```sh
-    docker login omnectweucopsacr.azurecr.io
-    ```
-    or via your AAD account
-    ```sh
-    az login
-    az acr login -n omnectweucopsacr
-    ```
-- Pull latest docker image
-    ```sh
-    docker pull omnectweucopsacr.azurecr.io/omnect-cli-backend:latest
-    ```
-If you want to use a specific version, look for available versions in the [registry](https://portal.azure.com/#@conplementag2.onmicrosoft.com/resource/subscriptions/ebaba6ec-e467-4409-b73e-bdd5e34a34c1/resourceGroups/omnect-weu-cops-acrrg/providers/Microsoft.ContainerRegistry/registries/omnectweucopsacr/overview).
-
 # Installation
-Ensure ~/bin/ exists and is in your $PATH before executing:
 
-```sh
-docker run --rm --entrypoint cat omnectweucopsacr.azurecr.io/omnect-cli-backend:latest /install/omnect-cli > ~/bin/omnect-cli && chmod +x ~/bin/omnect-cli
-```
+Todo
+download omnect-cli.deb
+dpkg ....
 
 # Identity configuration
 ## Configuration of devices NOT part of a gateway with leaf scenario

@@ -26,24 +26,24 @@ pub fn set_iotedge_gateway_config(
     copy_to_image(
         &vec![
             FileCopyToParams::new(
-                &config_file.to_path_buf(),
+                config_file,
                 Partition::factory,
-                &PathBuf::from("/etc/aziot/config.toml"),
+                Path::new("/etc/aziot/config.toml"),
             ),
             FileCopyToParams::new(
-                &root_ca_file.to_path_buf(),
+                root_ca_file,
                 Partition::cert,
-                &PathBuf::from("/ca/trust-bundle.pem.crt"),
+                Path::new("/ca/trust-bundle.pem.crt"),
             ),
             FileCopyToParams::new(
-                &edge_device_identity_full_chain_file.to_path_buf(),
+                edge_device_identity_full_chain_file,
                 Partition::cert,
-                &PathBuf::from("/priv/edge-ca.pem"),
+                Path::new("/priv/edge-ca.pem"),
             ),
             FileCopyToParams::new(
-                &edge_device_identity_key_file.to_path_buf(),
+                edge_device_identity_key_file,
                 Partition::cert,
-                &PathBuf::from("/priv/edge-ca.key.pem"),
+                Path::new("/priv/edge-ca.key.pem"),
             ),
         ],
         image_file,
@@ -68,15 +68,11 @@ pub fn set_iot_leaf_sas_config(
     copy_to_image(
         &[
             FileCopyToParams::new(
-                &config_file.to_path_buf(),
+                config_file,
                 Partition::factory,
-                &PathBuf::from("/etc/aziot/config.toml"),
+                Path::new("/etc/aziot/config.toml"),
             ),
-            FileCopyToParams::new(
-                &root_ca_file.to_path_buf(),
-                Partition::cert,
-                &root_ca_out_file,
-            ),
+            FileCopyToParams::new(root_ca_file, Partition::cert, &root_ca_out_file),
         ],
         image_file,
         generate_bmap,
@@ -103,15 +99,11 @@ pub fn set_ssh_tunnel_certificate(
 
     copy_to_image(
         &[
-            FileCopyToParams::new(
-                &root_ca_file.to_path_buf(),
-                Partition::cert,
-                &PathBuf::from("/ssh/root_ca"),
-            ),
+            FileCopyToParams::new(root_ca_file, Partition::cert, Path::new("/ssh/root_ca")),
             FileCopyToParams::new(
                 &authorized_principals_file.to_path_buf(),
                 Partition::cert,
-                &PathBuf::from("/ssh/authorized_principals"),
+                Path::new("/ssh/authorized_principals"),
             ),
         ],
         image_file,
@@ -130,16 +122,16 @@ pub fn set_identity_config(
         .for_each(|x| warn!("{}", x));
 
     let mut files = vec![FileCopyToParams::new(
-        &config_file.to_path_buf(),
+        config_file,
         Partition::factory,
-        &PathBuf::from("/etc/aziot/config.toml"),
+        Path::new("/etc/aziot/config.toml"),
     )];
 
     if let Some(p) = payload {
         files.push(FileCopyToParams::new(
-            &p.to_path_buf(),
+            p,
             Partition::factory,
-            &PathBuf::from("/etc/omnect/dps-payload.json"),
+            Path::new("/etc/omnect/dps-payload.json"),
         ));
     }
 
@@ -173,22 +165,22 @@ pub fn set_device_cert(
             FileCopyToParams::new(
                 &device_cert_path,
                 Partition::cert,
-                &PathBuf::from("/priv/device_id_cert.pem"),
+                Path::new("/priv/device_id_cert.pem"),
             ),
             FileCopyToParams::new(
                 &device_key_path,
                 Partition::cert,
-                &PathBuf::from("/priv/device_id_cert_key.pem"),
+                Path::new("/priv/device_id_cert_key.pem"),
             ),
             FileCopyToParams::new(
-                &intermediate_full_chain_cert_path.to_path_buf(),
+                intermediate_full_chain_cert_path,
                 Partition::cert,
-                &PathBuf::from("/priv/ca.crt.pem"),
+                Path::new("/priv/ca.crt.pem"),
             ),
             FileCopyToParams::new(
-                &intermediate_full_chain_cert_path.to_path_buf(),
+                intermediate_full_chain_cert_path,
                 Partition::cert,
-                &PathBuf::from("/ca/ca.crt"),
+                Path::new("/ca/ca.crt"),
             ),
         ],
         image_file,
@@ -201,13 +193,13 @@ pub fn set_iot_hub_device_update_config(
     image_file: &Path,
     generate_bmap: bool,
 ) -> Result<()> {
-    device_update::validate_config(&du_config_file)?;
+    device_update::validate_config(du_config_file)?;
 
     copy_to_image(
         &[FileCopyToParams::new(
-            &du_config_file.to_path_buf(),
+            du_config_file,
             Partition::factory,
-            &PathBuf::from("/etc/adu/du-config.json"),
+            Path::new("/etc/adu/du-config.json"),
         )],
         image_file,
         generate_bmap,

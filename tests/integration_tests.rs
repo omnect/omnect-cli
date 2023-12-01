@@ -518,8 +518,8 @@ fn check_bmap_generation() {
         .arg(&image_path)
         .assert();
     assert.success();
-    
-    assert!(!bmap_path.exists());
+
+    assert!(!bmap_path.try_exists().is_ok_and(|v| v == true));
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
@@ -532,10 +532,9 @@ fn check_bmap_generation() {
         .arg("-b")
         .assert();
     assert.success();
-    
-    assert!(bmap_path.exists());
-}
 
+    assert!(bmap_path.try_exists().is_ok_and(|v| v == true));
+}
 
 #[test]
 fn check_image_compression() {
@@ -555,8 +554,8 @@ fn check_image_compression() {
         .arg(&image_path)
         .assert();
     assert.success();
-    
-    assert!(!xz_path.exists());
+
+    assert!(!xz_path.try_exists().is_ok_and(|v| v == true));
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
@@ -570,8 +569,8 @@ fn check_image_compression() {
         .arg("xz")
         .assert();
     assert.success();
-    
-    assert!(xz_path.exists());
+
+    assert!(xz_path.try_exists().is_ok_and(|v| v == true));
 }
 
 #[test]
@@ -628,11 +627,31 @@ async fn check_ssh_tunnel_setup() {
         .await
         .unwrap();
 
-    assert!(tr.pathbuf().join("ssh_config").exists());
-    assert!(tr.pathbuf().join("id_ed25519").exists());
-    assert!(tr.pathbuf().join("id_ed25519.pub").exists());
-    assert!(tr.pathbuf().join("bastion-cert.pub").exists());
-    assert!(tr.pathbuf().join("device-cert.pub").exists());
+    assert!(tr
+        .pathbuf()
+        .join("ssh_config")
+        .try_exists()
+        .is_ok_and(|v| v == true));
+    assert!(tr
+        .pathbuf()
+        .join("id_ed25519")
+        .try_exists()
+        .is_ok_and(|v| v == true));
+    assert!(tr
+        .pathbuf()
+        .join("id_ed25519.pub")
+        .try_exists()
+        .is_ok_and(|v| v == true));
+    assert!(tr
+        .pathbuf()
+        .join("bastion-cert.pub")
+        .try_exists()
+        .is_ok_and(|v| v == true));
+    assert!(tr
+        .pathbuf()
+        .join("device-cert.pub")
+        .try_exists()
+        .is_ok_and(|v| v == true));
 
     let ssh_config = std::fs::read_to_string(tr.pathbuf().join("ssh_config")).unwrap();
     let expected_config = format!(

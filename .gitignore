@@ -1,11 +1,6 @@
 /local
 /target
+/temp
 *.bmap
-config.gateway.toml
-Cargo.toml
-config.iot-devel.toml
-du-config.json.template
-image.wic
-intermediate_cert_key.pem
-intermediate_full_chain_cert.pem
+*.wic.*
 .vscode/launch.json

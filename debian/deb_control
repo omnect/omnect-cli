@@ -1,0 +1,8 @@
+  Package: %PKG_NAME%
+  Version: %PKG_VERSION%
+  Maintainer: omnect@conplement ag
+  Architecture: %PKG_ARCH%
+  Depends: libssl-dev (>= 1.1.1), libcurl4-openssl-dev, uuid-dev
+  Description: libs and headers to build iot applications based on azure-iot-sdk
+  Multi-Arch: same\
+        

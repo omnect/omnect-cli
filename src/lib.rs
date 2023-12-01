@@ -32,7 +32,7 @@ where
     F: FnOnce(&PathBuf) -> Result<()>,
 {
     anyhow::ensure!(
-        image_file.exists(),
+        image_file.try_exists().is_ok_and(|v| v == true),
         "image doesn't exist: {}",
         image_file.to_str().unwrap()
     );
@@ -67,7 +67,7 @@ where
         tmp_image_file = compression::compress(&tmp_image_file, &c)?;
         let image_file_new = image_file.with_file_name(tmp_image_file.file_name().unwrap());
         // copy back compressed image file
-        std::fs::copy(&tmp_image_file, &image_file_new)?;
+        std::fs::copy(&tmp_image_file, image_file_new)?;
     } else {
         // copy back uncompressed image file
         std::fs::copy(&tmp_image_file, &image_file)?;

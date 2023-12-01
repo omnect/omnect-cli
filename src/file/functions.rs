@@ -71,7 +71,10 @@ impl FromStr for FileCopyToParams {
         let partition = Partition::from_str(v[1])?;
         let out_file = std::path::PathBuf::from(v[2]);
 
-        anyhow::ensure!(in_file.exists(), "in-file-path doesn't exist");
+        anyhow::ensure!(
+            in_file.try_exists().is_ok_and(|v| v == true),
+            "in-file-path doesn't exist"
+        );
         anyhow::ensure!(
             out_file.is_absolute(),
             "out-file-path isn't an absolute path"
@@ -94,14 +97,14 @@ pub struct FileCopyFromParams {
 
 impl FileCopyFromParams {
     pub fn new(
-        in_file: std::path::PathBuf,
+        in_file: &std::path::Path,
         partition: Partition,
-        out_file: std::path::PathBuf,
+        out_file: &std::path::Path,
     ) -> Self {
         FileCopyFromParams {
-            in_file,
+            in_file: in_file.to_path_buf(),
             partition,
-            out_file,
+            out_file: out_file.to_path_buf(),
         }
     }
 }
@@ -234,6 +237,7 @@ pub fn copy_to_image(
     let image_file = image_file.to_str().unwrap();
     let mut partition_map: HashMap<&Partition, Vec<(&PathBuf, &PathBuf)>> = HashMap::new();
 
+    // create map with partition as key
     for params in file_copy_params.iter() {
         let e = (&params.in_file, &params.out_file);
         partition_map
@@ -311,10 +315,7 @@ pub fn copy_to_image(
     Ok(())
 }
 
-pub fn copy_from_image(
-    file_copy_params: &[FileCopyFromParams],
-    image_file: &Path,
-) -> Result<()> {
+pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Path) -> Result<()> {
     // we use the folder the image is located in
     // the caller is responsible to create a /tmp/ directory if needed
     let working_dir = image_file
@@ -359,7 +360,7 @@ pub fn copy_from_image(
             exec_cmd!(e2cp);
             // since e2cp doesn't return errors in any case we check if output file exists
             anyhow::ensure!(
-                tmp_out_file.exists(),
+                tmp_out_file.try_exists().is_ok_and(|v| v == true),
                 format!("copy_from_image: cmd failed: {:?}", e2cp)
             )
         }
@@ -449,7 +450,7 @@ fn read_partition(
     partition_file: &str,
     partition_offset: &(String, String),
 ) -> Result<()> {
-    if PathBuf::from(partition_file).exists() {
+    if let Ok(true) = PathBuf::from(partition_file).try_exists() {
         return Ok(());
     }
 
