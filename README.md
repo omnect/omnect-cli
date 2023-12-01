@@ -26,6 +26,10 @@ Todo
 download omnect-cli.deb
 dpkg ....
 
+# Build from sources
+ToDo
+deps....
+
 # Identity configuration
 ## Configuration of devices NOT part of a gateway with leaf scenario
 For `omnect-iot-devices` and `omnect-iotedge-devices` adapt [config.toml.est.template](conf/config.toml.est.template) or [config.toml.tpm.template](conf/config.toml.tpm.template) to your needs.

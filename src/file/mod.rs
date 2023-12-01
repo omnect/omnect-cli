@@ -2,12 +2,13 @@ pub mod compression;
 pub mod functions;
 use super::validators::{
     device_update,
-    identity::{validate_identity, IdentityType},
+    identity::{validate_identity, IdentityConfig, IdentityType},
     ssh::validate_ssh_pub_key,
 };
 use crate::file::functions::{FileCopyFromParams, FileCopyToParams, Partition};
 use anyhow::{Context, Result};
 use log::warn;
+use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -25,6 +26,7 @@ pub fn set_iotedge_gateway_config(
 
     copy_to_image(
         &vec![
+            etc_hosts_config(config_file, image_file)?,
             FileCopyToParams::new(
                 config_file,
                 Partition::factory,
@@ -67,6 +69,7 @@ pub fn set_iot_leaf_sas_config(
 
     copy_to_image(
         &[
+            etc_hosts_config(config_file, image_file)?,
             FileCopyToParams::new(
                 config_file,
                 Partition::factory,
@@ -86,15 +89,7 @@ pub fn set_ssh_tunnel_certificate(
     generate_bmap: bool,
 ) -> Result<()> {
     validate_ssh_pub_key(root_ca_file)?;
-
-    // we use the folder the image is located in
-    // the caller is responsible to create a /tmp/ directory if needed
-    let mut authorized_principals_file = image_file
-        .parent()
-        .context("copy_to_image: cannot get directory of image")?
-        .to_path_buf();
-
-    authorized_principals_file.push("authorized_principals");
+    let authorized_principals_file = get_file_path(image_file.parent(), "authorized_principals")?;
     fs::write(&authorized_principals_file, device_principal)?;
 
     copy_to_image(
@@ -121,11 +116,14 @@ pub fn set_identity_config(
         .iter()
         .for_each(|x| warn!("{}", x));
 
-    let mut files = vec![FileCopyToParams::new(
-        config_file,
-        Partition::factory,
-        Path::new("/etc/aziot/config.toml"),
-    )];
+    let mut files = vec![
+        etc_hosts_config(config_file, image_file)?,
+        FileCopyToParams::new(
+            config_file,
+            Partition::factory,
+            Path::new("/etc/aziot/config.toml"),
+        ),
+    ];
 
     if let Some(p) = payload {
         files.push(FileCopyToParams::new(
@@ -145,16 +143,9 @@ pub fn set_device_cert(
     image_file: &Path,
     generate_bmap: bool,
 ) -> Result<()> {
-    // we use the folder the image is located in
-    // the caller is responsible to create a /tmp/ directory if needed
-    let mut device_cert_path = image_file
-        .parent()
-        .context("copy_to_image: cannot get directory of image")?
-        .to_path_buf();
-    let mut device_key_path = device_cert_path.clone();
-
-    device_cert_path.push("device_cert_path.pem");
-    device_key_path.push("device_key_path.key.pem");
+    let parent = image_file.parent();
+    let device_cert_path = get_file_path(parent, "device_cert_path.pem")?;
+    let device_key_path = get_file_path(parent, "device_key_path.key.pem")?;
 
     fs::write(&device_cert_path, device_full_chain_cert)
         .context("set_device_cert: write device_cert_path")?;
@@ -216,4 +207,52 @@ pub fn copy_to_image(
 
 pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Path) -> Result<()> {
     functions::copy_from_image(file_copy_params, image_file)
+}
+
+fn etc_hosts_config(identity_config_file: &Path, image_file: &Path) -> Result<FileCopyToParams> {
+    let hosts_file = get_file_path(image_file.parent(), "hosts")?;
+
+    // get hostname from identity_config_file
+    let identity: IdentityConfig = serde_path_to_error::deserialize(&mut toml::Deserializer::new(
+        fs::read_to_string(identity_config_file.to_str().unwrap())
+            .context("etc_hosts_config: cannot read identity file")?
+            .as_str(),
+    ))
+    .context("etc_hosts_config: couldn't read identity")?;
+
+    // read /etc/hosts from rootA
+    copy_from_image(
+        &[FileCopyFromParams::new(
+            Path::new("/etc/hosts"),
+            Partition::rootA,
+            &hosts_file.to_path_buf(),
+        )],
+        image_file,
+    )
+    .context("etc_hosts_config: couldn't read /etc/hosts from rootA")?;
+
+    // patch /etc/hosts with hostname
+    let content =
+        fs::read_to_string(&hosts_file).context("etc_hosts_config: cannot read hosts file")?;
+
+    let reg = Regex::new(r"(127\.0\.1\.1.*)").context("etc_hosts_config: create hostname regex")?;
+
+    let content = reg.replace_all(content.as_str(), format!("127.0.1.1 {}", identity.hostname));
+
+    fs::write(&hosts_file, content.to_string())
+        .context("etc_hosts_config: cannot write to hosts file")?;
+
+    Ok(FileCopyToParams::new(
+        &hosts_file.to_path_buf(),
+        Partition::factory,
+        Path::new("/etc/hosts"),
+    ))
+}
+
+fn get_file_path(parent: Option<&Path>, file_name: &str) -> Result<PathBuf> {
+    let mut file_path = parent
+        .context("get_file_path: cannot get parent directory")?
+        .to_path_buf();
+    file_path.push(file_name);
+    Ok(file_path)
 }

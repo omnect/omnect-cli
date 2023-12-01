@@ -11,6 +11,8 @@ use stdext::function_name;
 #[macro_use]
 extern crate lazy_static;
 
+// ToDo: check for patched /etc/hosts
+
 #[test]
 fn check_set_identity_gateway_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
