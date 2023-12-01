@@ -32,7 +32,7 @@ where
     F: FnOnce(&PathBuf) -> Result<()>,
 {
     anyhow::ensure!(
-        image_file.try_exists().is_ok_and(|v| v == true),
+        image_file.try_exists().is_ok_and(|v| v),
         "image doesn't exist: {}",
         image_file.to_str().unwrap()
     );
