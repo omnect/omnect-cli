@@ -3,4 +3,4 @@ Version: %VERSION%
 Architecture: amd64
 Maintainer: omnect@conplement ag
 Depends: bmap-tools, e2tools, fdisk, mtools
-Description: ToDo
+Description: The omnect command-line interface (cli) is a cross-platform command-line tool to connect to omnect and execute administrative commands on omnect resources. It allows the execution of commands through a terminal using interactive command-line prompts or a script.
