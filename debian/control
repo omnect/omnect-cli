@@ -1,0 +1,6 @@
+Package: omnect-cli
+Version: %VERSION%
+Architecture: amd64
+Maintainer: omnect@conplement ag
+Depends: bmap-tools e2tools fdisk mtools
+Description: libs and headers to build iot applications based on azure-iot-sdk

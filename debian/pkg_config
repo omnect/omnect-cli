@@ -1,7 +1,0 @@
-  Name: omnect-cli
-  Description: cli tool to manage your omnect device images
-  URL: https://github.com/omnect/omnect-cli/
-  Version: %PKG_VERSION%
-  Requires: openssl, bmap-tools, e2tools, fdisk, mtools
-  Cflags: -I%PKG_INC_PATH%
-  Libs: -L%PKG_LIB_PATH%git 
