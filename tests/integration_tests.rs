@@ -43,6 +43,7 @@ fn check_set_identity_gateway_config() {
     let mut edge_device_identity_full_chain_file_out_path = config_file_out_path.clone();
     let mut edge_device_identity_key_file_out_path = config_file_out_path.clone();
     let mut hosts_file_out_path = config_file_out_path.clone();
+    let mut hostname_file_out_path = config_file_out_path.clone();
 
     config_file_out_path.push("config_file_out_path");
     let config_file_out_path = config_file_out_path.to_str().unwrap();
@@ -60,9 +61,10 @@ fn check_set_identity_gateway_config() {
     edge_device_identity_key_file_out_path.push("edge_device_identity_key_file_out_path");
     let edge_device_identity_key_file_out_path =
         edge_device_identity_key_file_out_path.to_str().unwrap();
-
     hosts_file_out_path.push("hosts_file_out_path");
     let hosts_file_out_path = hosts_file_out_path.to_str().unwrap();
+    hostname_file_out_path.push("hostname_file_out_path");
+    let hostname_file_out_path = hostname_file_out_path.to_str().unwrap();
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
@@ -85,7 +87,9 @@ fn check_set_identity_gateway_config() {
             "cert:/priv/edge-ca.key.pem,{edge_device_identity_key_file_out_path}"
         ))
         .arg("-f")
-        .arg(format!("rootA:/etc/hosts,{hosts_file_out_path}"))
+        .arg(format!("factory:/etc/hosts,{hosts_file_out_path}"))
+        .arg("-f")
+        .arg(format!("factory:/etc/hostname,{hostname_file_out_path}"))
         .arg("-i")
         .arg(&image_path)
         .assert();
@@ -111,6 +115,10 @@ fn check_set_identity_gateway_config() {
     assert!(std::fs::read_to_string(hosts_file_out_path)
         .unwrap()
         .contains("127.0.1.1 my-omnect-iotedge-gateway-device"));
+
+    assert!(std::fs::read_to_string(hostname_file_out_path)
+        .unwrap()
+        .contains("my-omnect-iotedge-gateway-device"));
 }
 
 #[test]
@@ -137,12 +145,16 @@ fn check_set_identity_leaf_config() {
     config_file_out_path.push("dir1");
     let mut root_ca_file_out_path = config_file_out_path.clone();
     let mut hosts_file_out_path = config_file_out_path.clone();
+    let mut hostname_file_out_path = config_file_out_path.clone();
+
     config_file_out_path.push("config_file_out_path");
     let config_file_out_path = config_file_out_path.to_str().unwrap();
     root_ca_file_out_path.push("root_ca_file_out_path");
     let root_ca_file_out_path = root_ca_file_out_path.to_str().unwrap();
     hosts_file_out_path.push("hosts_file_out_path");
     let hosts_file_out_path = hosts_file_out_path.to_str().unwrap();
+    hostname_file_out_path.push("hostname_file_out_path");
+    let hostname_file_out_path = hostname_file_out_path.to_str().unwrap();
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
@@ -155,7 +167,9 @@ fn check_set_identity_leaf_config() {
         .arg("-f")
         .arg(format!("cert:/ca/root.ca.cert.crt,{root_ca_file_out_path}"))
         .arg("-f")
-        .arg(format!("rootA:/etc/hosts,{hosts_file_out_path}"))
+        .arg(format!("factory:/etc/hosts,{hosts_file_out_path}"))
+        .arg("-f")
+        .arg(format!("factory:/etc/hostname,{hostname_file_out_path}"))
         .arg("-i")
         .arg(&image_path)
         .assert();
@@ -173,6 +187,10 @@ fn check_set_identity_leaf_config() {
     assert!(std::fs::read_to_string(hosts_file_out_path)
         .unwrap()
         .contains("127.0.1.1 my-omnect-iot-leaf-device"));
+
+    assert!(std::fs::read_to_string(hostname_file_out_path)
+        .unwrap()
+        .contains("my-omnect-iot-leaf-device"));
 }
 
 #[test]
@@ -196,10 +214,14 @@ fn check_set_identity_config_est_template() {
     let mut config_file_out_path = tr.pathbuf();
     config_file_out_path.push("dir1");
     let mut hosts_file_out_path = config_file_out_path.clone();
+    let mut hostname_file_out_path = config_file_out_path.clone();
+
     config_file_out_path.push("config_file_out_path");
     let config_file_out_path = config_file_out_path.to_str().unwrap();
     hosts_file_out_path.push("hosts_file_out_path");
     let hosts_file_out_path = hosts_file_out_path.to_str().unwrap();
+    hostname_file_out_path.push("hostname_file_out_path");
+    let hostname_file_out_path = hostname_file_out_path.to_str().unwrap();
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
@@ -210,7 +232,9 @@ fn check_set_identity_config_est_template() {
             "factory:/etc/aziot/config.toml,{config_file_out_path}"
         ))
         .arg("-f")
-        .arg(format!("rootA:/etc/hosts,{hosts_file_out_path}"))
+        .arg(format!("factory:/etc/hosts,{hosts_file_out_path}"))
+        .arg("-f")
+        .arg(format!("factory:/etc/hostname,{hostname_file_out_path}"))
         .arg("-i")
         .arg(&image_path)
         .assert();
@@ -224,6 +248,10 @@ fn check_set_identity_config_est_template() {
     assert!(std::fs::read_to_string(hosts_file_out_path)
         .unwrap()
         .contains("127.0.1.1 test-omnect-est"));
+
+    assert!(std::fs::read_to_string(hostname_file_out_path)
+        .unwrap()
+        .contains("test-omnect-est"));
 }
 
 #[test]
@@ -251,12 +279,16 @@ fn check_set_identity_config_payload_template() {
     config_file_out_path.push("dir1");
     let mut payload_out_path = config_file_out_path.clone();
     let mut hosts_file_out_path = config_file_out_path.clone();
+    let mut hostname_file_out_path = config_file_out_path.clone();
+
     config_file_out_path.push("config_file_out_path");
     let config_file_out_path = config_file_out_path.to_str().unwrap();
     payload_out_path.push("root_ca_file_out_path");
     let payload_out_path = payload_out_path.to_str().unwrap();
     hosts_file_out_path.push("hosts_file_out_path");
     let hosts_file_out_path = hosts_file_out_path.to_str().unwrap();
+    hostname_file_out_path.push("hostname_file_out_path");
+    let hostname_file_out_path = hostname_file_out_path.to_str().unwrap();
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
@@ -271,7 +303,9 @@ fn check_set_identity_config_payload_template() {
             "factory:/etc/omnect/dps-payload.json,{payload_out_path}"
         ))
         .arg("-f")
-        .arg(format!("rootA:/etc/hosts,{hosts_file_out_path}"))
+        .arg(format!("factory:/etc/hosts,{hosts_file_out_path}"))
+        .arg("-f")
+        .arg(format!("factory:/etc/hostname,{hostname_file_out_path}"))
         .arg("-i")
         .arg(&image_path)
         .assert();
@@ -289,6 +323,10 @@ fn check_set_identity_config_payload_template() {
     assert!(std::fs::read_to_string(hosts_file_out_path)
         .unwrap()
         .contains("127.0.1.1 test-omnect-est-with-payload"));
+
+    assert!(std::fs::read_to_string(hostname_file_out_path)
+        .unwrap()
+        .contains("test-omnect-est-with-payload"));
 }
 
 #[test]
@@ -312,10 +350,14 @@ fn check_set_identity_config_tpm_template() {
     let mut config_file_out_path = tr.pathbuf();
     config_file_out_path.push("dir1");
     let mut hosts_file_out_path = config_file_out_path.clone();
+    let mut hostname_file_out_path = config_file_out_path.clone();
+
     config_file_out_path.push("config_file_out_path");
     let config_file_out_path = config_file_out_path.to_str().unwrap();
     hosts_file_out_path.push("hosts_file_out_path");
     let hosts_file_out_path = hosts_file_out_path.to_str().unwrap();
+    hostname_file_out_path.push("hostname_file_out_path");
+    let hostname_file_out_path = hostname_file_out_path.to_str().unwrap();
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
@@ -326,7 +368,9 @@ fn check_set_identity_config_tpm_template() {
             "factory:/etc/aziot/config.toml,{config_file_out_path}"
         ))
         .arg("-f")
-        .arg(format!("rootA:/etc/hosts,{hosts_file_out_path}"))
+        .arg(format!("factory:/etc/hosts,{hosts_file_out_path}"))
+        .arg("-f")
+        .arg(format!("factory:/etc/hostname,{hostname_file_out_path}"))
         .arg("-i")
         .arg(&image_path)
         .assert();
@@ -340,6 +384,10 @@ fn check_set_identity_config_tpm_template() {
     assert!(std::fs::read_to_string(hosts_file_out_path)
         .unwrap()
         .contains("127.0.1.1 my-omnect-iot-tpm-device"));
+
+    assert!(std::fs::read_to_string(hostname_file_out_path)
+        .unwrap()
+        .contains("my-omnect-iot-tpm-device"));
 }
 
 #[test]

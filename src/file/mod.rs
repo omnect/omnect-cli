@@ -24,33 +24,31 @@ pub fn set_iotedge_gateway_config(
         .iter()
         .for_each(|x| warn!("{}", x));
 
-    copy_to_image(
-        &vec![
-            etc_hosts_config(config_file, image_file)?,
-            FileCopyToParams::new(
-                config_file,
-                Partition::factory,
-                Path::new("/etc/aziot/config.toml"),
-            ),
-            FileCopyToParams::new(
-                root_ca_file,
-                Partition::cert,
-                Path::new("/ca/trust-bundle.pem.crt"),
-            ),
-            FileCopyToParams::new(
-                edge_device_identity_full_chain_file,
-                Partition::cert,
-                Path::new("/priv/edge-ca.pem"),
-            ),
-            FileCopyToParams::new(
-                edge_device_identity_key_file,
-                Partition::cert,
-                Path::new("/priv/edge-ca.key.pem"),
-            ),
-        ],
-        image_file,
-        generate_bmap,
-    )
+    let mut file_copies = configure_hostname(config_file, image_file)?;
+    file_copies.append(&mut vec![
+        FileCopyToParams::new(
+            config_file,
+            Partition::factory,
+            Path::new("/etc/aziot/config.toml"),
+        ),
+        FileCopyToParams::new(
+            root_ca_file,
+            Partition::cert,
+            Path::new("/ca/trust-bundle.pem.crt"),
+        ),
+        FileCopyToParams::new(
+            edge_device_identity_full_chain_file,
+            Partition::cert,
+            Path::new("/priv/edge-ca.pem"),
+        ),
+        FileCopyToParams::new(
+            edge_device_identity_key_file,
+            Partition::cert,
+            Path::new("/priv/edge-ca.key.pem"),
+        ),
+    ]);
+
+    copy_to_image(&file_copies, image_file, generate_bmap)
 }
 
 pub fn set_iot_leaf_sas_config(
@@ -67,19 +65,17 @@ pub fn set_iot_leaf_sas_config(
     root_ca_out_file.push(root_ca_file.file_name().unwrap());
     root_ca_out_file.set_extension("crt");
 
-    copy_to_image(
-        &[
-            etc_hosts_config(config_file, image_file)?,
-            FileCopyToParams::new(
-                config_file,
-                Partition::factory,
-                Path::new("/etc/aziot/config.toml"),
-            ),
-            FileCopyToParams::new(root_ca_file, Partition::cert, &root_ca_out_file),
-        ],
-        image_file,
-        generate_bmap,
-    )
+    let mut file_copies = configure_hostname(config_file, image_file)?;
+    file_copies.append(&mut vec![
+        FileCopyToParams::new(
+            config_file,
+            Partition::factory,
+            Path::new("/etc/aziot/config.toml"),
+        ),
+        FileCopyToParams::new(root_ca_file, Partition::cert, &root_ca_out_file),
+    ]);
+
+    copy_to_image(&file_copies, image_file, generate_bmap)
 }
 
 pub fn set_ssh_tunnel_certificate(
@@ -116,24 +112,21 @@ pub fn set_identity_config(
         .iter()
         .for_each(|x| warn!("{}", x));
 
-    let mut files = vec![
-        etc_hosts_config(config_file, image_file)?,
-        FileCopyToParams::new(
-            config_file,
-            Partition::factory,
-            Path::new("/etc/aziot/config.toml"),
-        ),
-    ];
+    let mut file_copies = configure_hostname(config_file, image_file)?;
+    file_copies.append(&mut vec![FileCopyToParams::new(
+        config_file,
+        Partition::factory,
+        Path::new("/etc/aziot/config.toml"),
+    )]);
 
     if let Some(p) = payload {
-        files.push(FileCopyToParams::new(
+        file_copies.push(FileCopyToParams::new(
             p,
             Partition::factory,
             Path::new("/etc/omnect/dps-payload.json"),
         ));
     }
-
-    copy_to_image(&files, image_file, generate_bmap)
+    copy_to_image(&file_copies, image_file, generate_bmap)
 }
 
 pub fn set_device_cert(
@@ -209,16 +202,23 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
     functions::copy_from_image(file_copy_params, image_file)
 }
 
-fn etc_hosts_config(identity_config_file: &Path, image_file: &Path) -> Result<FileCopyToParams> {
+fn configure_hostname(
+    identity_config_file: &Path,
+    image_file: &Path,
+) -> Result<Vec<FileCopyToParams>> {
+    let hostname_file = get_file_path(image_file.parent(), "hostname")?;
     let hosts_file = get_file_path(image_file.parent(), "hosts")?;
 
     // get hostname from identity_config_file
     let identity: IdentityConfig = serde_path_to_error::deserialize(&mut toml::Deserializer::new(
         fs::read_to_string(identity_config_file.to_str().unwrap())
-            .context("etc_hosts_config: cannot read identity file")?
+            .context("configure_hostname: cannot read identity file")?
             .as_str(),
     ))
-    .context("etc_hosts_config: couldn't read identity")?;
+    .context("configure_hostname: couldn't read identity")?;
+
+    fs::write(&hostname_file, &identity.hostname)
+        .context("configure_hostname: cannot write to hostname file")?;
 
     // read /etc/hosts from rootA
     copy_from_image(
@@ -229,24 +229,32 @@ fn etc_hosts_config(identity_config_file: &Path, image_file: &Path) -> Result<Fi
         )],
         image_file,
     )
-    .context("etc_hosts_config: couldn't read /etc/hosts from rootA")?;
+    .context("configure_hostname: couldn't read /etc/hosts from rootA")?;
 
     // patch /etc/hosts with hostname
     let content =
-        fs::read_to_string(&hosts_file).context("etc_hosts_config: cannot read hosts file")?;
+        fs::read_to_string(&hosts_file).context("configure_hostname: cannot read hosts file")?;
 
-    let reg = Regex::new(r"(127\.0\.1\.1.*)").context("etc_hosts_config: create hostname regex")?;
+    let reg =
+        Regex::new(r"(127\.0\.1\.1.*)").context("configure_hostname: create hostname regex")?;
 
     let content = reg.replace_all(content.as_str(), format!("127.0.1.1 {}", identity.hostname));
 
     fs::write(&hosts_file, content.to_string())
-        .context("etc_hosts_config: cannot write to hosts file")?;
+        .context("configure_hostname: cannot write to hosts file")?;
 
-    Ok(FileCopyToParams::new(
-        &hosts_file.to_path_buf(),
-        Partition::factory,
-        Path::new("/etc/hosts"),
-    ))
+    Ok(vec![
+        FileCopyToParams::new(
+            &hostname_file.to_path_buf(),
+            Partition::factory,
+            Path::new("/etc/hostname"),
+        ),
+        FileCopyToParams::new(
+            &hosts_file.to_path_buf(),
+            Partition::factory,
+            Path::new("/etc/hosts"),
+        ),
+    ])
 }
 
 fn get_file_path(parent: Option<&Path>, file_name: &str) -> Result<PathBuf> {
