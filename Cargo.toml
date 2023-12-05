@@ -53,5 +53,5 @@ file_diff = "1.0"
 assert_cmd = "2.0"
 
 [package.metadata.deb]
-depends = "bmap-tools, e2tools, fdisk, mtools, libssl3 (>= 3.0.0~~alpha1), libc6 (>= 2.34)"
+depends = "bmap-tools, e2tools, fdisk, mtools, libmagic, libssl3 (>= 3.0.0), libc6 (>= 2.34)"
 revision = ""
