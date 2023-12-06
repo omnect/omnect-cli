@@ -150,12 +150,6 @@ macro_rules! exec_cmd {
 
 macro_rules! try_exec_cmd {
     ($cmd:ident) => {
-        /*         anyhow::ensure!(
-            $cmd.status()
-                .context(format!("{}: status failed: {:?}", function_name!(), $cmd))?
-                .success(),
-            format!("{}: cmd failed: {:?}", function_name!(), $cmd)
-        ); */
         if $cmd
             .status()
             .context(format!("{}: status failed: {:?}", function_name!(), $cmd))?
@@ -506,46 +500,3 @@ pub fn generate_bmap_file(image_file: &str) -> Result<()> {
 
     Ok(())
 }
-
-/*
-function config_hostname () {
-    d_echo config_hostname
-    hostname=$(grep "^hostname" ${1})
-
-    # possibly remove inline comments
-    hostname=${hostname%%\#*}
-
-    hostname=$(echo ${hostname} | cut -d "=" -f2 | xargs)
-
-    if [ -z "${hostname}" ]; then
-        error "hostname is empty"
-        exit 1
-    fi
-
-    echo "${hostname}" > /tmp/${uuid}/hostname
-
-    read_in_rootA
-    e2cp /tmp/${uuid}/rootA.img:/etc/hosts /tmp/${uuid}/hosts
-    sed -i "s/^127.0.1.1\(.*\)/127.0.1.1 ${hostname}/" /tmp/${uuid}/hosts
-
-    if [ "${p}" != "factory" ]; then
-        error "can not configure hostname"
-        exit 1
-    fi
-
-    e2mkdir /tmp/${uuid}/${p}.img:/etc
-    e2cp /tmp/${uuid}/hostname /tmp/${uuid}/${p}.img:/etc/hostname
-    e2cp /tmp/${uuid}/hosts /tmp/${uuid}/${p}.img:/etc/hosts
-}
-
-function copy_identity_config() {
-    if [ "${p}" != "factory" ]; then
-        error "can not copy identity config"
-        exit 1
-    fi
-    d_echo e2cp ${c} /tmp/${uuid}/${p}.img:/etc/aziot/config.toml
-    e2mkdir /tmp/${uuid}/${p}.img:/etc/aziot
-    e2cp ${c} /tmp/${uuid}/${p}.img:/etc/aziot/config.toml
-    config_hostname ${c}
-}
-*/
