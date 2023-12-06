@@ -2,102 +2,67 @@
 **Product page: https://www.omnect.io/home**
 
 # Features
-omnect-cli is a cli tool to manage your omnect-devices. It provides commands to inject various configurations into a flash image (wic) build with [meta-omnect](https://github.com/omnect/meta-omnect). Currently the following configurations options are supported:
-- Wifi configuration
-  - Inject wifi configuration via wpa_supplicant into all omnect-device variants
+omnect-cli is a command-line tool to manage omnect-os empowered devices. It provides commands to inject various configurations into a flash image (wic) build with [meta-omnect](https://github.com/omnect/meta-omnect). Currently the following configurations options are supported:
+
 - Identity configuration
   - Inject general identity configuration for AIS (Azure Identity Service)
-  - Inject an iotedge gateway identity configuration for AIS
-  - Inject an iot leaf identity configuration for AIS
   - Inject a device certificate with corresponding key from a given intermediate full-chain-certificate and corresponding key
-  - Inject an ssh root ca and device principal for ssh tunnel creation.
+- Inject a ssh root ca and device principal for ssh tunnel creation.
 - Device Update for IoT Hub configuration
   - Inject [`du-config.json`](https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
-- Boot configuration
-  - Inject `boot.scr`
-- File
-  - Copy a file into the image, restricted to partitions boot, cert, factory
+- Generic configuration of services
+  - Copy files to image in order to configure e.g. boot service, firewall, wifi and others
+  - Copy files from image, e.g. to patch and re-inject configurations
 - SSH
   - Open an ssh tunnel on a device in the field to connect to it.
 
 # Installation
 
-Todo
-download omnect-cli.deb
-dpkg ....
+Available debian packages can be listed as a xml document via this [link](https://omnectassetst.blob.core.windows.net/omnect-cli?restype=container&comp=list). Choose, download and install a version:
+```sh
+wget https://omnectassetst.blob.core.windows.net/omnect-cli/omnect-cli_<version>_amd64.deb
+sudo dpkg -i omnect-cli_<version>_amd64.deb
+```
+**Note**: `dpkg` lists necessary runtime dependencies in case they are not present.
 
 # Build from sources
-ToDo
-deps....
 
-# Identity configuration
-## Configuration of devices NOT part of a gateway with leaf scenario
-For `omnect-iot-devices` and `omnect-iotedge-devices` adapt [config.toml.est.template](conf/config.toml.est.template) or [config.toml.tpm.template](conf/config.toml.tpm.template) to your needs.
+The application can be built via `cargo` as usual. As a prerequisite `libmagic-dev` package must be installed on host system.
+
+# Commands
+## Identity configuration
+### Inject identity
+
+For `omnect-iotedge-devices` adapt [config.toml.est.template](conf/config.toml.est.template) or [config.toml.tpm.template](conf/config.toml.tpm.template) to your needs.
 
 ```sh
 omnect-cli identity set-config -c <path>/config.toml -i <path>/image.wic
 
 Options:
-  -p <path>/payload.json
+  -e <path>/extra-payload.json
+  -p pack and compress image [xz, bzip2, gzip]
   -b create bmap file
 ```
 For further information on using dps payloads read the following [link](https://learn.microsoft.com/de-de/azure/iot-dps/concepts-custom-allocation).
 
-## Prepare `omnect-iotedge-gateway-device` and `omnect-iot-leaf-device` for a transparent gateway with leaf scenario
-Follow this article [Configure an IoT Edge device to act as a transparent gateway](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-transparent-gateway?view=iotedge-2020-11) to understand the iotedge based transparent gateway setup. We assume that you use a X.509 CA certificate setup.
-
-## Gateway configuration
-### Certificates
-Follow the article [Create demo certificates to test IoT Edge device features](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11=) in case you don't have a workflow for certificate creation yet.
-For the gateway, you need the following files:
-  - `azure-iot-test-only.root.ca.cert.pem`
-  - `iot-edge-ca-<name>-full-chain.cert.pem`
-  - `iot-edge-ca-<name>.key.pem`
-
-### Config file
-Adapt [config.toml.gateway.est.template](conf/config.toml.gateway.est.template) or [config.toml.gateway.tpm.template](conf/config.toml.gateway.tpm.template) to your needs.
-
-### Inject configuration
-```sh
-omnect-cli identity  set-iotedge-gateway-config -c <path>/iotedge_config.toml -i <path>/iotedge_image.wic  -r <path>/azure-iot-test-only.root.ca.cert.pem -d <path>/iot-edge-device-ca-<name>-full-chain.cert.pem -k <path>/iot-edge-device-ca-<name>.key.pem
-
-Options:
-  -b create bmap file
-```
-
-## Leaf configuration
-### Restriction
-We provision iot applications as modules. Currently our leaf device configuration is restricted to SaS authentication. See https://azure.github.io/iot-identity-service/develop-an-agent.html#connecting-your-agent-to-iot-hub for details.
-
-### Certificates
-For the leaf device with SaS provisioning you only need the root ca certificate:
-  - `azure-iot-test-only.root.ca.cert.pem`
-
-### Config file
-Adapt [config.toml.iot-leaf.template](conf/config.toml.iot-leaf.template) to your needs.
-
-### Inject configuration
-```sh
-omnect-cli identity set-iot-leaf-sas-config -c <path>/iot_config.toml -i <path>/leaf_image.wic  -r <path>/azure-iot-test-only.root.ca.cert.pem
-
-Options:
-  -b create bmap file
-```
-
-## Device certificate and key
+### Device certificate and key for x509 based DPS provisioning
 
 For a given full-chain intermediate certificate and corresponding key, both as pem files, generate a device certificate and device key valid for 365 days.
 ```sh
 omnect-cli identity set-device-certificate -d "device_id" -i <path>/image.wic -c <path>/intermediate_full_chain_cert.pem -k <path>/intermediate_cert_key.pem -D 365
+
+Options:
+  -p pack and compress image [xz, bzip2, gzip]
+  -b create bmap file
 ```
-Note: "device_id" has to match the `registration_id` respectively the `device_id` configured in `config.toml`.
+**Note**: "device_id" has to match the `registration_id` respectively the `device_id` configured in `config.toml`.
 
 See [`config.toml.est.template`](conf/config.toml.est.template) as a corresponding `config.toml` is case of using `EST service`.
 
-### Get full-chain intermediate certificate and key for existing OMNECT PKI
+#### Get full-chain intermediate certificate and key for existing OMNECT PKI
 Please get into contact with us in case you want to use our existing cloud services for device provisioning. We can provide certificate and key file to configure your device.
 
-### Generate your own full-chain intermediate certificate and key
+#### Generate your own full-chain intermediate certificate and key
 In case you intend to use your own certificates (e.g. because you want to use your own `PKI` and/or `EST service`), you can find some information about generating certificate and key here: https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11.
 
 ## SSH Tunnel configuration
@@ -105,69 +70,59 @@ In case you intend to use your own certificates (e.g. because you want to use yo
 For the ssh feature, the device requires the public key of the ssh root ca and the principal. The latter should be the device id.
 ```sh
 omnect-cli identity set-ssh-tunnel-certificate --image <path>/image.wic --root_ca <path>/ssh_ca.pub --device-principal "device_id"
+
+Options:
+  -p pack and compress image [xz, bzip2, gzip]
+  -b create bmap file
 ```
 
-# Device Update for IoT Hub configuration
-## Inject `du-config.json`
+## Device Update for IoT Hub configuration
+### Inject `du-config.json`
 
 ```sh
 omnect-cli iot-hub-device-update set -c <path>/du-config.json -i <path>/image.wic
 
 Options:
+  -p pack and compress image [xz, bzip2, gzip]
   -b create bmap file
 ```
 
-# Copy Files into or from Image
+## Copy Files
 
-Copying files into or from the image is restricted to partions `boot`, `cert` and `factory`.
+Copying files into or from the image is restricted to partitions `boot`, `rootA`, `cert` and `factory`. Destination paths that are not existing will be created on host as well as on image.
 
-Note: If you need special permissions on copied files, you have to additionally copy a systemd-tmpfiles.d configuration file which handles these permissions.
-## Read e.g. `boot.scr`
+### Copy Files from Image
+
+`omnect-cli` allows copying multiple files from multiple partitions in one command:
 
 ```sh
-omnect-cli file copy-from-image -f /boot.scr -i <path>/image.wic -p boot -d boot.scr
+omnect-cli file copy-from-image -f <partition>:<absolute-path-to-src>,<path-to-dest> -f <partition>:<absolute-path-to-src>,<path-to-dest> -i <path>/image.wic
 ```
-## Inject `boot.scr`
+
+### Copy Files to Image
+
+`omnect-cli` allows copying multiple files to multiple partitions in one command:
 
 ```sh
-omnect-cli file copy-to-image -f <path>/boot.scr -i <path>/image.wic -p boot -d /boot.scr
+omnect-cli file copy-to-image -f <path-to-src>,<partition>:<absolute-path-to-dest> -f <path-to-src>,<partition>:<absolute-path-to-dest> -i <path>/image.wic
 
 Options:
+  -p pack and compress image [xz, bzip2, gzip]
   -b create bmap file
 ```
 
-## Inject `iptables.rules` configuration
-```sh
-omnect-cli file copy-to-image -f <path>/iptables.rules -i <path>/image.wic -p factory -d /etc/iptables/iptables.rules
+**Note1**: If you need special permissions on copied files, you have to additionally copy a systemd-tmpfiles.d configuration file which handles these permissions.<br>
+**Note2**: Injecting files allows configuration of device behavior and services, e.g.:
+- Boot: inject `boot.scr` or grub.cfg
+- Firewall: inject `iptables.rules`
+- File permissions: inject `systemd-tmpfiles.d`
+- Wifi: inject `wpa_supplicant-wlan0.conf`
 
-Options:
-  -b create bmap file
-```
-
-## Inject `systemd-tmpfiles.d`` configuration
-```sh
-omnect-cli file copy-to-image -f <path>/my_custom_tmpfilesd.conf -i <path>/image.wic -p factory -d /etc/tmpfiles.d/my_custom_tmpfilesd.conf
-
-Options:
-  -b create bmap file
-```
-
-## Inject `wpa_supplicant-wlan0.conf` wifi configuration
-Adapt either [wpa_supplicant.conf.simple.template](conf/wpa_supplicant.conf.simple.template) or [wpa_supplicant.conf.template](conf/wpa_supplicant.conf.template).
-Use `wpa_passphrase` to generate your `psk`. Depending on your host system you may have to install `wpa_supplicant` to be able to use `wpa_passphrase`.
-
-```sh
-omnect-cli file copy-to-image -f <path>/wpa_supplicant.conf -i <path>/image.wic -p factory -d /etc/wpa_supplicant/wpa_supplicant-wlan0.conf
-
-Options:
-  -b create bmap file
-```
-
-# Creating an SSH Tunnel
+## Creating a SSH Tunnel
 
 One can use `omnect-cli` to create a tunneled SSH connection to a device in the field. This is especially useful if the device is behind a NAT and can not directly be contacted. The device must have the `ssh` activated for this. Per default, this command will create a single use ssh key pair, certificate, and ssh configuration to establish a connection to the device.
 
-Note: if unused, the tunnel will close after 5 minutes.
+**Note**: if unused, the tunnel will close after 5 minutes.
 
 Creating the ssh tunnel:
 ```sh
@@ -181,7 +136,7 @@ Options:
   -b <backend address> optional: address of omnect cloud service, defaults to https://cp.omnect.conplement.cloud
 ```
 
-## Example Usage
+### Example Usage
 
 Open an ssh tunnel to the device `test_device` as follows:
 ```sh
@@ -208,7 +163,7 @@ If anything goes wrong, setting RUST_LOG=debug enables output of debug informati
 ## No credential store support
 `omnect-cli` needs to pull a docker image `omnectweucopsacr.azurecr.io/omnect-cli-backend` as backend for some cli
 commands. If you use a docker environment with credential store you have to
-pull the image prior to calling `omnect-cli` manually. (Note this is not necessary if you installed ´omnect-cli´ via: [Installation](#installation))
+pull the image prior to calling `omnect-cli` manually. (**Note** this is not necessary if you installed ´omnect-cli´ via: [Installation](#installation))
 ```sh
 docker pull omnectweucopsacr.azurecr.io/omnect-cli-backend:$(omnect-cli --version | awk '{print $2}')
 ```

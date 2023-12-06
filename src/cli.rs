@@ -6,6 +6,7 @@ use clap::Parser;
 
 const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 
+// ToDo: command completion
 #[derive(Parser, Debug)]
 #[command(after_help = COPYRIGHT)]
 /// file handling
