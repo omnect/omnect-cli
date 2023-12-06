@@ -1,7 +1,6 @@
 [package]
 authors = ["omnect@conplement.de>"]
-build = "src/build.rs"
-description = "This tool provides a command-line interface to configure your omnect device linux images. and to communicate with omnect empowered devices"
+description = "This tool provides a command-line interface to configure omnect-os images and to communicate with omnect-os empowered devices."
 edition = "2021"
 homepage = "https://www.omnect.io/home"
 license = "MIT OR Apache-2.0"
@@ -13,25 +12,25 @@ version = "0.17.0"
 [dependencies]
 actix-web = "4.4"
 anyhow = "1"
-bzip2 = "0.4.1"
+bzip2 = "0.4"
 clap = { version = "4.0", features = ["derive"] }
-directories = "5.0.1"
+directories = "5.0"
 env_logger = "0.8"
 filemagic = "0.12"
-flate2 = "1.0.22"
+flate2 = "1.0"
 omnect-crypto = { git = "https://github.com/omnect/omnect-crypto.git", tag = "0.4.0" }
-keyring = "2.0.4"
-lazy_static = "1.4.0"
+keyring = "2.0"
+lazy_static = "1.4"
 log = "0.4"
 num_cpus = "1.13"
-oauth2 = "4.4.1"
-open = "4.1.0"
+oauth2 = "4.4"
+open = "4.1"
 regex = "1.5.5"
-reqwest = { version = "0.11.18", features = ["json"] }
-serde = "1.0.*"
-serde_json = "1.0.59"
-serde_path_to_error = "0.1.*"
-stdext = "0.3.*"
+reqwest = { version = "0.11", features = ["json"] }
+serde = "1.0"
+serde_json = "1.0"
+serde_path_to_error = "0.1"
+stdext = "0.3"
 strum = "0.25"
 strum_macros = "0.25"
 tokio = { version = "1", features = [
@@ -41,9 +40,9 @@ tokio = { version = "1", features = [
     "fs",
     "net",
 ] }
-toml = "0.5.*"
+toml = "0.5"
 uuid = { version = "0.8", default-features = false, features = ["v4"] }
-url = "2.4.0"
+url = "2.4"
 validator = { version = "0.14", features = ["derive"] }
 xz2 = "0.1"
 

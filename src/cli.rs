@@ -1,12 +1,13 @@
 use crate::file::{
-    functions::{FileCopyFromParams, FileCopyToParams},
     compression::Compression,
+    functions::{FileCopyFromParams, FileCopyToParams},
 };
 use clap::Parser;
 
 const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 
 // ToDo: command completion
+
 #[derive(Parser, Debug)]
 #[command(after_help = COPYRIGHT)]
 /// file handling
@@ -22,7 +23,7 @@ pub enum FileConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image
+        /// optional: pack image [xz, bzip2, gzip]
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -55,7 +56,7 @@ pub enum IdentityConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image
+        /// optional: pack image [xz, bzip2, gzip]
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -79,7 +80,7 @@ pub enum IdentityConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image
+        /// optional: pack image [xz, bzip2, gzip]
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -97,7 +98,7 @@ pub enum IdentityConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image
+        /// optional: pack image [xz, bzip2, gzip]
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -121,25 +122,7 @@ pub enum IdentityConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image
-        #[arg(short = 'p', long = "pack-image", value_enum)]
-        compress_image: Option<Compression>,
-    },
-    /// set ssh tunnel certificate
-    SetSshTunnelCertificate {
-        /// path to wic image file
-        #[arg(short = 'i', long = "image")]
-        image: std::path::PathBuf,
-        /// path to public key of the ssh root ca
-        #[arg(short = 'r', long = "root_ca")]
-        root_ca: std::path::PathBuf,
-        /// device-id
-        #[arg(short = 'p', long = "device-principal")]
-        device_principal: String,
-        /// optional: generate bmap file
-        #[arg(short = 'b', long = "generate-bmap-file")]
-        generate_bmap: bool,
-        /// optional: pack image
+        /// optional: pack image [xz, bzip2, gzip]
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -160,7 +143,7 @@ pub enum IotHubDeviceUpdateConfig {
         /// optional: generate bmap file
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image
+        /// optional: pack image [xz, bzip2, gzip]
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -168,35 +151,57 @@ pub enum IotHubDeviceUpdateConfig {
 
 #[derive(Parser, Debug)]
 #[command(after_help = COPYRIGHT)]
-/// establish ssh connections to devices
-pub struct SshConfig {
-    /// username for the login on the device.
-    #[arg(short = 'u', long = "user", default_value = "omnect")]
-    pub username: String,
-    /// optional: path where the ssh key pair, the certificates, and the
-    /// temporary ssh configuration is stored. Defaults to system local data
-    /// directories (e.g. ${XDG_RUNTIME_DIR}/omnect-cli on Linux).
-    #[arg(short = 'd', long = "dir")]
-    pub dir: Option<std::path::PathBuf>,
-    /// optional: path to a pre-existing ssh private key that is used. Note:
-    /// this expects the existence of a corresponding <key-path>.pub file.
-    /// If not specified, omnect-cli creates a key pair for this connection.
-    #[arg(short = 'k', long = "key")]
-    pub priv_key_path: Option<std::path::PathBuf>,
-    /// optional: path where the ssh configuration is stored. Defaults to system
-    /// local data directories (e.g. ${XDG_RUNTIME_DIR}/omnect-cli/ssh_config on
-    /// Linux).
-    #[arg(short = 'c', long = "config-path")]
-    pub config_path: Option<std::path::PathBuf>,
-    /// address of the backend API
-    #[arg(
-        short = 'b',
-        long = "backend",
-        default_value = "https://cp.omnect.conplement.cloud"
-    )]
-    pub backend: String,
-    /// name of the device for which the ssh tunnel should be created.
-    pub device: String,
+/// file handling
+pub enum Ssh {
+    /// set ssh tunnel certificate
+    SetCertificate {
+        /// path to wic image file
+        #[arg(short = 'i', long = "image")]
+        image: std::path::PathBuf,
+        /// path to public key of the ssh root ca
+        #[arg(short = 'r', long = "root_ca")]
+        root_ca: std::path::PathBuf,
+        /// device-id
+        #[arg(short = 'd', long = "device-principal")]
+        device_principal: String,
+        /// optional: generate bmap file
+        #[arg(short = 'b', long = "generate-bmap-file")]
+        generate_bmap: bool,
+        /// optional: pack image [xz, bzip2, gzip]
+        #[arg(short = 'p', long = "pack-image", value_enum)]
+        compress_image: Option<Compression>,
+    },
+
+    /// establish ssh connections to devices
+    Connection {
+        /// username for the login on the device.
+        #[arg(short = 'u', long = "user", default_value = "omnect")]
+        username: String,
+        /// optional: path where the ssh key pair, the certificates, and the
+        /// temporary ssh configuration is stored. Defaults to system local data
+        /// directories (e.g. ${XDG_RUNTIME_DIR}/omnect-cli on Linux).
+        #[arg(short = 'd', long = "dir")]
+        dir: Option<std::path::PathBuf>,
+        /// optional: path to a pre-existing ssh private key that is used. Note:
+        /// this expects the existence of a corresponding <key-path>.pub file.
+        /// If not specified, omnect-cli creates a key pair for this connection.
+        #[arg(short = 'k', long = "key")]
+        priv_key_path: Option<std::path::PathBuf>,
+        /// optional: path where the ssh configuration is stored. Defaults to system
+        /// local data directories (e.g. ${XDG_RUNTIME_DIR}/omnect-cli/ssh_config on
+        /// Linux).
+        #[arg(short = 'c', long = "config-path")]
+        config_path: Option<std::path::PathBuf>,
+        /// address of the backend API
+        #[arg(
+            short = 'b',
+            long = "backend",
+            default_value = "https://cp.omnect.conplement.cloud"
+        )]
+        backend: String,
+        /// name of the device for which the ssh tunnel should be created.
+        device: String,
+    },
 }
 
 #[derive(Parser, Debug)]
@@ -210,7 +215,8 @@ pub enum Command {
     Identity(IdentityConfig),
     #[command(subcommand)]
     IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
-    Ssh(SshConfig),
+    #[command(subcommand)]
+    Ssh(Ssh),
 }
 
 pub fn from_args() -> Command {

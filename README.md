@@ -2,19 +2,18 @@
 **Product page: https://www.omnect.io/home**
 
 # Features
-omnect-cli is a command-line tool to manage omnect-os empowered devices. It provides commands to inject various configurations into a flash image (wic) build with [meta-omnect](https://github.com/omnect/meta-omnect). Currently the following configurations options are supported:
+omnect-cli is a command-line tool to manage omnect-os empowered devices. It provides commands to inject various configurations into a flash image (wic) formerly build with [meta-omnect](https://github.com/omnect/meta-omnect). Currently the following configuration options are supported:
 
-- Identity configuration
+- Identity configuration:
   - Inject general identity configuration for AIS (Azure Identity Service)
   - Inject a device certificate with corresponding key from a given intermediate full-chain-certificate and corresponding key
-- Inject a ssh root ca and device principal for ssh tunnel creation.
-- Device Update for IoT Hub configuration
-  - Inject [`du-config.json`](https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
+- Device Update for IoT Hub configuration: inject [`du-config.json`](https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
 - Generic configuration of services
-  - Copy files to image in order to configure e.g. boot service, firewall, wifi and others
-  - Copy files from image, e.g. to patch and re-inject configurations
-- SSH
-  - Open an ssh tunnel on a device in the field to connect to it.
+  - copy files to image in order to configure e.g. boot service, firewall, wifi and others
+  - copy files from image, e.g. to patch and re-inject configurations
+- SSH: 
+  - inject a ssh root ca and device principal for ssh tunnel creation
+  - open a ssh tunnel on a device in the field to connect to it
 
 # Installation
 
@@ -65,17 +64,6 @@ Please get into contact with us in case you want to use our existing cloud servi
 #### Generate your own full-chain intermediate certificate and key
 In case you intend to use your own certificates (e.g. because you want to use your own `PKI` and/or `EST service`), you can find some information about generating certificate and key here: https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11.
 
-## SSH Tunnel configuration
-
-For the ssh feature, the device requires the public key of the ssh root ca and the principal. The latter should be the device id.
-```sh
-omnect-cli identity set-ssh-tunnel-certificate --image <path>/image.wic --root_ca <path>/ssh_ca.pub --device-principal "device_id"
-
-Options:
-  -p pack and compress image [xz, bzip2, gzip]
-  -b create bmap file
-```
-
 ## Device Update for IoT Hub configuration
 ### Inject `du-config.json`
 
@@ -118,7 +106,20 @@ Options:
 - File permissions: inject `systemd-tmpfiles.d`
 - Wifi: inject `wpa_supplicant-wlan0.conf`
 
-## Creating a SSH Tunnel
+## SSH Tunnel
+
+### Inject SSH Tunnel credentials
+
+For the ssh feature, the device requires the public key of the ssh root ca and the principal. The latter should be the device id.
+```sh
+omnect-cli ssh set-certificate -r <path>/ssh_ca.pub -d "device_id" -i <path>/image.wic
+
+Options:
+  -p pack and compress image [xz, bzip2, gzip]
+  -b create bmap file
+```
+
+### Creating a SSH Tunnel
 
 One can use `omnect-cli` to create a tunneled SSH connection to a device in the field. This is especially useful if the device is behind a NAT and can not directly be contacted. The device must have the `ssh` activated for this. Per default, this command will create a single use ssh key pair, certificate, and ssh configuration to establish a connection to the device.
 
@@ -136,7 +137,7 @@ Options:
   -b <backend address> optional: address of omnect cloud service, defaults to https://cp.omnect.conplement.cloud
 ```
 
-### Example Usage
+#### Example Usage
 
 Open an ssh tunnel to the device `test_device` as follows:
 ```sh
@@ -159,14 +160,6 @@ Now follow the command output to establish a connection to the device as such:
 # Troubleshooting
 
 If anything goes wrong, setting RUST_LOG=debug enables output of debug information.
-
-## No credential store support
-`omnect-cli` needs to pull a docker image `omnectweucopsacr.azurecr.io/omnect-cli-backend` as backend for some cli
-commands. If you use a docker environment with credential store you have to
-pull the image prior to calling `omnect-cli` manually. (**Note** this is not necessary if you installed ´omnect-cli´ via: [Installation](#installation))
-```sh
-docker pull omnectweucopsacr.azurecr.io/omnect-cli-backend:$(omnect-cli --version | awk '{print $2}')
-```
 
 ## Verify configuration is functional
 Check for valid AIS identity configuration on iotedge devices:

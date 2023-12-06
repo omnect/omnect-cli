@@ -11,10 +11,9 @@ use cli::{
     FileConfig::{CopyFromImage, CopyToImage},
     IdentityConfig::{
         SetConfig, SetDeviceCertificate, SetIotLeafSasConfig, SetIotedgeGatewayConfig,
-        SetSshTunnelCertificate,
     },
     IotHubDeviceUpdateConfig::Set as IotHubDeviceUpdateSet,
-    SshConfig,
+    Ssh::{Connection, SetCertificate},
 };
 use file::compression::Compression;
 use std::{fs, path::PathBuf};
@@ -143,7 +142,7 @@ pub fn run() -> Result<()> {
         }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
             file::set_iot_leaf_sas_config(&config, img, &root_ca, generate_bmap)
         })?,
-        Command::Identity(SetSshTunnelCertificate {
+        Command::Ssh(SetCertificate {
             image,
             root_ca,
             device_principal,
@@ -164,7 +163,7 @@ pub fn run() -> Result<()> {
                 generate_bmap,
             )
         })?,
-        Command::Ssh(SshConfig {
+        Command::Ssh(Connection {
             device,
             username,
             dir,
