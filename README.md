@@ -44,7 +44,7 @@ Options:
 ```
 For further information on using dps payloads read the following [link](https://learn.microsoft.com/de-de/azure/iot-dps/concepts-custom-allocation).
 
-### Device certificate and key for x509 based DPS provisioning
+### inject device certificate and key for x509 based DPS provisioning
 
 For a given full-chain intermediate certificate and corresponding key, both as pem files, generate a device certificate and device key valid for 365 days.
 ```sh
@@ -75,11 +75,11 @@ Options:
   -b create bmap file
 ```
 
-## Copy Files
+## Copy files
 
 Copying files into or from the image is restricted to partitions `boot`, `rootA`, `cert` and `factory`. Destination paths that are not existing will be created on host as well as on image.
 
-### Copy Files from Image
+### Copy files from image
 
 `omnect-cli` allows copying multiple files from multiple partitions in one command:
 
@@ -87,7 +87,7 @@ Copying files into or from the image is restricted to partitions `boot`, `rootA`
 omnect-cli file copy-from-image -f <partition>:<absolute-path-to-src>,<path-to-dest> -f <partition>:<absolute-path-to-src>,<path-to-dest> -i <path>/image.wic
 ```
 
-### Copy Files to Image
+### Copy files to image
 
 `omnect-cli` allows copying multiple files to multiple partitions in one command:
 
@@ -106,9 +106,9 @@ Options:
 - File permissions: inject `systemd-tmpfiles.d`
 - Wifi: inject `wpa_supplicant-wlan0.conf`
 
-## SSH Tunnel
+## SSH tunnel
 
-### Inject SSH Tunnel credentials
+### Inject ssh tunnel credentials
 
 For the ssh feature, the device requires the public key of the ssh root ca and the principal. The latter should be the device id.
 ```sh
@@ -119,7 +119,7 @@ Options:
   -b create bmap file
 ```
 
-### Creating a SSH Tunnel
+### Creating a ssh tunnel
 
 One can use `omnect-cli` to create a tunneled SSH connection to a device in the field. This is especially useful if the device is behind a NAT and can not directly be contacted. The device must have the `ssh` activated for this. Per default, this command will create a single use ssh key pair, certificate, and ssh configuration to establish a connection to the device.
 
@@ -137,7 +137,7 @@ Options:
   -b <backend address> optional: address of omnect cloud service, defaults to https://cp.omnect.conplement.cloud
 ```
 
-#### Example Usage
+#### Example usage
 
 Open an ssh tunnel to the device `test_device` as follows:
 ```sh
