@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use log::info;
+use log::debug;
 use regex::Regex;
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -187,7 +187,7 @@ pub fn validate_identity(
     let mut out = Vec::<&'static str>::new();
     let file_content = std::fs::read_to_string(config_file_name)
         .context("validate_identity: cannot read identity file")?;
-    de!("validate identity for:\n{}", file_content);
+    debug!("validate identity for:\n{}", file_content);
     let des = &mut toml::Deserializer::new(&file_content);
     let body: Result<IdentityConfig, _> = serde_path_to_error::deserialize(des);
     let body = match body {
