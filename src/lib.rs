@@ -31,7 +31,7 @@ where
     F: FnOnce(&PathBuf) -> Result<()>,
 {
     anyhow::ensure!(
-        image_file.try_exists().is_ok_and(|v| v),
+        image_file.try_exists().is_ok_and(|exists| exists),
         "image doesn't exist: {}",
         image_file.to_str().unwrap()
     );

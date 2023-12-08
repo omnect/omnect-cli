@@ -72,7 +72,7 @@ impl FromStr for FileCopyToParams {
         let out_file = std::path::PathBuf::from(v[2]);
 
         anyhow::ensure!(
-            in_file.try_exists().is_ok_and(|v| v),
+            in_file.try_exists().is_ok_and(|exists| exists),
             "in-file-path doesn't exist"
         );
         anyhow::ensure!(
@@ -354,7 +354,7 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
             exec_cmd!(e2cp);
             // since e2cp doesn't return errors in any case we check if output file exists
             anyhow::ensure!(
-                tmp_out_file.try_exists().is_ok_and(|v| v),
+                tmp_out_file.try_exists().is_ok_and(|exists| exists),
                 format!("copy_from_image: cmd failed: {:?}", e2cp)
             )
         }

@@ -45,13 +45,12 @@ impl Compression {
                 flate2::Compression::best(),
             )),
             Compression::xz => {
-                let range = 0..9;
                 let level = env::var("XZ_COMPRESSION_LEVEL")
                     .unwrap_or_else(|_| "9".to_string())
                     .parse()
                     .unwrap_or(9);
 
-                let level = if range.contains(&level) { level } else { 9 };
+                let level = if (0..=9).contains(&level) { level } else { 9 };
                 let stream = xz2::stream::MtStreamBuilder::new()
                     .threads(num_cpus::get() as u32)
                     .preset(level)

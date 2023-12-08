@@ -613,7 +613,7 @@ fn check_bmap_generation() {
         .assert();
     assert.success();
 
-    assert!(!bmap_path.try_exists().is_ok_and(|v| v));
+    assert!(!bmap_path.try_exists().is_ok_and(|exists| exists));
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
@@ -627,7 +627,7 @@ fn check_bmap_generation() {
         .assert();
     assert.success();
 
-    assert!(bmap_path.try_exists().is_ok_and(|v| v));
+    assert!(bmap_path.try_exists().is_ok_and(|exists| exists));
 }
 
 #[test]
@@ -649,7 +649,7 @@ fn check_image_compression() {
         .assert();
     assert.success();
 
-    assert!(!xz_path.try_exists().is_ok_and(|v| v));
+    assert!(!xz_path.try_exists().is_ok_and(|exists| exists));
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
@@ -664,7 +664,7 @@ fn check_image_compression() {
         .assert();
     assert.success();
 
-    assert!(xz_path.try_exists().is_ok_and(|v| v));
+    assert!(xz_path.try_exists().is_ok_and(|exists| exists));
 }
 
 #[test]
@@ -725,27 +725,27 @@ async fn check_ssh_tunnel_setup() {
         .pathbuf()
         .join("ssh_config")
         .try_exists()
-        .is_ok_and(|v| v));
+        .is_ok_and(|exists| exists));
     assert!(tr
         .pathbuf()
         .join("id_ed25519")
         .try_exists()
-        .is_ok_and(|v| v));
+        .is_ok_and(|exists| exists));
     assert!(tr
         .pathbuf()
         .join("id_ed25519.pub")
         .try_exists()
-        .is_ok_and(|v| v));
+        .is_ok_and(|exists| exists));
     assert!(tr
         .pathbuf()
         .join("bastion-cert.pub")
         .try_exists()
-        .is_ok_and(|v| v));
+        .is_ok_and(|exists| exists));
     assert!(tr
         .pathbuf()
         .join("device-cert.pub")
         .try_exists()
-        .is_ok_and(|v| v));
+        .is_ok_and(|exists| exists));
 
     let ssh_config = std::fs::read_to_string(tr.pathbuf().join("ssh_config")).unwrap();
     let expected_config = format!(

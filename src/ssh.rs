@@ -54,8 +54,11 @@ impl Config {
 
         // check that key pair exists
         if let Some(key_path) = &priv_key_path {
-            if !key_path.try_exists().is_ok_and(|v| v)
-                || !key_path.with_extension("pub").try_exists().is_ok_and(|v| v)
+            if !key_path.try_exists().is_ok_and(|exists| exists)
+                || !key_path
+                    .with_extension("pub")
+                    .try_exists()
+                    .is_ok_and(|exists| exists)
             {
                 anyhow::bail!("Missing private/public ssh key.");
             }
@@ -265,8 +268,11 @@ pub async fn ssh_create_tunnel(
             (priv_key_path, pub_key_path)
         }
         Some(key_path) => {
-            if !key_path.try_exists().is_ok_and(|v| v)
-                || !key_path.with_extension("pub").try_exists().is_ok_and(|v| v)
+            if !key_path.try_exists().is_ok_and(|exists| exists)
+                || !key_path
+                    .with_extension("pub")
+                    .try_exists()
+                    .is_ok_and(|exists| exists)
             {
                 anyhow::bail!("No such ssh key pair: \"{}\"", key_path.display());
             }
