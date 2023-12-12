@@ -13,6 +13,8 @@ omnect-cli is a command-line tool to manage omnect-os empowered devices. It prov
   - copy files from image, e.g. to patch and re-inject configurations
 - SSH: 
   - inject a ssh root ca and device principal for ssh tunnel creation
+
+Further omnect-cli supports device management features. Currently supported:
   - open a ssh tunnel on a device in the field to connect to it
 
 # Installation
@@ -26,7 +28,7 @@ sudo dpkg -i omnect-cli_<version>_amd64.deb
 
 # Build from sources
 
-The application can be built via `cargo` as usual. As a prerequisite `libmagic-dev` package must be installed on host system.
+The application can be built via `cargo` as usual. A prerequisite is libmagic, e.g. the package libmagic-dev must be installed on a debian-based host system.
 
 # Commands
 ## Identity configuration
