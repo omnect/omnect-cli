@@ -151,8 +151,8 @@ pub enum IotHubDeviceUpdateConfig {
 
 #[derive(Parser, Debug)]
 #[command(after_help = COPYRIGHT)]
-/// file handling
-pub enum Ssh {
+/// ssh tunnel configuration
+pub enum SshConfig {
     /// set ssh tunnel certificate
     SetCertificate {
         /// path to wic image file
@@ -172,8 +172,8 @@ pub enum Ssh {
         compress_image: Option<Compression>,
     },
 
-    /// establish ssh connections to devices
-    Connection {
+    /// set ssh connection parameters
+    SetConnection {
         /// username for the login on the device.
         #[arg(short = 'u', long = "user", default_value = "omnect")]
         username: String,
@@ -216,7 +216,7 @@ pub enum Command {
     #[command(subcommand)]
     IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
     #[command(subcommand)]
-    Ssh(Ssh),
+    Ssh(SshConfig),
 }
 
 pub fn from_args() -> Command {

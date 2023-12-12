@@ -13,7 +13,7 @@ use cli::{
         SetConfig, SetDeviceCertificate, SetIotLeafSasConfig, SetIotedgeGatewayConfig,
     },
     IotHubDeviceUpdateConfig::Set as IotHubDeviceUpdateSet,
-    Ssh::{Connection, SetCertificate},
+    SshConfig::{SetCertificate, SetConnection},
 };
 use file::compression::Compression;
 use std::{fs, path::PathBuf};
@@ -163,7 +163,7 @@ pub fn run() -> Result<()> {
                 generate_bmap,
             )
         })?,
-        Command::Ssh(Connection {
+        Command::Ssh(SetConnection {
             device,
             username,
             dir,

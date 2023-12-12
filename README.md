@@ -11,7 +11,7 @@ omnect-cli is a command-line tool to manage omnect-os empowered devices. It prov
 - Generic configuration of services
   - copy files to image in order to configure e.g. boot service, firewall, wifi and others
   - copy files from image, e.g. to patch and re-inject configurations
-- SSH: 
+- ssh: 
   - inject a ssh root ca and device principal for ssh tunnel creation
 
 Further omnect-cli supports device management features. Currently supported:
@@ -108,7 +108,7 @@ Options:
 - File permissions: inject `systemd-tmpfiles.d`
 - Wifi: inject `wpa_supplicant-wlan0.conf`
 
-## SSH tunnel
+## ssh tunnel
 
 ### Inject ssh tunnel credentials
 
@@ -123,18 +123,18 @@ Options:
 
 ### Creating a ssh tunnel
 
-One can use `omnect-cli` to create a tunneled SSH connection to a device in the field. This is especially useful if the device is behind a NAT and can not directly be contacted. The device must have the `ssh` activated for this. Per default, this command will create a single use ssh key pair, certificate, and ssh configuration to establish a connection to the device.
+One can use `omnect-cli` to create a tunneled ssh connection to a device in the field. This is especially useful if the device is behind a NAT and can not directly be contacted. The device must have the `ssh` activated for this. Per default, this command will create a single use ssh key pair, certificate, and ssh configuration to establish a connection to the device.
 
 **Note**: if unused, the tunnel will close after 5 minutes.
 
 Creating the ssh tunnel:
 ```sh
-omnect-cli ssh <device>
+omnect-cli ssh set-connection <device>
 
 Options:
   -u <name> optional: name of the user on the device
   -d <dir> optional: directory where the ssh key pair, certificate, and configuration are stored to
-  -k <key> optional: path to an existing private ssh key to use for the connection. Requires the existance of the public key <key>.pub
+  -k <key> optional: path to an existing private ssh key to use for the connection. Requires the existence of the public key <key>.pub
   -c <config_path> optional: path where the ssh configuration should be stored to
   -b <backend address> optional: address of omnect cloud service, defaults to https://cp.omnect.conplement.cloud
 ```
@@ -143,7 +143,7 @@ Options:
 
 Open an ssh tunnel to the device `test_device` as follows:
 ```sh
-~ omnect-cli ssh test_device
+~ omnect-cli ssh set-connection test_device
 
 Successfully established ssh tunnel!
 Certificate dir: /run/user/1000/omnect-cli
