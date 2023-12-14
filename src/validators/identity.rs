@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Result};
-use log::info;
+use anyhow::{anyhow, Context, Result};
+use log::debug;
 use regex::Regex;
 use serde::Deserialize;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::Path;
 use validator::Validate;
 
 lazy_static! {
@@ -139,13 +139,13 @@ struct CertIssuance {
 #[derive(Debug, Validate, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
-struct IdentityConfig {
+pub struct IdentityConfig {
     #[validate(regex(
         path = "RE_HOSTNAME",
         code = "hostname validation",
         message = "hostname is not compliant with rfc1035"
     ))]
-    hostname: String,
+    pub hostname: String,
     local_gateway_hostname: Option<String>,
     provisioning: Option<Provisioning>,
     tpm: Option<Tpm>,
@@ -181,12 +181,13 @@ const WARN_PAYLOAD_CONFIG_MISSING: &str = "Payload file is passed but not config
 
 pub fn validate_identity(
     _id_type: IdentityType,
-    config_file_name: &PathBuf,
-    payload: &Option<PathBuf>,
+    config_file_name: &Path,
+    payload: &Option<&Path>,
 ) -> Result<Vec<&'static str>> {
     let mut out = Vec::<&'static str>::new();
-    let file_content = std::fs::read_to_string(config_file_name)?;
-    info!("validate identity for:\n{}", file_content);
+    let file_content = std::fs::read_to_string(config_file_name)
+        .context("validate_identity: cannot read identity file")?;
+    debug!("validate identity for:\n{}", file_content);
     let des = &mut toml::Deserializer::new(&file_content);
     let body: Result<IdentityConfig, _> = serde_path_to_error::deserialize(des);
     let body = match body {
@@ -312,7 +313,7 @@ mod tests {
             None,
             validate_identity(
                 IdentityType::Standalone,
-                &PathBuf::from("testfiles/identity_config_hostname_empty.toml"),
+                Path::new("testfiles/identity_config_hostname_empty.toml"),
                 &None,
             )
             .unwrap_err()
@@ -328,7 +329,7 @@ mod tests {
             None,
             validate_identity(
                 IdentityType::Standalone,
-                &PathBuf::from("testfiles/identity_config_hostname_invalid.toml"),
+                Path::new("testfiles/identity_config_hostname_invalid.toml"),
                 &None,
             )
             .unwrap_err()
@@ -342,7 +343,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         assert!(validate_identity(
             IdentityType::Standalone,
-            &PathBuf::from("testfiles/identity_config_hostname_valid.toml"),
+            Path::new("testfiles/identity_config_hostname_valid.toml"),
             &None,
         )
         .is_ok());
@@ -355,7 +356,7 @@ mod tests {
             None,
             validate_identity(
                 IdentityType::Standalone,
-                &PathBuf::from("testfiles/identity_config_empty.toml"),
+                Path::new("testfiles/identity_config_empty.toml"),
                 &None,
             )
             .unwrap_err()
@@ -369,7 +370,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &PathBuf::from("testfiles/identity_config_minimal.toml"),
+            Path::new("testfiles/identity_config_minimal.toml"),
             &None,
         )
         .unwrap();
@@ -385,7 +386,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &PathBuf::from("testfiles/identity_config_dps.toml"),
+            Path::new("testfiles/identity_config_dps.toml"),
             &None,
         )
         .unwrap();
@@ -401,7 +402,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &PathBuf::from("testfiles/identity_config_manual.toml"),
+            Path::new("testfiles/identity_config_manual.toml"),
             &None,
         )
         .unwrap();
@@ -421,7 +422,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &PathBuf::from("testfiles/identity_config_manual_connection_string.toml"),
+            Path::new("testfiles/identity_config_manual_connection_string.toml"),
             &None,
         )
         .unwrap();
@@ -434,7 +435,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &PathBuf::from("testfiles/identity_config_dps_tpm.toml"),
+            Path::new("testfiles/identity_config_dps_tpm.toml"),
             &None,
         )
         .unwrap();
@@ -446,7 +447,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &PathBuf::from("testfiles/identity_config_dps_sas.toml"),
+            Path::new("testfiles/identity_config_dps_sas.toml"),
             &None,
         )
         .unwrap();
@@ -462,7 +463,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &PathBuf::from("testfiles/identity_config_dps_x509_est.toml"),
+            Path::new("testfiles/identity_config_dps_x509_est.toml"),
             &None,
         )
         .unwrap();
@@ -474,8 +475,8 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
-            &PathBuf::from("testfiles/identity_config_dps_payload.toml"),
-            &Some(PathBuf::from("testfiles/dps-payload.json")),
+            Path::new("testfiles/identity_config_dps_payload.toml"),
+            &Some(Path::new("testfiles/dps-payload.json")),
         )
         .unwrap();
         assert_eq!(0, result.len());
@@ -488,7 +489,7 @@ mod tests {
             None,
             validate_identity(
                 IdentityType::Leaf,
-                &PathBuf::from("testfiles/identity_config_empty.toml"),
+                Path::new("testfiles/identity_config_empty.toml"),
                 &None,
             )
             .unwrap_err()
@@ -502,7 +503,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
-            &PathBuf::from("testfiles/identity_config_minimal.toml"),
+            Path::new("testfiles/identity_config_minimal.toml"),
             &None,
         )
         .unwrap();
@@ -518,7 +519,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
-            &PathBuf::from("testfiles/identity_config_dps.toml"),
+            Path::new("testfiles/identity_config_dps.toml"),
             &None,
         )
         .unwrap();
@@ -534,7 +535,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
-            &PathBuf::from("testfiles/identity_config_manual.toml"),
+            Path::new("testfiles/identity_config_manual.toml"),
             &None,
         )
         .unwrap();
@@ -553,7 +554,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
-            &PathBuf::from("testfiles/identity_config_manual_sas.toml"),
+            Path::new("testfiles/identity_config_manual_sas.toml"),
             &None,
         )
         .unwrap();
@@ -565,7 +566,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
-            &PathBuf::from("testfiles/identity_config_manual_tpm.toml"),
+            Path::new("testfiles/identity_config_manual_tpm.toml"),
             &None,
         )
         .unwrap();
@@ -580,7 +581,7 @@ mod tests {
             None,
             validate_identity(
                 IdentityType::Gateway,
-                &PathBuf::from("testfiles/identity_config_empty.toml"),
+                Path::new("testfiles/identity_config_empty.toml"),
                 &None,
             )
             .unwrap_err()
@@ -594,7 +595,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
-            &PathBuf::from("testfiles/identity_config_minimal.toml"),
+            Path::new("testfiles/identity_config_minimal.toml"),
             &None,
         )
         .unwrap();
@@ -610,7 +611,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
-            &PathBuf::from("testfiles/identity_config_dps.toml"),
+            Path::new("testfiles/identity_config_dps.toml"),
             &None,
         )
         .unwrap();
@@ -626,7 +627,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
-            &PathBuf::from("testfiles/identity_config_manual.toml"),
+            Path::new("testfiles/identity_config_manual.toml"),
             &None,
         )
         .unwrap();
@@ -645,7 +646,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
-            &PathBuf::from("testfiles/identity_config_dps_tpm.toml"),
+            Path::new("testfiles/identity_config_dps_tpm.toml"),
             &None,
         )
         .unwrap();
@@ -657,7 +658,7 @@ mod tests {
         lazy_static::initialize(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
-            &PathBuf::from("testfiles/identity_config_dps_sas.toml"),
+            Path::new("testfiles/identity_config_dps_sas.toml"),
             &None,
         )
         .unwrap();

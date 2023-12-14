@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] Q4 2023
+- completely refactored application and tests:
+  - replaced all docker dependencies by host commands
+  - refactored image compression
+  - bunched together `ssh` related commands `set-certificate` and `connection`
+  - refactored `copy-from-image` and `copy-to-image` in order to take multiple copy operations
+- integration-test:
+  - tests run on cli level
+  - tests read back files and compare content
+- restructured and cleaned up readme
+
 ## [0.16.5] Q4 2023
 - copy-from-image: fixed integration test
 
