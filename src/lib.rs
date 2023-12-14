@@ -96,14 +96,17 @@ pub fn run() -> Result<()> {
             compress_image,
         }) => {
             let intermediate_full_chain_cert_str =
-                std::fs::read_to_string(&intermediate_full_chain_cert)?;
-            let intermediate_key_str = std::fs::read_to_string(intermediate_key)?;
+                std::fs::read_to_string(&intermediate_full_chain_cert)
+                    .context("couldn't read intermediate fullchain cert")?;
+            let intermediate_key_str = std::fs::read_to_string(intermediate_key)
+                .context("couldn't read intermediate key")?;
             let crypto = omnect_crypto::Crypto::new(
                 intermediate_key_str.as_bytes(),
                 intermediate_full_chain_cert_str.as_bytes(),
             )?;
-            let (device_cert_pem, device_key_pem) =
-                crypto.create_cert_and_key(&device_id, &None, days)?;
+            let (device_cert_pem, device_key_pem) = crypto
+                .create_cert_and_key(&device_id, &None, days)
+                .context("couldn't create device cert and key")?;
 
             run_image_command(image, generate_bmap, compress_image, |img| {
                 file::set_device_cert(
