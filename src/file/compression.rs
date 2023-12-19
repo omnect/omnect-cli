@@ -136,7 +136,11 @@ pub fn decompress(image_file_name: &PathBuf, compression: &Compression) -> Resul
 }
 
 pub fn compress(image_file_name: &PathBuf, compression: &Compression) -> Result<PathBuf> {
-    let new_image_file = PathBuf::from(format!("{}.{}", image_file_name.to_str().unwrap(), compression.extension()));
+    let new_image_file = PathBuf::from(format!(
+        "{}.{}",
+        image_file_name.to_str().unwrap(),
+        compression.extension()
+    ));
     let mut destination = File::create(&new_image_file)?;
     let mut source = File::open(image_file_name)?;
     let bytes_written = compression.compress(&mut source, &mut destination)?;
