@@ -19,7 +19,7 @@ use file::compression::Compression;
 use std::{fs, path::PathBuf};
 use uuid::Uuid;
 
-use crate::file::compression;
+use crate::{auth::AuthInfo, file::compression};
 
 fn run_image_command<F>(
     image_file: PathBuf,
@@ -173,6 +173,8 @@ pub fn run() -> Result<()> {
             priv_key_path,
             config_path,
             backend,
+            prod,
+            dev,
         }) => {
             #[tokio::main]
             async fn create_ssh_tunnel(
@@ -182,8 +184,9 @@ pub fn run() -> Result<()> {
                 priv_key_path: Option<PathBuf>,
                 config_path: Option<PathBuf>,
                 backend: String,
+                auth_info: &impl AuthInfo,
             ) -> Result<()> {
-                let access_token = crate::auth::authorize(&*crate::auth::AUTH_INFO_DEV)
+                let access_token = crate::auth::authorize(auth_info)
                     .await
                     .context("create ssh tunnel")?;
 
@@ -192,7 +195,25 @@ pub fn run() -> Result<()> {
                 ssh::ssh_create_tunnel(device, username, config, access_token).await
             }
 
-            create_ssh_tunnel(&device, &username, dir, priv_key_path, config_path, backend)?;
+            assert!(prod ^ dev);
+
+            let auth_info = if prod {
+                &*crate::auth::AUTH_INFO_PROD,
+            } else if dev {
+                &*crate::auth::AUTH_INFO_DEV,
+            } else {
+                unreachable!();
+            };
+
+            create_ssh_tunnel(
+                &device,
+                &username,
+                dir,
+                priv_key_path,
+                config_path,
+                backend,
+                auth_info,
+            )?;
         }
         Command::File(CopyToImage {
             file_copy_params,

@@ -260,4 +260,11 @@ lazy_static! {
         "localhost:4000",
         "http://localhost:4000",
     );
+    pub static ref AUTH_INFO_PROD: KeycloakInfo = KeycloakInfo::new(
+        "https://keycloak.omnect.conplement.cloud",
+        "cp-prod",
+        "cp-production",
+        "localhost:4000",
+        "http://localhost:4000",
+    );
 }
