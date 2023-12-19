@@ -125,6 +125,8 @@ Options:
 
 One can use `omnect-cli` to create a tunneled ssh connection to a device in the field. This is especially useful if the device is behind a NAT and can not directly be contacted. The device must have the `ssh` activated for this. Per default, this command will create a single use ssh key pair, certificate, and ssh configuration to establish a connection to the device.
 
+To create an ssh tunnel, `omnect-cli` must first authenticate against the authentication service. The service credentials vary, depending on whether the device is in the `dev` or `prod` environment.
+
 **Note**: if unused, the tunnel will close after 5 minutes.
 
 Creating the ssh tunnel:
@@ -137,13 +139,15 @@ Options:
   -k <key> optional: path to an existing private ssh key to use for the connection. Requires the existence of the public key <key>.pub
   -c <config_path> optional: path where the ssh configuration should be stored to
   -b <backend address> optional: address of omnect cloud service, defaults to https://cp.omnect.conplement.cloud
+  --dev mandatory: use development authentication service, mutually excusive with `--prod`
+  --prod mandatory: use production authentication service, mutually excusive with `--dev`
 ```
 
 #### Example usage
 
-Open an ssh tunnel to the device `test_device` as follows:
+Open an ssh tunnel to the device `test_device` in the `dev` environment as follows:
 ```sh
-~ omnect-cli ssh set-connection test_device
+~ omnect-cli ssh set-connection test_device --dev
 
 Successfully established ssh tunnel!
 Certificate dir: /run/user/1000/omnect-cli
