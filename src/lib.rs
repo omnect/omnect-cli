@@ -172,7 +172,6 @@ pub fn run() -> Result<()> {
             dir,
             priv_key_path,
             config_path,
-            backend,
             prod,
             dev,
         }) => {
@@ -183,7 +182,7 @@ pub fn run() -> Result<()> {
                 dir: Option<PathBuf>,
                 priv_key_path: Option<PathBuf>,
                 config_path: Option<PathBuf>,
-                backend: String,
+                backend: &str,
                 auth_info: &impl AuthInfo,
             ) -> Result<()> {
                 let access_token = crate::auth::authorize(auth_info)
@@ -197,10 +196,17 @@ pub fn run() -> Result<()> {
 
             assert!(prod ^ dev);
 
-            let auth_info = if prod {
-                &*crate::auth::AUTH_INFO_PROD,
+            // address of the backend API
+            let (backend, auth_info) = if prod {
+                (
+                    "https://cp.omnect.conplement.cloud",
+                    &*crate::auth::AUTH_INFO_PROD,
+                )
             } else if dev {
-                &*crate::auth::AUTH_INFO_DEV,
+                (
+                    "https://cp.dev.omnect.conplement.cloud",
+                    &*crate::auth::AUTH_INFO_DEV,
+                )
             } else {
                 unreachable!();
             };

@@ -11,7 +11,7 @@ omnect-cli is a command-line tool to manage omnect-os empowered devices. It prov
 - Generic configuration of services
   - copy files to image in order to configure e.g. boot service, firewall, wifi and others
   - copy files from image, e.g. to patch and re-inject configurations
-- ssh: 
+- ssh:
   - inject a ssh root ca and device principal for ssh tunnel creation
 
 Further omnect-cli supports device management features. Currently supported:
@@ -138,7 +138,6 @@ Options:
   -d <dir> optional: directory where the ssh key pair, certificate, and configuration are stored to
   -k <key> optional: path to an existing private ssh key to use for the connection. Requires the existence of the public key <key>.pub
   -c <config_path> optional: path where the ssh configuration should be stored to
-  -b <backend address> optional: address of omnect cloud service, defaults to https://cp.omnect.conplement.cloud
   --dev mandatory: use development authentication service, mutually excusive with `--prod`
   --prod mandatory: use production authentication service, mutually excusive with `--dev`
 ```

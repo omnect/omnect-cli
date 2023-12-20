@@ -733,8 +733,7 @@ async fn check_ssh_tunnel_setup() {
 
     let mock_access_token = oauth2::AccessToken::new("test_token_mock".to_string());
 
-    let mut config =
-        ssh::Config::new("test-backend".to_string(), Some(tr.pathbuf()), None, None).unwrap();
+    let mut config = ssh::Config::new("test-backend", Some(tr.pathbuf()), None, None).unwrap();
 
     let server = MockServer::start();
 
