@@ -17,7 +17,6 @@ use cli::{
 };
 use file::compression::Compression;
 use std::{fs, path::PathBuf};
-use uuid::Uuid;
 
 use crate::file::compression;
 
@@ -36,12 +35,24 @@ where
         image_file.to_str().unwrap()
     );
 
-    // create /tmp/{uuid}/ and copy image into
-    let mut tmp_image_file = PathBuf::from(format!("/tmp/{}", Uuid::new_v4()));
-    fs::create_dir_all(&tmp_image_file).context(format!(
+    let mut tmp_image_dir = std::env::current_dir()
+        .context("run_image_command: couldn't get current working directory")?;
+    tmp_image_dir.push(".tmp");
+
+    // remove .tmp dir on exit
+    let rm_tmp_image_dir = tmp_image_dir.clone();
+    let _guard = scopeguard::guard((), |_| {
+        fs::remove_dir_all(rm_tmp_image_dir).context("run_image_command: couldn't remove .tmp dir").unwrap();
+    });
+
+    // create /current/working/directory/.tmp and copy image into
+    fs::create_dir_all(&tmp_image_dir).context(format!(
         "run_image_command: couldn't create destination path {}",
-        tmp_image_file.to_str().unwrap()
+        tmp_image_dir.to_str().unwrap()
     ))?;
+
+    // copy image to .tmp
+    let mut tmp_image_file = tmp_image_dir.clone();
     tmp_image_file.push(image_file.file_name().unwrap());
     std::fs::copy(&image_file, &tmp_image_file)?;
 

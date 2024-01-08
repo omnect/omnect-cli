@@ -514,6 +514,8 @@ fn check_file_copy_ext4() {
 }
 
 fn check_file_copy(tr: Testrunner, partition: &str) {
+    let mut tmp_path = std::env::current_dir().unwrap();
+    tmp_path.push(".tmp");
     let in_file1 = tr.to_pathbuf("testfiles/boot.scr");
     let in_file1 = in_file1.to_str().unwrap();
     let in_file2 = tr.to_pathbuf("testfiles/dps-payload.json");
@@ -541,6 +543,8 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
         .arg(&image_path)
         .assert();
     assert.success();
+
+    assert!(!tmp_path.try_exists().is_ok_and(|exists| exists));
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img

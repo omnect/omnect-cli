@@ -2176,7 +2176,7 @@ dependencies = [
 
 [[package]]
 name = "omnect-cli"
-version = "0.17.1"
+version = "0.17.3"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -2198,6 +2198,7 @@ dependencies = [
  "open",
  "regex",
  "reqwest",
+ "scopeguard",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -2207,7 +2208,6 @@ dependencies = [
  "tokio",
  "toml",
  "url",
- "uuid",
  "validator",
  "xz2",
 ]
@@ -3439,15 +3439,6 @@ name = "utf8parse"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
-
-[[package]]
-name = "uuid"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
-dependencies = [
- "getrandom",
-]
 
 [[package]]
 name = "validator"

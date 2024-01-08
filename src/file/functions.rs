@@ -223,7 +223,7 @@ pub fn copy_to_image(
     generate_bmap: bool,
 ) -> Result<()> {
     // we use the folder the image is located in
-    // the caller is responsible to create a /tmp/ directory if needed
+    // the caller is responsible to possibly create a temporary directory if needed
     let working_dir = image_file
         .parent()
         .context("copy_to_image: cannot get directory of image")?
@@ -311,7 +311,7 @@ pub fn copy_to_image(
 
 pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Path) -> Result<()> {
     // we use the folder the image is located in
-    // the caller is responsible to create a /tmp/ directory if needed
+    // the caller is responsible to possibly create a temporary directory if needed
     let working_dir = image_file
         .parent()
         .context("copy_to_image: cannot get directory of image")?
