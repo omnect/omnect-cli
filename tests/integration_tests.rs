@@ -684,6 +684,24 @@ fn check_image_decompression() {
         .arg(&image_path)
         .assert();
     assert.success();
+
+    let mut unpacked_image_path = PathBuf::from(image_path);
+    unpacked_image_path.set_extension("");
+
+    assert!(unpacked_image_path.try_exists().is_ok_and(|exists| exists));
+
+    // use bmaptool to verify that the checksum of the bmap file and the image
+    // still match after the copy operations
+    let mut copy_path = tr.pathbuf();
+    copy_path.push("image_copy.wic");
+
+    let assert = Command::new("bmaptool")
+        .arg("copy")
+        .arg(&unpacked_image_path)
+        .arg(&copy_path)
+        .assert();
+
+    assert.success();
 }
 
 #[tokio::test]
