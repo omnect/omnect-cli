@@ -4,7 +4,7 @@ use std::process;
 
 fn main() {
     if cfg!(debug_assertions) {
-        Builder::from_env(Env::default().default_filter_or("debug,bollard::read=info")).init();
+        Builder::from_env(Env::default().default_filter_or("debug")).init();
     } else {
         Builder::from_env(Env::default().default_filter_or("info")).init();
     }

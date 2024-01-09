@@ -7,7 +7,7 @@ const TMPDIR_FORMAT_STR: &str = "/tmp/omnect-cli-integration-tests/";
 
 lazy_static! {
     static ref LOG: () = if cfg!(debug_assertions) {
-        Builder::from_env(Env::default().default_filter_or("debug,bollard::read=info")).init()
+        Builder::from_env(Env::default().default_filter_or("debug")).init()
     } else {
         Builder::from_env(Env::default().default_filter_or("info")).init()
     };
