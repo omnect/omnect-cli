@@ -686,6 +686,47 @@ fn check_image_decompression() {
     assert.success();
 }
 
+#[test]
+fn check_bmap_checksum_after_decompression() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+    let image_path = tr.to_pathbuf("testfiles/image.wic.xz");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    let in_file = in_file.to_str().unwrap();
+
+    let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = copy_to_img
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{in_file},boot:/my-file"))
+        .arg("-i")
+        .arg(&image_path)
+        .arg("-b")
+        .assert();
+    assert.success();
+
+    // the result is an extracted image, drop the suffix
+    let mut bmap_path = image_path.clone();
+    bmap_path.set_extension("xz.bmap");
+    let mut extracted_image_path = image_path.clone();
+    extracted_image_path.set_extension("");
+
+    std::fs::rename(image_path, &extracted_image_path).unwrap();
+
+    // use bmaptool to verify that the checksum of the bmap file and the image
+    // still match after the copy operations
+    let mut copy_path = tr.pathbuf();
+    copy_path.push("image_copy.wic");
+
+    let assert = Command::new("bmaptool")
+        .arg("copy")
+        .args(&["--bmap", &bmap_path.to_string_lossy()])
+        .arg(&extracted_image_path)
+        .arg(&copy_path)
+        .assert();
+    assert.success();
+}
+
 #[tokio::test]
 async fn check_ssh_tunnel_setup() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
