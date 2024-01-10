@@ -1,6 +1,10 @@
+use data_encoding::HEXUPPER;
 use env_logger::{Builder, Env};
+use ring::digest::{Context, SHA256};
 use std::fs::copy;
+use std::fs::File;
 use std::fs::{create_dir_all, remove_dir_all};
+use std::io::{BufReader, Read};
 use std::path::PathBuf;
 
 const TMPDIR_FORMAT_STR: &str = "/tmp/omnect-cli-integration-tests/";
@@ -46,6 +50,22 @@ impl Testrunner {
          */
         copy(file, &path).unwrap();
         path
+    }
+    pub fn file_hash(path: &PathBuf) -> String {
+        let mut context = Context::new(&SHA256);
+        let mut buffer = [0; 1024];
+        let input = File::open(path).unwrap();
+        let mut reader = BufReader::new(input);
+
+        loop {
+            let count = reader.read(&mut buffer).unwrap();
+            if count == 0 {
+                break;
+            }
+            context.update(&buffer[..count]);
+        }
+
+        HEXUPPER.encode(context.finish().as_ref())
     }
 }
 
