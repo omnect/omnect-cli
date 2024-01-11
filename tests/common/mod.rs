@@ -36,18 +36,8 @@ impl Testrunner {
     pub fn to_pathbuf(&self, file: &str) -> PathBuf {
         let destfile = String::from(file);
         let destfile = destfile.split('/').last().unwrap();
-
         let path = PathBuf::from(format!("{}/{}", self.dirpath, destfile));
 
-        /*
-         * unfortunately std::fs::copy can not handle sparse files.
-         * we can't test bmaptool file handling in the integration test,
-         * because image.wic is not a sparse file after the copy anymore
-         *
-         * reason: declining of https://github.com/rust-lang/rust/issues/58635
-         * possible alternative: https://crates.io/crates/hole-punch
-         * possible alternative for unix hosts only: https://github.com/rust-lang/rust/pull/58636/files
-         */
         copy(file, &path).unwrap();
         path
     }
