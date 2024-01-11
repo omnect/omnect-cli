@@ -545,7 +545,7 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
     assert.success();
 
     let image_path_hash2 = Testrunner::file_hash(&image_path);
-    
+
     assert_ne!(image_path_hash1, image_path_hash2);
 
     let image_path_hash1 = Testrunner::file_hash(&image_path);
@@ -564,7 +564,7 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
     assert.success();
 
     let image_path_hash2 = Testrunner::file_hash(&image_path);
-    
+
     assert_eq!(image_path_hash1, image_path_hash2);
 
     assert!(file_diff::diff(in_file1, out_file3));
@@ -592,7 +592,7 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
     assert.success();
 
     let image_path_hash2 = Testrunner::file_hash(&image_path);
-    
+
     assert_ne!(image_path_hash1, image_path_hash2);
 
     let image_path_hash1 = Testrunner::file_hash(&image_path);

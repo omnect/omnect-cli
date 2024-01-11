@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.18.0"
+version = "0.18.1"
 
 [dependencies]
 actix-web = "4.4"
@@ -42,7 +42,7 @@ tokio = { version = "1", features = [
 ] }
 toml = "0.8"
 uuid = { version = "0.8", default-features = false, features = ["v4"] }
-url = { version = "2.4", feature = ["serde"] }
+url = { version = "2.4" }
 validator = { version = "0.14", features = ["derive"] }
 xz2 = "0.1"
 
