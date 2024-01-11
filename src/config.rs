@@ -45,7 +45,7 @@ impl From<AuthProvider> for AuthInfo {
 #[derive(Deserialize)]
 pub struct BackendConfig {
     pub backend: url::Url,
-    pub auth_provider: AuthProvider,
+    pub auth: AuthProvider,
 }
 
 lazy_static::lazy_static! {

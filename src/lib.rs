@@ -184,7 +184,7 @@ pub fn run() -> Result<()> {
                 config_path: Option<PathBuf>,
                 env_config: config::BackendConfig,
             ) -> Result<()> {
-                let access_token = crate::auth::authorize(env_config.auth_provider)
+                let access_token = crate::auth::authorize(env_config.auth)
                     .await
                     .context("create ssh tunnel")?;
 
@@ -200,7 +200,7 @@ pub fn run() -> Result<()> {
             } else {
                 config::BackendConfig {
                     backend: url::Url::parse("https://cp.omnect.conplement.cloud")?,
-                    auth_provider: config::AUTH_INFO_PROD.clone(),
+                    auth: config::AUTH_INFO_PROD.clone(),
                 }
             };
 
