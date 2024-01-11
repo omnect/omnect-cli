@@ -130,11 +130,11 @@ pub enum IdentityConfig {
 
 #[derive(Parser, Debug)]
 #[command(after_help = COPYRIGHT)]
-/// pre-configure ADU settings
-pub enum IotHubDeviceUpdateConfig {
-    /// set ADU configuration
-    Set {
-        /// path to ADU config file
+/// iothub-device-update commands
+pub enum IotHubDeviceUpdate {
+    /// copy device-update configuration to image 
+    SetDeviceConfig {
+        /// path to device-update configuration file
         #[arg(short = 'c', long = "config")]
         iot_hub_device_update_config: std::path::PathBuf,
         /// path to wic image file
@@ -147,6 +147,8 @@ pub enum IotHubDeviceUpdateConfig {
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
+    /// import update to azure iothub
+    Import,
 }
 
 #[derive(Parser, Debug)]
@@ -211,7 +213,7 @@ pub enum Command {
     #[command(subcommand)]
     Identity(IdentityConfig),
     #[command(subcommand)]
-    IotHubDeviceUpdate(IotHubDeviceUpdateConfig),
+    IotHubDeviceUpdate(IotHubDeviceUpdate),
     #[command(subcommand)]
     Ssh(SshConfig),
 }

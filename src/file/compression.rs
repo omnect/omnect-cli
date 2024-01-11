@@ -19,7 +19,7 @@ pub enum Compression {
 impl FromStr for Compression {
     type Err = anyhow::Error;
 
-    fn from_str(input: &str) -> Result<Compression, Self::Err> {
+    fn from_str(input: &str) -> Result<Compression> {
         match input {
             "xz" => Ok(Compression::xz),
             "bzip2" => Ok(Compression::bzip2),

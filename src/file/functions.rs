@@ -19,7 +19,7 @@ pub enum Partition {
 impl FromStr for Partition {
     type Err = anyhow::Error;
 
-    fn from_str(input: &str) -> Result<Partition, Self::Err> {
+    fn from_str(input: &str) -> Result<Partition> {
         match input {
             "boot" => Ok(Partition::boot),
             "rootA" => Ok(Partition::rootA),
@@ -55,7 +55,7 @@ impl FileCopyToParams {
 impl FromStr for FileCopyToParams {
     type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         let err_msg = "format not matched: in-file-path,out-partition:out-file-path";
 
         anyhow::ensure!(
@@ -112,7 +112,7 @@ impl FileCopyFromParams {
 impl FromStr for FileCopyFromParams {
     type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         let err_msg = "format not matched: in-partition:in-file-path,out-file-path";
 
         anyhow::ensure!(

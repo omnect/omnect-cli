@@ -5,6 +5,7 @@ pub mod cli;
 pub mod config;
 pub mod file;
 pub mod ssh;
+pub mod device_update_import;
 mod validators;
 use anyhow::{Context, Result};
 use cli::{
@@ -13,7 +14,7 @@ use cli::{
     IdentityConfig::{
         SetConfig, SetDeviceCertificate, SetIotLeafSasConfig, SetIotedgeGatewayConfig,
     },
-    IotHubDeviceUpdateConfig::Set as IotHubDeviceUpdateSet,
+    IotHubDeviceUpdate::{SetDeviceConfig as IotHubDeviceUpdateSet, self},
     SshConfig::{SetCertificate, SetConnection},
 };
 use file::compression::Compression;
@@ -167,6 +168,7 @@ pub fn run() -> Result<()> {
                 generate_bmap,
             )
         })?,
+        Command::IotHubDeviceUpdate(IotHubDeviceUpdate::Import) => device_update_import::import()?,
         Command::Ssh(SetConnection {
             device,
             username,
