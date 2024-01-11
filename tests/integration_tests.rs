@@ -469,7 +469,7 @@ fn check_set_iot_hub_device_update_template() {
     let mut set_iot_hub_device_update_config = Command::cargo_bin("omnect-cli").unwrap();
     let assert = set_iot_hub_device_update_config
         .arg("iot-hub-device-update")
-        .arg("set")
+        .arg("set-device-config")
         .arg("-c")
         .arg(&adu_config_file_path)
         .arg("-i")
