@@ -1,4 +1,7 @@
+use std::time::Duration;
+
 use anyhow::Result;
+use azure_core::{ExponentialRetryOptions, RetryOptions};
 use azure_storage::prelude::*;
 use azure_storage_blobs::prelude::*;
 use log::debug;
@@ -19,15 +22,19 @@ impl BlobUploader {
         }
     }
 
-    pub async fn write_blob(
-        &self,
-        name: &str,
-        data: Vec<u8>,
-    ) -> Result<url::Url> {
+    pub async fn write_blob(&self, name: &str, data: Vec<u8>) -> Result<url::Url> {
         let storage_credentials =
             StorageCredentials::access_key(self.account.clone(), self.key.clone());
 
-        let storage_client = BlobServiceClient::new(&self.account, storage_credentials);
+        let storage_client = ClientBuilder::new(&self.account, storage_credentials)
+            .retry(RetryOptions::exponential(
+                ExponentialRetryOptions::default()
+                    .max_retries(10u32)
+                    .initial_delay(Duration::from_secs(1))
+                    .max_delay(Duration::from_secs(45))
+                    .max_total_elapsed(Duration::from_secs(90)),
+            ))
+            .blob_service_client();
 
         let container_client = storage_client.container_client(self.container.clone());
 
@@ -93,10 +100,7 @@ impl BlobUploader {
         Ok(url)
     }
 
-    pub async fn generate_sas_url(
-        &self,
-        name: &str,
-    ) -> Result<url::Url> {
+    pub async fn generate_sas_url(&self, name: &str) -> Result<url::Url> {
         let storage_credentials =
             StorageCredentials::access_key(self.account.clone(), self.key.clone());
         let storage_account_client = BlobServiceClient::new(&self.account, storage_credentials);
