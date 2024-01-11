@@ -192,13 +192,10 @@ pub enum SshConfig {
         /// Linux).
         #[arg(short = 'c', long = "config-path")]
         config_path: Option<std::path::PathBuf>,
-        /// address of the backend API
-        #[arg(
-            short = 'b',
-            long = "backend",
-            default_value = "https://cp.omnect.conplement.cloud"
-        )]
-        backend: String,
+        /// path to a .toml configuration specifying the devices execution
+        /// environment, defaults to the production environment.
+        #[arg(short = 'e', long = "env")]
+        env: Option<std::path::PathBuf>,
         /// name of the device for which the ssh tunnel should be created.
         device: String,
     },

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] Q1 2024
+- added ability to specify authentication provider and environment with
+  configuration files (default to prod environment)
+- removed bollard logging setup
+- changed default compression rate to 4
+- bumped version of toml crate
+- fixed error where bmap files would not match to images after omnect-cli operations
+- integration tests:
+  - check if image is changed or unchanged after a command was run
+  - check generated bmap file
+
 ## [0.17.1] Q4 2023
 - added some useful error messages
 

@@ -2,6 +2,7 @@
 extern crate lazy_static;
 pub mod auth;
 pub mod cli;
+pub mod config;
 pub mod file;
 pub mod ssh;
 mod validators;
@@ -172,7 +173,7 @@ pub fn run() -> Result<()> {
             dir,
             priv_key_path,
             config_path,
-            backend,
+            env,
         }) => {
             #[tokio::main]
             async fn create_ssh_tunnel(
@@ -181,18 +182,36 @@ pub fn run() -> Result<()> {
                 dir: Option<PathBuf>,
                 priv_key_path: Option<PathBuf>,
                 config_path: Option<PathBuf>,
-                backend: String,
+                env_config: config::BackendConfig,
             ) -> Result<()> {
-                let access_token = crate::auth::authorize(&*crate::auth::AUTH_INFO_DEV)
+                let access_token = crate::auth::authorize(env_config.auth)
                     .await
                     .context("create ssh tunnel")?;
 
-                let config = ssh::Config::new(backend, dir, priv_key_path, config_path)?;
+                let config = ssh::Config::new(env_config.backend, dir, priv_key_path, config_path)?;
 
                 ssh::ssh_create_tunnel(device, username, config, access_token).await
             }
 
-            create_ssh_tunnel(&device, &username, dir, priv_key_path, config_path, backend)?;
+            let env_conf: config::BackendConfig = if let Some(env_path) = env {
+                let config_file = std::fs::read_to_string(env_path)?;
+
+                toml::from_str(&config_file)?
+            } else {
+                config::BackendConfig {
+                    backend: url::Url::parse("https://cp.omnect.conplement.cloud")?,
+                    auth: config::AUTH_INFO_PROD.clone(),
+                }
+            };
+
+            create_ssh_tunnel(
+                &device,
+                &username,
+                dir,
+                priv_key_path,
+                config_path,
+                env_conf,
+            )?;
         }
         Command::File(CopyToImage {
             file_copy_params,

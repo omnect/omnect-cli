@@ -27,20 +27,21 @@ pub struct Config {
 
 impl Config {
     pub fn new(
-        backend: String,
+        backend: impl AsRef<str>,
         dir: Option<PathBuf>,
         priv_key_path: Option<PathBuf>,
         config_path: Option<PathBuf>,
     ) -> Result<Config> {
-        let backend = match Url::parse(&backend) {
+        let backend = match Url::parse(backend.as_ref()) {
             Ok(url) => url,
             Err(url::ParseError::RelativeUrlWithoutBase) => {
                 // url has no scheme, attempt to fix it
-                Url::parse(&format!("https://{backend}"))
-                    .map_err(|_| anyhow::anyhow!("Invalid backend url: \"{backend}\"."))?
+                Url::parse(&format!("https://{}", backend.as_ref())).map_err(|_| {
+                    anyhow::anyhow!("Invalid backend url: \"{}\".", backend.as_ref())
+                })?
             }
             Err(_) => {
-                anyhow::bail!("Invalid backend url: \"{backend}\".")
+                anyhow::bail!("Invalid backend url: \"{}\".", backend.as_ref())
             }
         };
 

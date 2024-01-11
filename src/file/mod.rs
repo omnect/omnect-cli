@@ -210,7 +210,7 @@ fn configure_hostname(
     let hosts_file = get_file_path(image_file.parent(), "hosts")?;
 
     // get hostname from identity_config_file
-    let identity: IdentityConfig = serde_path_to_error::deserialize(&mut toml::Deserializer::new(
+    let identity: IdentityConfig = serde_path_to_error::deserialize(toml::Deserializer::new(
         fs::read_to_string(identity_config_file.to_str().unwrap())
             .context("configure_hostname: cannot read identity file")?
             .as_str(),

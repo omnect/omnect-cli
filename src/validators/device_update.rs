@@ -11,6 +11,6 @@ pub fn validate_config(device_update_conf_file: &Path) -> Result<()> {
         .context("validate_du_config: read config_file")?;
 
     // ToDo: add further checks
-    
+
     Ok(())
 }

@@ -50,7 +50,7 @@ impl Compression {
                     .parse()
                     .unwrap_or(9);
 
-                let level = if (0..=9).contains(&level) { level } else { 9 };
+                let level = if (0..=9).contains(&level) { level } else { 4 };
                 let stream = xz2::stream::MtStreamBuilder::new()
                     .threads(num_cpus::get() as u32)
                     .preset(level)
@@ -120,21 +120,31 @@ impl Compression {
 }
 
 pub fn decompress(image_file_name: &PathBuf, compression: &Compression) -> Result<PathBuf> {
-    let mut new_image_file = image_file_name.to_str().unwrap();
-    if let Some(p) = new_image_file.strip_suffix(compression.extension()) {
-        new_image_file = p;
+    let mut new_image_file = PathBuf::from(image_file_name);
+
+    if let Some(extension) = new_image_file.extension() {
+        if extension == compression.extension() {
+            new_image_file.set_extension("");
+        }
     }
-    let mut destination = File::create(new_image_file)?;
+
+    let mut destination = File::create(&new_image_file)?;
     let mut source = File::open(image_file_name)?;
+    debug!("decompress {image_file_name:?} to {new_image_file:?}");
     let bytes_written = compression.decompress(&mut source, &mut destination)?;
     debug!("image::decompress: copied {} bytes.", bytes_written);
-    Ok(PathBuf::from(new_image_file))
+    Ok(new_image_file)
 }
 
 pub fn compress(image_file_name: &PathBuf, compression: &Compression) -> Result<PathBuf> {
-    let new_image_file = PathBuf::from(format!("{}.{}", image_file_name.to_str().unwrap(), compression.extension()));
+    let new_image_file = PathBuf::from(format!(
+        "{}.{}",
+        image_file_name.to_str().unwrap(),
+        compression.extension()
+    ));
     let mut destination = File::create(&new_image_file)?;
     let mut source = File::open(image_file_name)?;
+    debug!("compress {image_file_name:?} to {new_image_file:?}");
     let bytes_written = compression.compress(&mut source, &mut destination)?;
     debug!("image::compress: copied {} bytes.", bytes_written);
     Ok(new_image_file)
