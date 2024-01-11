@@ -6,8 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.18.0] Q1 2024
-- added ability to ability to authenticate against the dev and prod backends
+- added ability to specify authentication provider and environment with
+  configuration files (default to prod environment)
 - removed bollard logging setup
+- bumped version of toml crate
 - fixed error where bmap files would not match to images after omnect-cli operations
 
 ## [0.17.1] Q4 2023

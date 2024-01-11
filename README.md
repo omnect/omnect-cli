@@ -138,28 +138,50 @@ Options:
   -d <dir> optional: directory where the ssh key pair, certificate, and configuration are stored to
   -k <key> optional: path to an existing private ssh key to use for the connection. Requires the existence of the public key <key>.pub
   -c <config_path> optional: path where the ssh configuration should be stored to
-  --dev mandatory: use development authentication service, mutually excusive with `--prod`
-  --prod mandatory: use production authentication service, mutually excusive with `--dev`
+  --env <env_config_path> optional: path to a .toml configuration specifying the devices execution environment, defaults to the production environment.
 ```
 
 #### Example usage
 
-Open an ssh tunnel to the device `test_device` in the `dev` environment as follows:
+Open an ssh tunnel to the device `prod_device` in the `prod` environment as follows:
 ```sh
-~ omnect-cli ssh set-connection test_device --dev
+~ omnect-cli ssh set-connection prod_device
 
 Successfully established ssh tunnel!
 Certificate dir: /run/user/1000/omnect-cli
 Configuration path: /run/user/1000/omnect-cli/ssh_config
 Use the configuration in "/run/user/1000/omnect-cli/ssh_config" to use the tunnel, e.g.:
-ssh -F /run/user/1000/omnect-cli/ssh_config test_device
+ssh -F /run/user/1000/omnect-cli/ssh_config prod_device
 ```
 Now follow the command output to establish a connection to the device as such:
 
 ```sh
-~ ssh -F /run/user/1000/omnect-cli/ssh_config test_device
+~ ssh -F /run/user/1000/omnect-cli/ssh_config prod_device
 
-[omnect@test_device ~]$
+[omnect@prod_device ~]$
+```
+
+To connect to the device `dev_device` in the `dev` environment, we additionally
+have to supply a configuration with backend and the authentication details for
+the `dev` environment:
+
+```dev_env.toml
+backend = 'https://cp.dev.omnect.conplement.cloud'
+
+[auth.Keycloak]
+provider = 'https://keycloak.omnect.conplement.cloud'
+realm = 'cp-dev'
+client_id = 'cp-development'
+bind_addr = 'localhost:4000'
+redirect = 'http://localhost:4000'
+```
+
+You then have to pass this configuration with the `--env` flag:
+```sh
+~ omnect-cli ssh set-connection dev_device --env dev_env.toml
+
+Successfully established ssh tunnel!
+...
 ```
 
 # Troubleshooting
