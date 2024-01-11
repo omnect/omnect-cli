@@ -40,7 +40,7 @@ tokio = { version = "1", features = [
     "fs",
     "net",
 ] }
-toml = "0.5"
+toml = "0.8"
 uuid = { version = "0.8", default-features = false, features = ["v4"] }
 url = { version = "2.4", feature = ["serde"] }
 validator = { version = "0.14", features = ["derive"] }
