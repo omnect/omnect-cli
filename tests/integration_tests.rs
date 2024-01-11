@@ -694,7 +694,7 @@ fn check_image_compression() {
         .arg("file")
         .arg("copy-to-image")
         .arg("-f")
-        .arg(format!("{in_file},boot:/my-file"))
+        .arg(format!("{in_file},factory:/my-file"))
         .arg("-i")
         .arg(&image_path_wic_xz)
         .arg("-p")
