@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.1] Q1 2024
+- update zerocopy to 0.7.32
+- update zerocopy-derive to 0.7.32
+- fix build warning about unused features
+
 ## [0.18.0] Q1 2024
 - added ability to specify authentication provider and environment with
   configuration files (default to prod environment)
