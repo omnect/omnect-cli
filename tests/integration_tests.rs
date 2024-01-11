@@ -529,6 +529,8 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
     out_file4.push("outfile4.json");
     let out_file4 = out_file4.to_str().unwrap();
 
+    let image_path_hash1 = Testrunner::file_hash(&image_path);
+
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
         .arg("file")
@@ -541,6 +543,12 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
         .arg(&image_path)
         .assert();
     assert.success();
+
+    let image_path_hash2 = Testrunner::file_hash(&image_path);
+    
+    assert_ne!(image_path_hash1, image_path_hash2);
+
+    let image_path_hash1 = Testrunner::file_hash(&image_path);
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
@@ -555,6 +563,10 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
         .assert();
     assert.success();
 
+    let image_path_hash2 = Testrunner::file_hash(&image_path);
+    
+    assert_eq!(image_path_hash1, image_path_hash2);
+
     assert!(file_diff::diff(in_file1, out_file3));
     assert!(file_diff::diff(in_file2, out_file4));
 
@@ -563,6 +575,8 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
     let in_file3 = in_file3.to_str().unwrap();
     let in_file4 = tr.to_pathbuf("testfiles/identity_config_hostname_valid.toml");
     let in_file4 = in_file4.to_str().unwrap();
+
+    let image_path_hash1 = Testrunner::file_hash(&image_path);
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
@@ -577,6 +591,12 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
         .assert();
     assert.success();
 
+    let image_path_hash2 = Testrunner::file_hash(&image_path);
+    
+    assert_ne!(image_path_hash1, image_path_hash2);
+
+    let image_path_hash1 = Testrunner::file_hash(&image_path);
+
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
         .arg("file")
@@ -590,6 +610,9 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
         .assert();
     assert.success();
 
+    let image_path_hash2 = Testrunner::file_hash(&image_path);
+
+    assert_eq!(image_path_hash1, image_path_hash2);
     assert!(file_diff::diff(in_file3, out_file3));
     assert!(file_diff::diff(in_file4, out_file4));
 }
@@ -633,8 +656,8 @@ fn check_bmap_generation() {
 #[test]
 fn check_image_compression() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-    let image_path = tr.to_pathbuf("testfiles/image.wic");
-    let xz_path = PathBuf::from(format!("{}.xz", image_path.to_str().unwrap()));
+    let image_path_wic = tr.to_pathbuf("testfiles/image.wic");
+    let image_path_wic_xz = PathBuf::from(format!("{}.xz", image_path_wic.to_str().unwrap()));
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
     let in_file = in_file.to_str().unwrap();
 
@@ -645,11 +668,11 @@ fn check_image_compression() {
         .arg("-f")
         .arg(format!("{in_file},boot:/my-file"))
         .arg("-i")
-        .arg(&image_path)
+        .arg(&image_path_wic)
         .assert();
     assert.success();
 
-    assert!(!xz_path.try_exists().is_ok_and(|exists| exists));
+    assert!(!image_path_wic_xz.try_exists().is_ok_and(|exists| exists));
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
@@ -658,13 +681,30 @@ fn check_image_compression() {
         .arg("-f")
         .arg(format!("{in_file},boot:/my-file"))
         .arg("-i")
-        .arg(&image_path)
+        .arg(&image_path_wic)
         .arg("-p")
         .arg("xz")
         .assert();
     assert.success();
 
-    assert!(xz_path.try_exists().is_ok_and(|exists| exists));
+    let image_path_wic_xz_hash1 = Testrunner::file_hash(&image_path_wic_xz);
+
+    let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = copy_to_img
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{in_file},boot:/my-file"))
+        .arg("-i")
+        .arg(&image_path_wic_xz)
+        .arg("-p")
+        .arg("xz")
+        .assert();
+    assert.success();
+
+    let image_path_wic_xz_hash2 = Testrunner::file_hash(&image_path_wic_xz);
+
+    assert_ne!(image_path_wic_xz_hash1, image_path_wic_xz_hash2);
 }
 
 #[test]

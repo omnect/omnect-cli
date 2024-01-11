@@ -50,7 +50,7 @@ impl Compression {
                     .parse()
                     .unwrap_or(9);
 
-                let level = if (0..=9).contains(&level) { level } else { 9 };
+                let level = if (0..=9).contains(&level) { level } else { 4 };
                 let stream = xz2::stream::MtStreamBuilder::new()
                     .threads(num_cpus::get() as u32)
                     .preset(level)
@@ -130,6 +130,7 @@ pub fn decompress(image_file_name: &PathBuf, compression: &Compression) -> Resul
 
     let mut destination = File::create(&new_image_file)?;
     let mut source = File::open(image_file_name)?;
+    debug!("decompress {image_file_name:?} to {new_image_file:?}");
     let bytes_written = compression.decompress(&mut source, &mut destination)?;
     debug!("image::decompress: copied {} bytes.", bytes_written);
     Ok(new_image_file)
@@ -143,6 +144,7 @@ pub fn compress(image_file_name: &PathBuf, compression: &Compression) -> Result<
     ));
     let mut destination = File::create(&new_image_file)?;
     let mut source = File::open(image_file_name)?;
+    debug!("compress {image_file_name:?} to {new_image_file:?}");
     let bytes_written = compression.compress(&mut source, &mut destination)?;
     debug!("image::compress: copied {} bytes.", bytes_written);
     Ok(new_image_file)

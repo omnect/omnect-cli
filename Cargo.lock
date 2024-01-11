@@ -999,6 +999,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "data-encoding"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e962a19be5cfc3f3bf6dd8f61eb50107f356ad6270fbb3ed41476571db78be5"
+
+[[package]]
 name = "deranged"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2183,6 +2189,7 @@ dependencies = [
  "assert_cmd",
  "bzip2",
  "clap",
+ "data-encoding",
  "directories",
  "env_logger",
  "file_diff",
@@ -2198,6 +2205,7 @@ dependencies = [
  "open",
  "regex",
  "reqwest",
+ "ring",
  "serde",
  "serde_json",
  "serde_path_to_error",
