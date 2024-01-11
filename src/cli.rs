@@ -192,11 +192,12 @@ pub enum SshConfig {
         /// Linux).
         #[arg(short = 'c', long = "config-path")]
         config_path: Option<std::path::PathBuf>,
+        /// path to a .toml configuration specifying the devices execution
+        /// environment, defaults to the production environment.
+        #[arg(short = 'e', long = "env")]
+        env: Option<std::path::PathBuf>,
         /// name of the device for which the ssh tunnel should be created.
         device: String,
-        /// path to a configuration file with parameters for the backend
-        /// environment.
-        env: Option<std::path::PathBuf>,
     },
 }
 
