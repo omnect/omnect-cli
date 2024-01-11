@@ -17,14 +17,6 @@ use oauth2::{
 
 const RETRY_THRESHOLD: usize = 8;
 
-pub trait AuthInfo: Send {
-    fn auth_url(&self) -> String;
-    fn token_url(&self) -> String;
-    fn bind_addr(&self) -> String;
-    fn redirect_addr(&self) -> String;
-    fn client_id(&self) -> String;
-}
-
 #[derive(Deserialize)]
 struct QueryCode {
     code: String,
@@ -91,8 +83,8 @@ async fn redirect_server(bind_addr: String, server_setup_complete: Arc<Notify>) 
     }
 }
 
-fn get_refresh_token_from_key_ring<A: AuthInfo>(auth_info: &A) -> Option<String> {
-    let entry = match keyring::Entry::new("omnect-cli", &auth_info.client_id()) {
+fn get_refresh_token_from_key_ring(auth_info: &AuthInfo) -> Option<String> {
+    let entry = match keyring::Entry::new("omnect-cli", &auth_info.client_id) {
         Ok(entry) => entry,
         Err(err) => {
             log::warn!("Failed to get entry from key ring: {}", err);
@@ -103,8 +95,8 @@ fn get_refresh_token_from_key_ring<A: AuthInfo>(auth_info: &A) -> Option<String>
     entry.get_password().ok()
 }
 
-fn store_refresh_token_in_key_ring<A: AuthInfo>(auth_info: &A, refresh_token: String) {
-    let entry = match keyring::Entry::new("omnect-cli", &auth_info.client_id()) {
+fn store_refresh_token_in_key_ring(auth_info: &AuthInfo, refresh_token: String) {
+    let entry = match keyring::Entry::new("omnect-cli", &auth_info.client_id) {
         Ok(entry) => entry,
         Err(err) => {
             log::warn!("Failed to store token into key ring: {}", err);
@@ -120,14 +112,14 @@ fn store_refresh_token_in_key_ring<A: AuthInfo>(auth_info: &A, refresh_token: St
 type Token =
     oauth2::StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>;
 
-async fn request_access_token<A: AuthInfo>(auth_info: &A) -> Result<Token> {
+async fn request_access_token(auth_info: &AuthInfo) -> Result<Token> {
     let client = BasicClient::new(
-        ClientId::new(auth_info.client_id()),
+        ClientId::new(auth_info.client_id.clone()),
         None,
-        AuthUrl::new(auth_info.auth_url()).unwrap(),
-        Some(TokenUrl::new(auth_info.token_url()).unwrap()),
+        AuthUrl::new(auth_info.auth_url.clone()).unwrap(),
+        Some(TokenUrl::new(auth_info.token_url.clone()).unwrap()),
     )
-    .set_redirect_uri(RedirectUrl::new(auth_info.redirect_addr()).unwrap());
+    .set_redirect_uri(RedirectUrl::new(auth_info.redirect_addr.to_string()).unwrap());
 
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
@@ -139,7 +131,7 @@ async fn request_access_token<A: AuthInfo>(auth_info: &A) -> Result<Token> {
     // start the redirect server so that clients may connect to them.
     let server_setup_complete = Arc::new(Notify::new());
     let server_task = tokio::spawn(redirect_server(
-        auth_info.bind_addr(),
+        auth_info.bind_addr.clone(),
         server_setup_complete.clone(),
     ));
     server_setup_complete.notified().await;
@@ -160,15 +152,15 @@ async fn request_access_token<A: AuthInfo>(auth_info: &A) -> Result<Token> {
         .await?)
 }
 
-async fn refresh_access_token<A: AuthInfo>(auth_info: &A) -> Option<Token> {
+async fn refresh_access_token(auth_info: &AuthInfo) -> Option<Token> {
     let refresh_token = get_refresh_token_from_key_ring(auth_info)?;
     log::debug!("Found refresh token in key ring.");
 
     let client = BasicClient::new(
-        ClientId::new(auth_info.client_id()),
+        ClientId::new(auth_info.client_id.clone()),
         None,
-        AuthUrl::new(auth_info.auth_url()).unwrap(),
-        Some(TokenUrl::new(auth_info.token_url()).unwrap()),
+        AuthUrl::new(auth_info.auth_url.clone()).unwrap(),
+        Some(TokenUrl::new(auth_info.token_url.clone()).unwrap()),
     );
 
     let access_token = client
@@ -179,92 +171,34 @@ async fn refresh_access_token<A: AuthInfo>(auth_info: &A) -> Option<Token> {
     access_token.ok()
 }
 
-pub async fn authorize<A: AuthInfo>(auth_info: &A) -> Result<oauth2::AccessToken> {
+pub async fn authorize<A>(auth_provider: A) -> Result<oauth2::AccessToken>
+where
+    A: Into<AuthInfo>,
+{
+    let auth_info: AuthInfo = auth_provider.into();
+
     // If there is a refresh token from previous runs, try to create our access
     // token from that. Note, that we don't store access tokens themselves as
     // they are far too short lived.
-    let token = if let Some(token) = refresh_access_token(auth_info).await {
+    let token = if let Some(token) = refresh_access_token(&auth_info).await {
         log::debug!("Access token refresh successful.");
         token
     } else {
         log::debug!("Could not refresh access token, use authorization code flow instead.");
-        request_access_token(auth_info).await?
+        request_access_token(&auth_info).await?
     };
 
     if let Some(refresh_token) = token.refresh_token() {
-        store_refresh_token_in_key_ring(auth_info, refresh_token.secret().to_string());
+        store_refresh_token_in_key_ring(&auth_info, refresh_token.secret().to_string());
     }
 
     Ok(token.access_token().clone())
 }
 
-pub struct KeycloakInfo {
-    provider: String,
-    realm: String,
-    client_id: String,
-    bind_addr: String,
-    redirect: String,
-}
-
-impl KeycloakInfo {
-    pub fn new(
-        provider: &str,
-        realm: &str,
-        client_id: &str,
-        bind_addr: &str,
-        redirect: &str,
-    ) -> KeycloakInfo {
-        KeycloakInfo {
-            provider: provider.to_string(),
-            realm: realm.to_string(),
-            client_id: client_id.to_string(),
-            bind_addr: bind_addr.to_string(),
-            redirect: redirect.to_string(),
-        }
-    }
-}
-
-impl AuthInfo for KeycloakInfo {
-    fn auth_url(&self) -> String {
-        format!(
-            "{}/realms/{}/protocol/openid-connect/auth",
-            self.provider, self.realm
-        )
-    }
-
-    fn token_url(&self) -> String {
-        format!(
-            "{}/realms/{}/protocol/openid-connect/token",
-            self.provider, self.realm
-        )
-    }
-
-    fn bind_addr(&self) -> String {
-        self.bind_addr.clone()
-    }
-
-    fn redirect_addr(&self) -> String {
-        self.redirect.clone()
-    }
-
-    fn client_id(&self) -> String {
-        self.client_id.clone()
-    }
-}
-
-lazy_static! {
-    pub static ref AUTH_INFO_DEV: KeycloakInfo = KeycloakInfo::new(
-        "https://keycloak.omnect.conplement.cloud",
-        "cp-dev",
-        "cp-development",
-        "localhost:4000",
-        "http://localhost:4000",
-    );
-    pub static ref AUTH_INFO_PROD: KeycloakInfo = KeycloakInfo::new(
-        "https://keycloak.omnect.conplement.cloud",
-        "cp-prod",
-        "cp-production",
-        "localhost:4000",
-        "http://localhost:4000",
-    );
+pub struct AuthInfo {
+    pub auth_url: String,
+    pub token_url: String,
+    pub bind_addr: String,
+    pub redirect_addr: url::Url,
+    pub client_id: String,
 }

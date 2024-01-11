@@ -2,7 +2,7 @@ use crate::file::{
     compression::Compression,
     functions::{FileCopyFromParams, FileCopyToParams},
 };
-use clap::{ArgGroup, Parser};
+use clap::Parser;
 
 const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 
@@ -173,11 +173,6 @@ pub enum SshConfig {
     },
 
     /// set ssh connection parameters
-    #[clap(group(
-        ArgGroup::new("environment")
-            .required(true)
-            .args(&["prod", "dev"])
-    ))]
     SetConnection {
         /// username for the login on the device.
         #[arg(short = 'u', long = "user", default_value = "omnect")]
@@ -199,12 +194,9 @@ pub enum SshConfig {
         config_path: Option<std::path::PathBuf>,
         /// name of the device for which the ssh tunnel should be created.
         device: String,
-        /// connect to production environment
-        #[clap(long, group = "environment", action)]
-        prod: bool,
-        /// connect to dev environment
-        #[clap(long, group = "environment", action)]
-        dev: bool,
+        /// path to a configuration file with parameters for the backend
+        /// environment.
+        env: Option<std::path::PathBuf>,
     },
 }
 

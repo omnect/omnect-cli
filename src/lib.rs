@@ -2,6 +2,7 @@
 extern crate lazy_static;
 pub mod auth;
 pub mod cli;
+pub mod config;
 pub mod file;
 pub mod ssh;
 mod validators;
@@ -19,7 +20,7 @@ use file::compression::Compression;
 use std::{fs, path::PathBuf};
 use uuid::Uuid;
 
-use crate::{auth::AuthInfo, file::compression};
+use crate::file::compression;
 
 fn run_image_command<F>(
     image_file: PathBuf,
@@ -172,8 +173,7 @@ pub fn run() -> Result<()> {
             dir,
             priv_key_path,
             config_path,
-            prod,
-            dev,
+            env,
         }) => {
             #[tokio::main]
             async fn create_ssh_tunnel(
@@ -182,33 +182,26 @@ pub fn run() -> Result<()> {
                 dir: Option<PathBuf>,
                 priv_key_path: Option<PathBuf>,
                 config_path: Option<PathBuf>,
-                backend: &str,
-                auth_info: &impl AuthInfo,
+                env_config: config::BackendConfig,
             ) -> Result<()> {
-                let access_token = crate::auth::authorize(auth_info)
+                let access_token = crate::auth::authorize(env_config.auth_provider)
                     .await
                     .context("create ssh tunnel")?;
 
-                let config = ssh::Config::new(backend, dir, priv_key_path, config_path)?;
+                let config = ssh::Config::new(env_config.backend, dir, priv_key_path, config_path)?;
 
                 ssh::ssh_create_tunnel(device, username, config, access_token).await
             }
 
-            assert!(prod ^ dev);
+            let env_conf: config::BackendConfig = if let Some(env_path) = env {
+                let config_file = std::fs::read_to_string(env_path)?;
 
-            // address of the backend API
-            let (backend, auth_info) = if prod {
-                (
-                    "https://cp.omnect.conplement.cloud",
-                    &*crate::auth::AUTH_INFO_PROD,
-                )
-            } else if dev {
-                (
-                    "https://cp.dev.omnect.conplement.cloud",
-                    &*crate::auth::AUTH_INFO_DEV,
-                )
+                toml::from_str(&config_file)?
             } else {
-                unreachable!();
+                config::BackendConfig {
+                    backend: url::Url::parse("https://cp.omnect.conplement.cloud")?,
+                    auth_provider: config::AUTH_INFO_PROD.clone(),
+                }
             };
 
             create_ssh_tunnel(
@@ -217,8 +210,7 @@ pub fn run() -> Result<()> {
                 dir,
                 priv_key_path,
                 config_path,
-                backend,
-                auth_info,
+                env_conf,
             )?;
         }
         Command::File(CopyToImage {
