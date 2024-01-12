@@ -1,9 +1,9 @@
 mod blob_uploader;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use azure_identity::{ClientSecretCredential, TokenCredentialOptions};
 use azure_iot_deviceupdate::DeviceUpdateClient;
 use blob_uploader::BlobUploader;
-use log::{debug, error, info};
+use log::{debug, info};
 use serde::Serialize;
 use serde_json::json;
 use sha2::Digest;
@@ -14,20 +14,6 @@ use time::format_description::well_known::Rfc3339;
 // See https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-limits
 const MAX_DEVICE_UPDATE_SIZE: u64 = 2000000000; // 2GB, may also actually be 2^32 - 1?
 const MANIFEST_VERSION: &str = "5.0";
-
-// Get environment variable, if it does not exist, terminate the process.
-pub fn get_env_or_exit(key: &str) -> String {
-    match env::var(key) {
-        Err(_e) => {
-            log::error!("Missing {} environment variable.", key);
-            std::process::exit(1);
-        }
-        Ok(e) => {
-            debug!("{key}: {e}");
-            e
-        }
-    }
-}
 
 #[derive(Serialize)]
 struct UpdateId {
@@ -114,9 +100,9 @@ struct FileAttributes {
 
 #[tokio::main]
 pub async fn import() -> Result<()> {
-    let tenant_id = get_env_or_exit("AZURE_TENANT_ID");
-    let client_id = get_env_or_exit("AZURE_CLIENT_ID");
-    let client_secret = get_env_or_exit("AZURE_CLIENT_SECRET");
+    let tenant_id = env::var("AZURE_TENANT_ID")?;
+    let client_id = env::var("AZURE_CLIENT_ID")?;
+    let client_secret = env::var("AZURE_CLIENT_SECRET")?;
 
     // credentials for deviceupdate
     let creds = std::sync::Arc::new(ClientSecretCredential::new(
@@ -126,27 +112,27 @@ pub async fn import() -> Result<()> {
         client_secret,
         TokenCredentialOptions::default(),
     ));
-    let device_update_endpoint = get_env_or_exit("AZURE_ACCOUNT_ENDPOINT");
+    let device_update_endpoint = env::var("AZURE_ACCOUNT_ENDPOINT")?;
     let client = DeviceUpdateClient::new(&device_update_endpoint, creds)?;
 
-    let storage_name = get_env_or_exit("AZURE_STORAGE_NAME");
-    let storage_key = get_env_or_exit("AZURE_STORAGE_KEY");
-    let blob_container = get_env_or_exit("AZURE_BLOB_CONTAINER");
+    let storage_name = env::var("AZURE_STORAGE_NAME")?;
+    let storage_key = env::var("AZURE_STORAGE_KEY")?;
+    let blob_container = env::var("AZURE_BLOB_CONTAINER")?;
 
-    let instance_id = get_env_or_exit("AZURE_INSTANCE_ID");
+    let instance_id = env::var("AZURE_INSTANCE_ID")?;
 
-    let dev_prop_manufacturer = get_env_or_exit("ADU_DEVICEPROPERTIES_MANUFACTURER");
-    let dev_prop_model = get_env_or_exit("ADU_DEVICEPROPERTIES_MODEL");
-    let dev_prop_compatibilityid = get_env_or_exit("ADU_DEVICEPROPERTIES_COMPATIBILITY_ID");
-    let provider = get_env_or_exit("ADU_PROVIDER");
-    let update_type = get_env_or_exit("ADU_UPDATE_TYPE");
+    let dev_prop_manufacturer = env::var("ADU_DEVICEPROPERTIES_MANUFACTURER")?;
+    let dev_prop_model = env::var("ADU_DEVICEPROPERTIES_MODEL")?;
+    let dev_prop_compatibilityid = env::var("ADU_DEVICEPROPERTIES_COMPATIBILITY_ID")?;
+    let provider = env::var("ADU_PROVIDER")?;
+    let update_type = env::var("ADU_UPDATE_TYPE")?;
     let consent_type = match env::var("ADU_CONSENT").unwrap_or_default().as_str() {
-        "true" | "TRUE" | "1" | "required" => Some(get_env_or_exit("ADU_CONSENT_TYPE")),
+        "true" | "TRUE" | "1" | "required" => Some(env::var("ADU_CONSENT_TYPE")?),
         _ => None,
     };
-    let image_name = get_env_or_exit("OMNECT_IMAGE_NAME");
-    let image_version = get_env_or_exit("OMNECT_IMAGE_VERSION");
-    let image_criteria = get_env_or_exit("OMNECT_IMAGE_INSTALLED_CRITERIA");
+    let image_name = env::var("OMNECT_IMAGE_NAME")?;
+    let image_version = env::var("OMNECT_IMAGE_VERSION")?;
+    let image_criteria = env::var("OMNECT_IMAGE_INSTALLED_CRITERIA")?;
 
     let uploader = BlobUploader::new(storage_name, storage_key, blob_container);
 
@@ -234,14 +220,10 @@ pub async fn import() -> Result<()> {
     let manifest_sha256 =
         base64::encode_config(sha2::Sha256::digest(&manifest_data), base64::STANDARD);
 
-    let manifest_url = match uploader.write_blob(&manifest_name, manifest_data).await {
-        Err(e) => {
-            error!("Error uploading import manifest: {:?}", e);
-            std::process::exit(1);
-        }
-        Ok(u) => u,
-    };
+    let manifest_url =  uploader.write_blob(&manifest_name, manifest_data).await.context("Error uploading import manifest")?;
+
     info!("Manifest is at {:?}", manifest_url);
+
     let import_manifest = json!(
     [
         {
@@ -279,27 +261,26 @@ async fn get_file_attributes(
     file_sha256_env: &str,
     uploader: &BlobUploader,
 ) -> Result<FileAttributes> {
-    let mut size = get_env_or_exit(file_size_env).parse::<u64>()?;
-    let mut sha256 = get_env_or_exit(file_sha256_env);
+    let mut size = env::var(file_size_env)?.parse::<u64>()?;
+    let mut sha256 = env::var(file_sha256_env)?;
 
     let r = match env::var(file_path_env) {
         Err(_e) => {
             debug!("{file_path_env} not set, assuming file already uploaded.");
             let basename = match env::var(file_uri_env) {
-                Err(_e) => {
-                    error!("Neither {file_path_env} nor {file_uri_env} set, no idea how to generate update from. Bailing out.");
-                    std::process::exit(1);
-                }
+                Err(_e) => 
+                    anyhow::bail!("Neither {file_path_env} nor {file_uri_env} set, no idea how to generate update from. Bailing out."),
+                
                 Ok(image_url_str) => {
                     debug!("{file_uri_env}: {image_url_str}");
                     let url = url::Url::parse(&image_url_str)?;
-                    if size > MAX_DEVICE_UPDATE_SIZE {
-                        error!(
-                            "Azure device update limits the update file size to {}.",
-                            MAX_DEVICE_UPDATE_SIZE
-                        );
-                        std::process::exit(1);
-                    }
+
+                    anyhow::ensure!(
+                        size <= MAX_DEVICE_UPDATE_SIZE,
+                        "Azure device update limits the update file size to {}.",
+                        MAX_DEVICE_UPDATE_SIZE
+                    );
+
                     let url_clone = url.clone();
                     let path_segments = url_clone
                         .path_segments()
@@ -310,25 +291,19 @@ async fn get_file_attributes(
                     file_name.to_owned()
                 }
             };
-            let url = match uploader.generate_sas_url(&basename).await {
-                Err(e) => {
-                    error!("Error generating SAS storage url: {:?}", e);
-                    std::process::exit(1);
-                }
-                Ok(u) => u,
-            };
+            let url = uploader
+                .generate_sas_url(&basename)
+                .await
+                .context("Error generating SAS storage url")?;
 
             (url, basename, size, sha256)
         }
+
         Ok(file_path) => {
             debug!("{file_path_env}: {file_path}");
-            if std::fs::metadata(&file_path)?.len() > MAX_DEVICE_UPDATE_SIZE {
-                error!(
-                    "Azure device update limits the update file size to {}.",
-                    MAX_DEVICE_UPDATE_SIZE
-                );
-                std::process::exit(1);
-            }
+
+            anyhow::ensure!(std::fs::metadata(&file_path)?.len() <= MAX_DEVICE_UPDATE_SIZE,  "Azure device update limits the update file size to {}.",
+            MAX_DEVICE_UPDATE_SIZE);
 
             let basename = std::path::Path::new(&file_path)
                 .file_name()
@@ -341,14 +316,8 @@ async fn get_file_attributes(
 
             sha256 = base64::encode_config(sha2::Sha256::digest(&data), base64::STANDARD);
 
-            let url = match uploader.write_blob(&basename, data).await {
-                Err(e) => {
-                    error!("Error uploading file: {:?}", e);
-                    std::process::exit(1);
-                }
-                Ok(u) => u,
-            };
-            info!("File is at {:?}", url);
+            let url =  uploader.write_blob(&basename, data).await.context("Error uploading file")?;
+            info!("File is at {url}");
 
             (url, basename, size, sha256)
         }

@@ -38,29 +38,14 @@ impl BlobUploader {
 
         let container_client = storage_client.container_client(self.container.clone());
 
-        let container_create = container_client
+        container_client
             .create()
             .public_access(PublicAccess::None)
-            .into_future()
-            .await;
+            .await?;
 
-        match container_create {
-            Ok(_c) => {
-                debug!("Container {} created successfully.", self.container);
-            }
-            Err(e) => {
-                debug!("Could not create container: {e}, continuing...");
-            }
-        }
+        let blob_client = container_client.blob_client(name);
 
-        let blob_client = storage_client
-            .container_client(self.container.clone())
-            .blob_client(name);
-
-        if blob_client.exists().await? {
-            log::warn!("Blob {} already exists, will not overwrite.", name);
-            return Err(std::io::Error::new(std::io::ErrorKind::AlreadyExists, name).into());
-        }
+        anyhow::ensure!(blob_client.exists().await? == false, "Blob {} already exists, will not overwrite.", name);
 
         let block_id = bytes::Bytes::from(format!("{}", 1));
         let hash = md5::compute(data.clone()).0;
@@ -68,7 +53,6 @@ impl BlobUploader {
         let put_block_response = blob_client
             .put_block(block_id.clone(), data)
             .hash(hash)
-            .into_future()
             .await?;
 
         debug!("put_block_response {:#?}", put_block_response);
@@ -82,8 +66,8 @@ impl BlobUploader {
         let res = blob_client
             .put_block_list(block_list)
             .content_md5(content_hash)
-            .into_future()
             .await?;
+
         debug!("PutBlockList == {:?}", res);
 
         let token = blob_client
