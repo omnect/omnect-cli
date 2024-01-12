@@ -27,25 +27,30 @@ impl BlobUploader {
             StorageCredentials::access_key(self.account.clone(), self.key.clone());
 
         let storage_client = ClientBuilder::new(&self.account, storage_credentials)
-            .retry(RetryOptions::exponential(
+            /*             .retry(RetryOptions::exponential(
                 ExponentialRetryOptions::default()
                     .max_retries(10u32)
                     .initial_delay(Duration::from_secs(1))
                     .max_delay(Duration::from_secs(45))
                     .max_total_elapsed(Duration::from_secs(90)),
-            ))
+            )) */
             .blob_service_client();
 
         let container_client = storage_client.container_client(self.container.clone());
 
-        container_client
-            .create()
-            .public_access(PublicAccess::None)
-            .await?;
+        anyhow::ensure!(
+            container_client.exists().await?,
+            "Container {} does not exist.",
+            container_client.container_name()
+        );
 
         let blob_client = container_client.blob_client(name);
 
-        anyhow::ensure!(blob_client.exists().await? == false, "Blob {} already exists, will not overwrite.", name);
+        anyhow::ensure!(
+            !(blob_client.exists().await?),
+            "Blob {} already exists, will not overwrite.",
+            name
+        );
 
         let block_id = bytes::Bytes::from(format!("{}", 1));
         let hash = md5::compute(data.clone()).0;

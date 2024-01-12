@@ -98,11 +98,15 @@ struct FileAttributes {
     sha256: String,
 }
 
+fn get_env(key: &str) -> Result<String> {
+    env::var(key).context(format!("Cannot get envvar: {key}"))
+}
+
 #[tokio::main]
 pub async fn import() -> Result<()> {
-    let tenant_id = env::var("AZURE_TENANT_ID")?;
-    let client_id = env::var("AZURE_CLIENT_ID")?;
-    let client_secret = env::var("AZURE_CLIENT_SECRET")?;
+    let tenant_id = get_env("AZURE_TENANT_ID")?;
+    let client_id = get_env("AZURE_CLIENT_ID")?;
+    let client_secret = get_env("AZURE_CLIENT_SECRET")?;
 
     // credentials for deviceupdate
     let creds = std::sync::Arc::new(ClientSecretCredential::new(
@@ -112,27 +116,27 @@ pub async fn import() -> Result<()> {
         client_secret,
         TokenCredentialOptions::default(),
     ));
-    let device_update_endpoint = env::var("AZURE_ACCOUNT_ENDPOINT")?;
+    let device_update_endpoint = get_env("AZURE_ACCOUNT_ENDPOINT")?;
     let client = DeviceUpdateClient::new(&device_update_endpoint, creds)?;
 
-    let storage_name = env::var("AZURE_STORAGE_NAME")?;
-    let storage_key = env::var("AZURE_STORAGE_KEY")?;
-    let blob_container = env::var("AZURE_BLOB_CONTAINER")?;
+    let storage_name = get_env("AZURE_STORAGE_NAME")?;
+    let storage_key = get_env("AZURE_STORAGE_KEY")?;
+    let blob_container = get_env("AZURE_BLOB_CONTAINER")?;
 
-    let instance_id = env::var("AZURE_INSTANCE_ID")?;
+    let instance_id = get_env("AZURE_INSTANCE_ID")?;
 
-    let dev_prop_manufacturer = env::var("ADU_DEVICEPROPERTIES_MANUFACTURER")?;
-    let dev_prop_model = env::var("ADU_DEVICEPROPERTIES_MODEL")?;
-    let dev_prop_compatibilityid = env::var("ADU_DEVICEPROPERTIES_COMPATIBILITY_ID")?;
-    let provider = env::var("ADU_PROVIDER")?;
-    let update_type = env::var("ADU_UPDATE_TYPE")?;
-    let consent_type = match env::var("ADU_CONSENT").unwrap_or_default().as_str() {
-        "true" | "TRUE" | "1" | "required" => Some(env::var("ADU_CONSENT_TYPE")?),
+    let dev_prop_manufacturer = get_env("ADU_DEVICEPROPERTIES_MANUFACTURER")?;
+    let dev_prop_model = get_env("ADU_DEVICEPROPERTIES_MODEL")?;
+    let dev_prop_compatibilityid = get_env("ADU_DEVICEPROPERTIES_COMPATIBILITY_ID")?;
+    let provider = get_env("ADU_PROVIDER")?;
+    let update_type = get_env("ADU_UPDATE_TYPE")?;
+    let consent_type = match get_env("ADU_CONSENT").unwrap_or_default().as_str() {
+        "true" | "TRUE" | "1" | "required" => Some(get_env("ADU_CONSENT_TYPE")?),
         _ => None,
     };
-    let image_name = env::var("OMNECT_IMAGE_NAME")?;
-    let image_version = env::var("OMNECT_IMAGE_VERSION")?;
-    let image_criteria = env::var("OMNECT_IMAGE_INSTALLED_CRITERIA")?;
+    let image_name = get_env("OMNECT_IMAGE_NAME")?;
+    let image_version = get_env("OMNECT_IMAGE_VERSION")?;
+    let image_criteria = get_env("OMNECT_IMAGE_INSTALLED_CRITERIA")?;
 
     let uploader = BlobUploader::new(storage_name, storage_key, blob_container);
 
@@ -261,13 +265,13 @@ async fn get_file_attributes(
     file_sha256_env: &str,
     uploader: &BlobUploader,
 ) -> Result<FileAttributes> {
-    let mut size = env::var(file_size_env)?.parse::<u64>()?;
-    let mut sha256 = env::var(file_sha256_env)?;
+    let mut size = get_env(file_size_env)?.parse::<u64>()?;
+    let mut sha256 = get_env(file_sha256_env)?;
 
-    let r = match env::var(file_path_env) {
+    let r = match get_env(file_path_env) {
         Err(_e) => {
             debug!("{file_path_env} not set, assuming file already uploaded.");
-            let basename = match env::var(file_uri_env) {
+            let basename = match get_env(file_uri_env) {
                 Err(_e) => 
                     anyhow::bail!("Neither {file_path_env} nor {file_uri_env} set, no idea how to generate update from. Bailing out."),
                 
