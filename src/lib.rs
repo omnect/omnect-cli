@@ -25,7 +25,7 @@ use crate::file::compression;
 fn run_image_command<F>(
     image_file: PathBuf,
     generate_bmap: bool,
-    compress_image: Option<Compression>,
+    target_compression: Option<Compression>,
     command: F,
 ) -> Result<()>
 where
@@ -33,9 +33,11 @@ where
 {
     anyhow::ensure!(
         image_file.try_exists().is_ok_and(|exists| exists),
-        "image doesn't exist: {}",
+        "run_image_command: image doesn't exist {}",
         image_file.to_str().unwrap()
     );
+
+    let mut dest_image_file = image_file.clone();
 
     // create /tmp/{uuid}/ and copy image into
     let mut tmp_image_file = PathBuf::from(format!("/tmp/{}", Uuid::new_v4()));
@@ -47,8 +49,9 @@ where
     std::fs::copy(&image_file, &tmp_image_file)?;
 
     // if applicable decompress image to *.wic
-    if let Some(c) = Compression::from_file(&tmp_image_file)? {
-        tmp_image_file = compression::decompress(&tmp_image_file, &c)?;
+    if let Some(source_compression) = Compression::from_file(&tmp_image_file)? {
+        tmp_image_file = compression::decompress(&tmp_image_file, &source_compression)?;
+        dest_image_file.set_extension("");
     }
 
     // run command
@@ -56,22 +59,19 @@ where
 
     // copy back bmap file if one was created
     if generate_bmap {
-        std::fs::copy(
-            format!("{}.bmap", tmp_image_file.to_str().unwrap()),
-            format!("{}.bmap", image_file.to_str().unwrap()),
-        )?;
+        let mut target_bmap = image_file.parent().unwrap().to_path_buf();
+        let tmp_bmap = PathBuf::from(format!("{}.bmap", tmp_image_file.to_str().unwrap()));
+        target_bmap.push(tmp_bmap.file_name().unwrap());
+        std::fs::copy(tmp_bmap, target_bmap)?;
     }
 
     // if applicable compress image
-    if let Some(c) = compress_image {
+    if let Some(c) = target_compression {
         tmp_image_file = compression::compress(&tmp_image_file, &c)?;
-        let image_file_new = image_file.with_file_name(tmp_image_file.file_name().unwrap());
-        // copy back compressed image file
-        std::fs::copy(&tmp_image_file, image_file_new)?;
-    } else {
-        // copy back uncompressed image file
-        std::fs::copy(&tmp_image_file, &image_file)?;
+        dest_image_file.set_file_name(tmp_image_file.file_name().unwrap());
     }
+
+    std::fs::copy(&tmp_image_file, &dest_image_file)?;
 
     Ok(())
 }
