@@ -618,9 +618,10 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
 }
 
 #[test]
-fn check_bmap_generation() {
+fn check_bmap_generation_wic() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
     let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let image_path_copy = PathBuf::from(format!("{}.copy", image_path.to_str().unwrap()));
     let bmap_path = PathBuf::from(format!("{}.bmap", image_path.to_str().unwrap()));
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
     let in_file = in_file.to_str().unwrap();
@@ -634,6 +635,7 @@ fn check_bmap_generation() {
         .arg("-i")
         .arg(&image_path)
         .assert();
+
     assert.success();
 
     assert!(!bmap_path.try_exists().is_ok_and(|exists| exists));
@@ -651,6 +653,49 @@ fn check_bmap_generation() {
     assert.success();
 
     assert!(bmap_path.try_exists().is_ok_and(|exists| exists));
+
+    // use bmaptool to verify that the checksum of the bmap file and the image
+    // still match after the copy operations
+    let assert = Command::new("bmaptool")
+        .arg("copy")
+        .args(&["--bmap", &bmap_path.to_string_lossy()])
+        .arg(&image_path)
+        .arg(&image_path_copy)
+        .assert();
+    assert.success();
+}
+
+#[test]
+fn check_bmap_generation_wic_xz() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+    let image_path_wic_xz = tr.to_pathbuf("testfiles/image.wic.xz");
+    let image_path_wic = image_path_wic_xz.with_extension("");
+    let image_path_wic_copy = image_path_wic_xz.with_extension("copy");
+    let image_path_bmap = image_path_wic_xz.with_extension("bmap");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    let in_file = in_file.to_str().unwrap();
+
+    let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = copy_to_img
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{in_file},boot:/my-file"))
+        .arg("-i")
+        .arg(&image_path_wic_xz)
+        .arg("-b")
+        .assert();
+    assert.success();
+
+    // use bmaptool to verify that the checksum of the bmap file and the image
+    // still match after the copy operations
+    let assert = Command::new("bmaptool")
+        .arg("copy")
+        .args(&["--bmap", &image_path_bmap.to_string_lossy()])
+        .arg(&image_path_wic)
+        .arg(&image_path_wic_copy)
+        .assert();
+    assert.success();
 }
 
 #[test]
@@ -710,9 +755,11 @@ fn check_image_compression() {
 #[test]
 fn check_image_decompression() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-    let image_path = tr.to_pathbuf("testfiles/image.wic.xz");
+    let image_path_wic_xz = tr.to_pathbuf("testfiles/image.wic.xz");
+    let image_path_wic = image_path_wic_xz.with_extension("");
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
     let in_file = in_file.to_str().unwrap();
+    let image_path_wic_xz_hash1 = Testrunner::file_hash(&image_path_wic_xz);
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
@@ -721,50 +768,15 @@ fn check_image_decompression() {
         .arg("-f")
         .arg(format!("{in_file},boot:/my-file"))
         .arg("-i")
-        .arg(&image_path)
-        .assert();
-    assert.success();
-}
-
-#[test]
-fn check_bmap_checksum_after_decompression() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
-    let image_path = tr.to_pathbuf("testfiles/image.wic.xz");
-    let in_file = tr.to_pathbuf("testfiles/boot.scr");
-    let in_file = in_file.to_str().unwrap();
-
-    let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
-    let assert = copy_to_img
-        .arg("file")
-        .arg("copy-to-image")
-        .arg("-f")
-        .arg(format!("{in_file},boot:/my-file"))
-        .arg("-i")
-        .arg(&image_path)
-        .arg("-b")
+        .arg(&image_path_wic_xz)
         .assert();
     assert.success();
 
-    // the result is an extracted image, drop the suffix
-    let mut bmap_path = image_path.clone();
-    bmap_path.set_extension("xz.bmap");
-    let mut extracted_image_path = image_path.clone();
-    extracted_image_path.set_extension("");
+    assert!(image_path_wic.try_exists().is_ok_and(|exists| exists));
 
-    std::fs::rename(image_path, &extracted_image_path).unwrap();
+    let image_path_wic_xz_hash2 = Testrunner::file_hash(&image_path_wic_xz);
 
-    // use bmaptool to verify that the checksum of the bmap file and the image
-    // still match after the copy operations
-    let mut copy_path = tr.pathbuf();
-    copy_path.push("image_copy.wic");
-
-    let assert = Command::new("bmaptool")
-        .arg("copy")
-        .args(&["--bmap", &bmap_path.to_string_lossy()])
-        .arg(&extracted_image_path)
-        .arg(&copy_path)
-        .assert();
-    assert.success();
+    assert_eq!(image_path_wic_xz_hash1, image_path_wic_xz_hash2);
 }
 
 #[tokio::test]
