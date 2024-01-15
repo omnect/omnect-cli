@@ -22,20 +22,12 @@ impl BlobUploader {
     }
 
     pub async fn write_blob(&self, name: &str, data: Vec<u8>) -> Result<url::Url> {
-        let storage_credentials =
-            StorageCredentials::access_key(self.account.clone(), self.key.clone());
+        let storage_credentials = StorageCredentials::access_key(&self.account, &self.key);
 
-        let storage_client = ClientBuilder::new(&self.account, storage_credentials)
-            /*             .retry(RetryOptions::exponential(
-                ExponentialRetryOptions::default()
-                    .max_retries(10u32)
-                    .initial_delay(Duration::from_secs(1))
-                    .max_delay(Duration::from_secs(45))
-                    .max_total_elapsed(Duration::from_secs(90)),
-            )) */
-            .blob_service_client();
+        let storage_client =
+            ClientBuilder::new(&self.account, storage_credentials).blob_service_client();
 
-        let container_client = storage_client.container_client(self.container.clone());
+        let container_client = storage_client.container_client(&self.container);
 
         anyhow::ensure!(
             container_client.exists().await?,
@@ -51,28 +43,11 @@ impl BlobUploader {
             name
         );
 
-        let block_id = bytes::Bytes::from(format!("{}", 1));
-        let hash = md5::compute(data.clone()).0;
+        let hash = md5::compute(&data).0;
 
-        let put_block_response = blob_client
-            .put_block(block_id.clone(), data)
-            .hash(hash)
-            .await?;
+        let put_block_response = blob_client.put_block_blob(data).hash(hash).await?;
 
         debug!("put_block_response {:#?}", put_block_response);
-
-        let mut block_list = BlockList::default();
-        block_list
-            .blocks
-            .push(BlobBlockType::new_uncommitted(block_id));
-
-        let content_hash = BlobContentMD5::from(hash);
-        let res = blob_client
-            .put_block_list(block_list)
-            .content_md5(content_hash)
-            .await?;
-
-        debug!("PutBlockList == {:?}", res);
 
         let token = blob_client
             .shared_access_signature(
@@ -84,16 +59,16 @@ impl BlobUploader {
             )
             .await?;
 
-        let url = blob_client.generate_signed_blob_url(&token)?;
-        Ok(url)
+        blob_client
+            .generate_signed_blob_url(&token)
+            .map_err(|e| e.into())
     }
 
     pub async fn generate_sas_url(&self, name: &str) -> Result<url::Url> {
-        let storage_credentials =
-            StorageCredentials::access_key(self.account.clone(), self.key.clone());
+        let storage_credentials = StorageCredentials::access_key(&self.account, &self.key);
         let storage_account_client = BlobServiceClient::new(&self.account, storage_credentials);
         let blob_client = storage_account_client
-            .container_client(self.container.clone())
+            .container_client(&self.container)
             .blob_client(name);
 
         let token = blob_client
@@ -105,7 +80,9 @@ impl BlobUploader {
                 time::OffsetDateTime::now_utc() + time::Duration::hours(12),
             )
             .await?;
-        let url = blob_client.generate_signed_blob_url(&token)?;
-        Ok(url)
+
+        blob_client
+            .generate_signed_blob_url(&token)
+            .map_err(|e| e.into())
     }
 }

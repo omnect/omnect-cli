@@ -157,8 +157,7 @@ pub async fn import() -> Result<()> {
     )
     .await?;
 
-    let mut manifest_name = image_attributes.basename.clone();
-    manifest_name.push_str(".importManifest.json");
+    let manifest_name = format!("{}.importManifest.json", image_attributes.basename);
 
     let mut steps = Vec::<Step>::new();
     if let Some(consent_type) = consent_type {
@@ -166,7 +165,6 @@ pub async fn import() -> Result<()> {
             step_type: Some("inline".to_string()),
             description: Some("User consent for swupdate".to_string()),
             handler: consent_type,
-            // test again with empty vec
             files: vec![image_attributes.basename.clone()],
             handler_properties: HandlerProperties::UserConsent(UserConsentHandlerProperties {
                 installed_criteria: format!("consent {image_version}"),
@@ -285,13 +283,10 @@ async fn get_file_attributes(
                         MAX_DEVICE_UPDATE_SIZE
                     );
 
-                    let url_clone = url.clone();
-                    let path_segments = url_clone
-                        .path_segments()
-                        .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::InvalidInput))?;
-                    let file_name = path_segments
+                    let file_name = url
+                        .path_segments().context("Cannot split image url")?         
                         .last()
-                        .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::InvalidInput))?;
+                        .context("Cannot get file from image url")?;
                     file_name.to_owned()
                 }
             };
@@ -311,9 +306,9 @@ async fn get_file_attributes(
 
             let basename = std::path::Path::new(&file_path)
                 .file_name()
-                .expect("Getting basename failed.")
+                .context("Getting basename failed.")?
                 .to_str()
-                .expect("Converting basename to utf8 failed")
+                .context("Converting basename to utf8 failed")?
                 .to_owned();
             let data = std::fs::read(file_path)?;
             size = data.len() as u64;

@@ -612,8 +612,8 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "azure_core"
-version = "0.19.0"
-source = "git+https://github.com/Azure/azure-sdk-for-rust.git?tag=v2024-01-05#1936e9be739d7727146ef7047d8e554f615f4f33"
+version = "0.17.0"
+source = "git+https://github.com/Azure/azure-sdk-for-rust.git?tag=v2023-11-03#97d7e953a2f989702567504ca052d3bd114b973b"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -621,10 +621,8 @@ dependencies = [
  "dyn-clone",
  "futures",
  "getrandom 0.2.12",
- "hmac",
  "http-types",
  "log",
- "once_cell",
  "paste",
  "pin-project",
  "quick-xml",
@@ -633,7 +631,6 @@ dependencies = [
  "rustc_version",
  "serde",
  "serde_json",
- "sha2",
  "time",
  "url",
  "uuid 1.6.1",
@@ -641,8 +638,8 @@ dependencies = [
 
 [[package]]
 name = "azure_identity"
-version = "0.19.0"
-source = "git+https://github.com/Azure/azure-sdk-for-rust.git?tag=v2024-01-05#1936e9be739d7727146ef7047d8e554f615f4f33"
+version = "0.17.0"
+source = "git+https://github.com/Azure/azure-sdk-for-rust.git?tag=v2023-11-03#97d7e953a2f989702567504ca052d3bd114b973b"
 dependencies = [
  "async-lock 3.3.0",
  "async-trait",
@@ -652,6 +649,7 @@ dependencies = [
  "oauth2",
  "pin-project",
  "serde",
+ "serde_json",
  "time",
  "tz-rs",
  "url",
@@ -660,8 +658,8 @@ dependencies = [
 
 [[package]]
 name = "azure_iot_deviceupdate"
-version = "0.19.0"
-source = "git+https://github.com/Azure/azure-sdk-for-rust.git?tag=v2024-01-05#1936e9be739d7727146ef7047d8e554f615f4f33"
+version = "0.17.0"
+source = "git+https://github.com/Azure/azure-sdk-for-rust.git?tag=v2023-11-03#97d7e953a2f989702567504ca052d3bd114b973b"
 dependencies = [
  "azure_core",
  "azure_identity",
@@ -672,21 +670,25 @@ dependencies = [
  "serde",
  "serde_json",
  "time",
+ "url",
 ]
 
 [[package]]
 name = "azure_storage"
-version = "0.19.0"
-source = "git+https://github.com/Azure/azure-sdk-for-rust.git?tag=v2024-01-05#1936e9be739d7727146ef7047d8e554f615f4f33"
+version = "0.17.0"
+source = "git+https://github.com/Azure/azure-sdk-for-rust.git?tag=v2023-11-03#97d7e953a2f989702567504ca052d3bd114b973b"
 dependencies = [
  "RustyXML",
- "async-lock 3.3.0",
  "async-trait",
  "azure_core",
  "bytes",
+ "futures",
+ "hmac",
  "log",
  "serde",
  "serde_derive",
+ "serde_json",
+ "sha2",
  "time",
  "url",
  "uuid 1.6.1",
@@ -694,13 +696,12 @@ dependencies = [
 
 [[package]]
 name = "azure_storage_blobs"
-version = "0.19.0"
-source = "git+https://github.com/Azure/azure-sdk-for-rust.git?tag=v2024-01-05#1936e9be739d7727146ef7047d8e554f615f4f33"
+version = "0.17.0"
+source = "git+https://github.com/Azure/azure-sdk-for-rust.git?tag=v2023-11-03#97d7e953a2f989702567504ca052d3bd114b973b"
 dependencies = [
  "RustyXML",
  "azure_core",
  "azure_storage",
- "azure_svc_blobstorage",
  "bytes",
  "futures",
  "log",
@@ -710,21 +711,6 @@ dependencies = [
  "time",
  "url",
  "uuid 1.6.1",
-]
-
-[[package]]
-name = "azure_svc_blobstorage"
-version = "0.19.0"
-source = "git+https://github.com/Azure/azure-sdk-for-rust.git?tag=v2024-01-05#1936e9be739d7727146ef7047d8e554f615f4f33"
-dependencies = [
- "azure_core",
- "bytes",
- "futures",
- "log",
- "once_cell",
- "serde",
- "serde_json",
- "time",
 ]
 
 [[package]]
