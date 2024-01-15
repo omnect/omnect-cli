@@ -78,7 +78,7 @@ The respective configuration parameters are passed by a set of environment varia
 omnect-cli iot-hub-device-update import
 ```
 
-**Note1**: The import process may take several minutes.
+**Note**: The import process may take several minutes.
 
 ### Inject `du-config.json` configuration file
 
