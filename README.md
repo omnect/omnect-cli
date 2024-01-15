@@ -7,7 +7,9 @@ omnect-cli is a command-line tool to manage omnect-os empowered devices. It prov
 - Identity configuration:
   - Inject general identity configuration for AIS (Azure Identity Service)
   - Inject a device certificate with corresponding key from a given intermediate full-chain-certificate and corresponding key
-- Device Update for IoT Hub configuration: inject [`du-config.json`](https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
+- Device Update for IoT Hub:
+  - import update to IoT Hub (https://learn.microsoft.com/en-us/azure/iot-hub-device-update/import-concepts)
+  - inject configuration file `du-config.json` (https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
 - Generic configuration of services
   - copy files to image in order to configure e.g. boot service, firewall, wifi and others
   - copy files from image, e.g. to patch and re-inject configurations
@@ -66,11 +68,22 @@ Please get into contact with us in case you want to use our existing cloud servi
 #### Generate your own full-chain intermediate certificate and key
 In case you intend to use your own certificates (e.g. because you want to use your own `PKI` and/or `EST service`), you can find some information about generating certificate and key here: https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11.
 
-## Device Update for IoT Hub configuration
-### Inject `du-config.json`
+## Device Update for IoT Hub
+### Import update to IoT Hub
+This command creates an update job for the Azure Device Update from a firmware file. To do this it creates an update import manifest and uploads this to the given blob storage. The manifest references the firmware which this program either uploads from a given local
+firmware file, or it uses an already stored firmware file.
+The respective configuration parameters are passed by a set of environment variables which are described in a separate [readme](/src/device_update_import/env_vars.md).
 
 ```sh
-omnect-cli iot-hub-device-update set -c <path>/du-config.json -i <path>/image.wic
+omnect-cli iot-hub-device-update import
+```
+
+**Note**: The import process may take several minutes.
+
+### Inject `du-config.json` configuration file
+
+```sh
+omnect-cli iot-hub-device-update set-device-config -c <path>/du-config.json -i <path>/image.wic
 
 Options:
   -p pack and compress image [xz, bzip2, gzip]
