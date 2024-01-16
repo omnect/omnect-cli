@@ -30,12 +30,11 @@ struct UserConsentHandlerProperties {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(non_snake_case)]
 struct SWUpdateHandlerProperties {
     installed_criteria: String,
-    swuFileName: String,
+    swu_file_name: String,
     arguments: String,
-    scriptFileName: String,
+    script_file_name: String,
 }
 
 #[derive(Serialize)]
@@ -167,7 +166,7 @@ pub async fn import() -> Result<()> {
             handler: consent_type,
             files: vec![image_attributes.basename.clone()],
             handler_properties: HandlerProperties::UserConsent(UserConsentHandlerProperties {
-                installed_criteria: format!("consent {image_version}"),
+                installed_criteria: image_criteria.clone(),
             }),
         });
     }
@@ -180,9 +179,9 @@ pub async fn import() -> Result<()> {
             script_attributes.basename.clone(),
         ],
         handler_properties: HandlerProperties::SWUpdate(SWUpdateHandlerProperties {
-            swuFileName: image_attributes.basename.clone(),
+            swu_file_name: image_attributes.basename.clone(),
             arguments: "".to_string(),
-            scriptFileName: script_attributes.basename.clone(),
+            script_file_name: script_attributes.basename.clone(),
             installed_criteria: image_criteria,
         }),
     });
