@@ -36,7 +36,7 @@ ADU_UPDATE_TYPE=*swupdate-step-type* (should be `microsoft/swupdate:2`)
 
 ### InstalledCriteria
 
-OMNECT_IMAGE_INSTALLED_CRITERIA="omnect-image-installed-criteria*br>
+OMNECT_IMAGE_INSTALLED_CRITERIA=*omnect-image-installed-criteria*<br>
 (Usually the field will be a concatenation of omnect-os variant and OMNECT_IMAGE_VERSION, e.g. "OMNECT-gateway_4.0.4.15533182".)
 
 ### [Optional] Local path to the firmware update image file to be uploaded to blob storage
