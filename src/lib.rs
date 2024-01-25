@@ -3,9 +3,9 @@ extern crate lazy_static;
 pub mod auth;
 pub mod cli;
 pub mod config;
+pub mod device_update_import;
 pub mod file;
 pub mod ssh;
-pub mod device_update_import;
 mod validators;
 use anyhow::{Context, Result};
 use cli::{
@@ -14,7 +14,7 @@ use cli::{
     IdentityConfig::{
         SetConfig, SetDeviceCertificate, SetIotLeafSasConfig, SetIotedgeGatewayConfig,
     },
-    IotHubDeviceUpdate::{SetDeviceConfig as IotHubDeviceUpdateSet, self},
+    IotHubDeviceUpdate::{self, SetDeviceConfig as IotHubDeviceUpdateSet},
     SshConfig::{SetCertificate, SetConnection},
 };
 use file::compression::Compression;
@@ -46,22 +46,26 @@ where
         "run_image_command: couldn't create destination path {}",
         tmp_image_file.to_str().unwrap()
     ))?;
+
     tmp_image_file.push(image_file.file_name().unwrap());
-    std::fs::copy(&image_file, &tmp_image_file)?;
 
     // if applicable decompress image to *.wic
-    if let Some(source_compression) = Compression::from_file(&tmp_image_file)? {
+    if let Some(source_compression) = Compression::from_file(&image_file)? {
+        std::fs::copy(&image_file, &tmp_image_file)?;
         tmp_image_file = compression::decompress(&tmp_image_file, &source_compression)?;
         dest_image_file.set_extension("");
+    } else {
+        libfs::copy_file(&image_file, &tmp_image_file)?;
     }
 
     // run command
     command(&tmp_image_file)?;
 
-    // copy back bmap file if one was created
+    // create and copy back bmap file if one was created
     if generate_bmap {
         let mut target_bmap = image_file.parent().unwrap().to_path_buf();
         let tmp_bmap = PathBuf::from(format!("{}.bmap", tmp_image_file.to_str().unwrap()));
+        file::functions::generate_bmap_file(tmp_image_file.to_str().unwrap())?;
         target_bmap.push(tmp_bmap.file_name().unwrap());
         std::fs::copy(tmp_bmap, target_bmap)?;
     }
@@ -70,9 +74,10 @@ where
     if let Some(c) = target_compression {
         tmp_image_file = compression::compress(&tmp_image_file, &c)?;
         dest_image_file.set_file_name(tmp_image_file.file_name().unwrap());
+        std::fs::copy(&tmp_image_file, &dest_image_file)?;
+    } else {
+        libfs::copy_file(&tmp_image_file, &dest_image_file)?;
     }
-
-    std::fs::copy(&tmp_image_file, &dest_image_file)?;
 
     Ok(())
 }
@@ -86,7 +91,7 @@ pub fn run() -> Result<()> {
             generate_bmap,
             compress_image,
         }) => run_image_command(image, generate_bmap, compress_image, |img| {
-            file::set_identity_config(&config, img, generate_bmap, payload.as_deref())
+            file::set_identity_config(&config, img, payload.as_deref())
         })?,
         Command::Identity(SetDeviceCertificate {
             intermediate_full_chain_cert,
@@ -116,7 +121,6 @@ pub fn run() -> Result<()> {
                     &device_cert_pem,
                     &device_key_pem,
                     img,
-                    generate_bmap,
                 )
             })?
         }
@@ -135,7 +139,6 @@ pub fn run() -> Result<()> {
                 &root_ca,
                 &device_identity,
                 &device_identity_key,
-                generate_bmap,
             )
         })?,
         Command::Identity(SetIotLeafSasConfig {
@@ -145,7 +148,7 @@ pub fn run() -> Result<()> {
             generate_bmap,
             compress_image,
         }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
-            file::set_iot_leaf_sas_config(&config, img, &root_ca, generate_bmap)
+            file::set_iot_leaf_sas_config(&config, img, &root_ca)
         })?,
         Command::Ssh(SetCertificate {
             image,
@@ -154,7 +157,7 @@ pub fn run() -> Result<()> {
             generate_bmap,
             compress_image,
         }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
-            file::set_ssh_tunnel_certificate(img, &root_ca, &device_principal, generate_bmap)
+            file::set_ssh_tunnel_certificate(img, &root_ca, &device_principal)
         })?,
         Command::IotHubDeviceUpdate(IotHubDeviceUpdateSet {
             iot_hub_device_update_config,
@@ -162,11 +165,7 @@ pub fn run() -> Result<()> {
             generate_bmap,
             compress_image,
         }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
-            file::set_iot_hub_device_update_config(
-                &iot_hub_device_update_config,
-                img,
-                generate_bmap,
-            )
+            file::set_iot_hub_device_update_config(&iot_hub_device_update_config, img)
         })?,
         Command::IotHubDeviceUpdate(IotHubDeviceUpdate::Import) => device_update_import::import()?,
         Command::Ssh(SetConnection {
@@ -221,7 +220,7 @@ pub fn run() -> Result<()> {
             generate_bmap,
             compress_image,
         }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
-            file::copy_to_image(&file_copy_params, img, generate_bmap)
+            file::copy_to_image(&file_copy_params, img)
         })?,
         Command::File(CopyFromImage {
             file_copy_params,

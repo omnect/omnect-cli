@@ -217,11 +217,7 @@ macro_rules! exec_pipe_cmd_finnish {
     }};
 }
 
-pub fn copy_to_image(
-    file_copy_params: &[FileCopyToParams],
-    image_file: &Path,
-    generate_bmap: bool,
-) -> Result<()> {
+pub fn copy_to_image(file_copy_params: &[FileCopyToParams], image_file: &Path) -> Result<()> {
     // we use the folder the image is located in
     // the caller is responsible to create a /tmp/ directory if needed
     let working_dir = image_file
@@ -303,9 +299,6 @@ pub fn copy_to_image(
         write_partition(image_file, partition_file, &partition_offset)?;
     }
 
-    if generate_bmap {
-        generate_bmap_file(image_file)?;
-    }
     Ok(())
 }
 
