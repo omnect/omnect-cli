@@ -55,6 +55,7 @@ where
         tmp_image_file = compression::decompress(&tmp_image_file, &source_compression)?;
         dest_image_file.set_extension("");
     } else {
+        // copy sparse file (std::fs::copy isn't able)
         libfs::copy_file(&image_file, &tmp_image_file)?;
     }
 
@@ -76,6 +77,7 @@ where
         dest_image_file.set_file_name(tmp_image_file.file_name().unwrap());
         std::fs::copy(&tmp_image_file, &dest_image_file)?;
     } else {
+        // copy sparse file (std::fs::copy isn't able)
         libfs::copy_file(&tmp_image_file, &dest_image_file)?;
     }
 
