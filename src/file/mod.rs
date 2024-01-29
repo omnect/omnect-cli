@@ -18,7 +18,6 @@ pub fn set_iotedge_gateway_config(
     root_ca_file: &Path,
     edge_device_identity_full_chain_file: &Path,
     edge_device_identity_key_file: &Path,
-    generate_bmap: bool,
 ) -> Result<()> {
     validate_identity(IdentityType::Gateway, config_file, &None)?
         .iter()
@@ -48,14 +47,13 @@ pub fn set_iotedge_gateway_config(
         ),
     ]);
 
-    copy_to_image(&file_copies, image_file, generate_bmap)
+    copy_to_image(&file_copies, image_file)
 }
 
 pub fn set_iot_leaf_sas_config(
     config_file: &Path,
     image_file: &Path,
     root_ca_file: &Path,
-    generate_bmap: bool,
 ) -> Result<()> {
     validate_identity(IdentityType::Leaf, config_file, &None)?
         .iter()
@@ -75,14 +73,13 @@ pub fn set_iot_leaf_sas_config(
         FileCopyToParams::new(root_ca_file, Partition::cert, &root_ca_out_file),
     ]);
 
-    copy_to_image(&file_copies, image_file, generate_bmap)
+    copy_to_image(&file_copies, image_file)
 }
 
 pub fn set_ssh_tunnel_certificate(
     image_file: &Path,
     root_ca_file: &Path,
     device_principal: &str,
-    generate_bmap: bool,
 ) -> Result<()> {
     validate_ssh_pub_key(root_ca_file)?;
     let authorized_principals_file = get_file_path(image_file.parent(), "authorized_principals")?;
@@ -98,14 +95,12 @@ pub fn set_ssh_tunnel_certificate(
             ),
         ],
         image_file,
-        generate_bmap,
     )
 }
 
 pub fn set_identity_config(
     config_file: &Path,
     image_file: &Path,
-    generate_bmap: bool,
     payload: Option<&Path>,
 ) -> Result<()> {
     validate_identity(IdentityType::Standalone, config_file, &payload)?
@@ -126,7 +121,7 @@ pub fn set_identity_config(
             Path::new("/etc/omnect/dps-payload.json"),
         ));
     }
-    copy_to_image(&file_copies, image_file, generate_bmap)
+    copy_to_image(&file_copies, image_file)
 }
 
 pub fn set_device_cert(
@@ -134,7 +129,6 @@ pub fn set_device_cert(
     device_full_chain_cert: &Vec<u8>,
     device_key: &Vec<u8>,
     image_file: &Path,
-    generate_bmap: bool,
 ) -> Result<()> {
     let parent = image_file.parent();
     let device_cert_path = get_file_path(parent, "device_cert_path.pem")?;
@@ -168,15 +162,10 @@ pub fn set_device_cert(
             ),
         ],
         image_file,
-        generate_bmap,
     )
 }
 
-pub fn set_iot_hub_device_update_config(
-    du_config_file: &Path,
-    image_file: &Path,
-    generate_bmap: bool,
-) -> Result<()> {
+pub fn set_iot_hub_device_update_config(du_config_file: &Path, image_file: &Path) -> Result<()> {
     device_update::validate_config(du_config_file)?;
 
     copy_to_image(
@@ -186,16 +175,11 @@ pub fn set_iot_hub_device_update_config(
             Path::new("/etc/adu/du-config.json"),
         )],
         image_file,
-        generate_bmap,
     )
 }
 
-pub fn copy_to_image(
-    file_copy_params: &[FileCopyToParams],
-    image_file: &Path,
-    generate_bmap: bool,
-) -> Result<()> {
-    functions::copy_to_image(file_copy_params, image_file, generate_bmap)
+pub fn copy_to_image(file_copy_params: &[FileCopyToParams], image_file: &Path) -> Result<()> {
+    functions::copy_to_image(file_copy_params, image_file)
 }
 
 pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Path) -> Result<()> {

@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.19.1"
+version = "0.19.2"
 
 [dependencies]
 actix-web = "4.4"
@@ -28,6 +28,7 @@ flate2 = "1.0"
 omnect-crypto = { git = "https://github.com/omnect/omnect-crypto.git", tag = "0.4.0" }
 keyring = "2.0"
 lazy_static = "1.4"
+libfs = "0.5"
 log = "0.4"
 md5 = "0.7"
 num_cpus = "1.13"
