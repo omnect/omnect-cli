@@ -8,7 +8,7 @@ omnect-cli is a command-line tool to manage omnect-os empowered devices. It prov
   - Inject general identity configuration for AIS (Azure Identity Service)
   - Inject a device certificate with corresponding key from a given intermediate full-chain-certificate and corresponding key
 - Device Update for IoT Hub:
-  - import update to IoT Hub (https://learn.microsoft.com/en-us/azure/iot-hub-device-update/import-concepts)
+  - create import manifest and import update to IoT Hub (https://learn.microsoft.com/en-us/azure/iot-hub-device-update/import-concepts)
   - inject configuration file `du-config.json` (https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
 - Generic configuration of services
   - copy files to image in order to configure e.g. boot service, firewall, wifi and others
@@ -36,31 +36,28 @@ The application can be built via `cargo` as usual. A prerequisite is libmagic, e
 ## Identity configuration
 ### Inject identity
 
-For `omnect-iotedge-devices` adapt [config.toml.est.template](conf/config.toml.est.template) or [config.toml.tpm.template](conf/config.toml.tpm.template) to your needs.
+This command injects an [Azure IoT Identity](https://azure.github.io/iot-identity-service/) configuration into a firmware image.
 
+Detailed description:
 ```sh
-omnect-cli identity set-config -c <path>/config.toml -i <path>/image.wic
-
-Options:
-  -e <path>/extra-payload.json
-  -p pack and compress image [xz, bzip2, gzip]
-  -b create bmap file
+omnect-cli identity set-config --help
 ```
-For further information on using dps payloads read the following [link](https://learn.microsoft.com/de-de/azure/iot-dps/concepts-custom-allocation).
 
-### inject device certificate and key for x509 based DPS provisioning
+**Note1**: For `omnect-iotedge-devices` adapt [config.toml.est.template](conf/config.toml.est.template) or [config.toml.tpm.template](conf/config.toml.tpm.template) to your needs.<br>
+**Note2**: For further information on using dps payloads read the following [link](https://learn.microsoft.com/de-de/azure/iot-dps/concepts-custom-allocation).
 
-For a given full-chain intermediate certificate and corresponding key, both as pem files, generate a device certificate and device key valid for 365 days.
+### Inject device certificate and key for x509 based DPS provisioning
+
+This command:
+ 1. generates device specific credentials from a given intermediate certificate and key
+ 2. injects credentials into a firmware image
+
+Detailed description:
 ```sh
-omnect-cli identity set-device-certificate -d "device_id" -i <path>/image.wic -c <path>/intermediate_full_chain_cert.pem -k <path>/intermediate_cert_key.pem -D 365
-
-Options:
-  -p pack and compress image [xz, bzip2, gzip]
-  -b create bmap file
+omnect-cli identity set-device-certificate --help
 ```
-**Note**: "device_id" has to match the `registration_id` respectively the `device_id` configured in `config.toml`.
-
-See [`config.toml.est.template`](conf/config.toml.est.template) as a corresponding `config.toml` is case of using `EST service`.
+**Note1**: "device_id" has to match the `registration_id` respectively the `device_id` configured in `config.toml`.<br>
+**Note2**: see [`config.toml.est.template`](conf/config.toml.est.template) as a corresponding `config.toml` in case of using `EST service`.
 
 #### Get full-chain intermediate certificate and key for existing OMNECT PKI
 Please get into contact with us in case you want to use our existing cloud services for device provisioning. We can provide certificate and key file to configure your device.
@@ -69,25 +66,30 @@ Please get into contact with us in case you want to use our existing cloud servi
 In case you intend to use your own certificates (e.g. because you want to use your own `PKI` and/or `EST service`), you can find some information about generating certificate and key here: https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11.
 
 ## Device Update for IoT Hub
-### Import update to IoT Hub
-This command creates an update job for the Azure Device Update from a firmware file. To do this it creates an update import manifest and uploads this to the given blob storage. The manifest references the firmware which this program either uploads from a given local
-firmware file, or it uses an already stored firmware file.
-The respective configuration parameters are passed by a set of environment variables which are described in a separate [readme](/src/device_update_import/env_vars.md).
+### Create import manifest
+This command creates the device update import manifest which is used later by the `import-update` command.
 
+Detailed description:
 ```sh
-omnect-cli iot-hub-device-update import
+omnect-cli iot-hub-device-update create-import-manifest --help
+```
+
+### Import update to IoT Hub
+This command imports an update into Azure Device Update for IoT Hub by providing a import manifest formerly created by `create-import-manifest` command.
+
+Detailed description:
+```sh
+omnect-cli iot-hub-device-update import-update --help
 ```
 
 **Note**: The import process may take several minutes.
 
 ### Inject `du-config.json` configuration file
+This command injects a device update configuration into a firmware image.
 
+Detailed description:
 ```sh
-omnect-cli iot-hub-device-update set-device-config -c <path>/du-config.json -i <path>/image.wic
-
-Options:
-  -p pack and compress image [xz, bzip2, gzip]
-  -b create bmap file
+omnect-cli iot-hub-device-update set-device-config --help
 ```
 
 ## Copy files
@@ -98,20 +100,18 @@ Copying files into or from the image is restricted to partitions `boot`, `rootA`
 
 `omnect-cli` allows copying multiple files from multiple partitions in one command:
 
+Detailed description:
 ```sh
-omnect-cli file copy-from-image -f <partition>:<absolute-path-to-src>,<path-to-dest> -f <partition>:<absolute-path-to-src>,<path-to-dest> -i <path>/image.wic
+omnect-cli file-copy from-image --help
 ```
 
 ### Copy files to image
 
 `omnect-cli` allows copying multiple files to multiple partitions in one command:
 
+Detailed description:
 ```sh
-omnect-cli file copy-to-image -f <path-to-src>,<partition>:<absolute-path-to-dest> -f <path-to-src>,<partition>:<absolute-path-to-dest> -i <path>/image.wic
-
-Options:
-  -p pack and compress image [xz, bzip2, gzip]
-  -b create bmap file
+omnect-cli file-copy to-image --help
 ```
 
 **Note1**: If you need special permissions on copied files, you have to additionally copy a systemd-tmpfiles.d configuration file which handles these permissions.<br>
@@ -126,12 +126,10 @@ Options:
 ### Inject ssh tunnel credentials
 
 For the ssh feature, the device requires the public key of the ssh root ca and the principal. The latter should be the device id.
-```sh
-omnect-cli ssh set-certificate -r <path>/ssh_ca.pub -d "device_id" -i <path>/image.wic
 
-Options:
-  -p pack and compress image [xz, bzip2, gzip]
-  -b create bmap file
+Detailed description:
+```sh
+omnect-cli ssh set-certificate --help
 ```
 
 ### Creating a ssh tunnel
@@ -142,16 +140,9 @@ To create an ssh tunnel, `omnect-cli` must first authenticate against the authen
 
 **Note**: if unused, the tunnel will close after 5 minutes.
 
-Creating the ssh tunnel:
+Detailed description:
 ```sh
-omnect-cli ssh set-connection <device>
-
-Options:
-  -u <name> optional: name of the user on the device
-  -d <dir> optional: directory where the ssh key pair, certificate, and configuration are stored to
-  -k <key> optional: path to an existing private ssh key to use for the connection. Requires the existence of the public key <key>.pub
-  -c <config_path> optional: path where the ssh configuration should be stored to
-  --env <env_config_path> optional: path to a .toml configuration specifying the devices execution environment, defaults to the production environment.
+omnect-cli ssh set-connection --help
 ```
 
 #### Example usage

@@ -3,14 +3,14 @@ extern crate lazy_static;
 pub mod auth;
 pub mod cli;
 pub mod config;
-pub mod device_update_import;
+pub mod device_update;
 pub mod file;
 pub mod ssh;
 mod validators;
 use anyhow::{Context, Result};
 use cli::{
     Command,
-    FileConfig::{CopyFromImage, CopyToImage},
+    FileCopy::{FromImage, ToImage},
     IdentityConfig::{
         SetConfig, SetDeviceCertificate, SetIotLeafSasConfig, SetIotedgeGatewayConfig,
     },
@@ -169,7 +169,50 @@ pub fn run() -> Result<()> {
         }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
             file::set_iot_hub_device_update_config(&iot_hub_device_update_config, img)
         })?,
-        Command::IotHubDeviceUpdate(IotHubDeviceUpdate::Import) => device_update_import::import()?,
+        Command::IotHubDeviceUpdate(IotHubDeviceUpdate::ImportUpdate {
+            import_manifest: import_manifest_path,
+            storage_container_name,
+            tenant_id,
+            client_id,
+            client_secret,
+            instance_id,
+            device_update_endpoint_url,
+            blob_storage_account,
+            blob_storage_key,
+        }) => device_update::import_update(
+            &import_manifest_path,
+            storage_container_name,
+            tenant_id,
+            client_id,
+            client_secret,
+            instance_id,
+            &device_update_endpoint_url,
+            blob_storage_account,
+            blob_storage_key,
+        )?,
+        Command::IotHubDeviceUpdate(IotHubDeviceUpdate::CreateImportManifest {
+            image,
+            script,
+            manufacturer,
+            model,
+            compatibilityid,
+            provider,
+            consent_handler,
+            swupdate_handler,
+            distro_name,
+            version,
+        }) => device_update::create_import_manifest(
+            &image,
+            &script,
+            manufacturer,
+            model,
+            compatibilityid,
+            provider,
+            consent_handler,
+            swupdate_handler,
+            distro_name,
+            version,
+        )?,
         Command::Ssh(SetConnection {
             device,
             username,
@@ -216,7 +259,7 @@ pub fn run() -> Result<()> {
                 env_conf,
             )?;
         }
-        Command::File(CopyToImage {
+        Command::FileCopy(ToImage {
             file_copy_params,
             image,
             generate_bmap,
@@ -224,7 +267,7 @@ pub fn run() -> Result<()> {
         }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
             file::copy_to_image(&file_copy_params, img)
         })?,
-        Command::File(CopyFromImage {
+        Command::FileCopy(FromImage {
             file_copy_params,
             image,
         }) => run_image_command(image, false, None, |img: &PathBuf| {

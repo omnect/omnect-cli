@@ -1,9 +1,8 @@
 mod common;
+use assert_json_diff::assert_json_eq;
 use std::path::PathBuf;
-
 use assert_cmd::Command;
 use common::Testrunner;
-
 use httpmock::prelude::*;
 use omnect_cli::ssh;
 use stdext::function_name;
@@ -68,8 +67,8 @@ fn check_set_identity_gateway_config() {
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
-        .arg("file")
-        .arg("copy-from-image")
+        .arg("file-copy")
+        .arg("from-image")
         .arg("-f")
         .arg(format!(
             "factory:/etc/aziot/config.toml,{config_file_out_path}"
@@ -158,8 +157,8 @@ fn check_set_identity_leaf_config() {
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
-        .arg("file")
-        .arg("copy-from-image")
+        .arg("file-copy")
+        .arg("from-image")
         .arg("-f")
         .arg(format!(
             "factory:/etc/aziot/config.toml,{config_file_out_path}"
@@ -225,8 +224,8 @@ fn check_set_identity_config_est_template() {
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
-        .arg("file")
-        .arg("copy-from-image")
+        .arg("file-copy")
+        .arg("from-image")
         .arg("-f")
         .arg(format!(
             "factory:/etc/aziot/config.toml,{config_file_out_path}"
@@ -292,8 +291,8 @@ fn check_set_identity_config_payload_template() {
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
-        .arg("file")
-        .arg("copy-from-image")
+        .arg("file-copy")
+        .arg("from-image")
         .arg("-f")
         .arg(format!(
             "factory:/etc/aziot/config.toml,{config_file_out_path}"
@@ -361,8 +360,8 @@ fn check_set_identity_config_tpm_template() {
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
-        .arg("file")
-        .arg("copy-from-image")
+        .arg("file-copy")
+        .arg("from-image")
         .arg("-f")
         .arg(format!(
             "factory:/etc/aziot/config.toml,{config_file_out_path}"
@@ -434,8 +433,8 @@ fn check_set_device_cert() {
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
-        .arg("file")
-        .arg("copy-from-image")
+        .arg("file-copy")
+        .arg("from-image")
         .arg("-f")
         .arg(format!(
             "cert:/priv/device_id_cert.pem,{device_id_cert_out_path}"
@@ -484,8 +483,8 @@ fn check_set_iot_hub_device_update_template() {
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
-        .arg("file")
-        .arg("copy-from-image")
+        .arg("file-copy")
+        .arg("from-image")
         .arg("-f")
         .arg(format!(
             "factory:/etc/adu/du-config.json,{adu_config_file_out_path}"
@@ -499,6 +498,58 @@ fn check_set_iot_hub_device_update_template() {
         adu_config_file_path.to_str().unwrap(),
         adu_config_file_out_path
     ));
+}
+
+#[test]
+fn check_set_iot_hub_device_update_create_import_manifest() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let image_path = tr.to_pathbuf("testfiles/image.swu");
+    let script_path = tr.to_pathbuf("testfiles/image.swu.sh");
+    let manifest_created = script_path.with_extension("importManifest.json");
+    let manifest_original = tr.to_pathbuf("testfiles/image.swu.importManifest.json.orig");
+
+    let mut set_iot_hub_device_update_config = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = set_iot_hub_device_update_config
+        .current_dir(tr.pathbuf())
+        .arg("iot-hub-device-update")
+        .arg("create-import-manifest")
+        .arg("-d")
+        .arg("OMNECT-gateway-devel")
+        .arg("-v")
+        .arg("4.0.15.0")
+        .arg("-i")
+        .arg(&image_path)
+        .arg("-s")
+        .arg(&script_path)
+        .arg("-n")
+        .arg("omnect-raspberrypi4-64-gateway-devel")
+        .arg("-c")
+        .arg("2")
+        .assert();
+    assert.success();
+
+    let mut manifest_created: serde_json::Value = serde_json::from_reader(
+        std::fs::OpenOptions::new()
+            .read(true)
+            .create(false)
+            .open(&manifest_created)
+            .unwrap(),
+    )
+    .unwrap();
+
+    manifest_created["createdDateTime"] = serde_json::json!("removed");
+
+    let manifest_original: serde_json::Value = serde_json::from_reader(
+        std::fs::OpenOptions::new()
+            .read(true)
+            .create(false)
+            .open(&manifest_original)
+            .unwrap(),
+    )
+    .unwrap();
+    
+    assert_json_eq!(manifest_created, manifest_original);
 }
 
 #[test]
@@ -533,8 +584,8 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
-        .arg("file")
-        .arg("copy-to-image")
+        .arg("file-copy")
+        .arg("to-image")
         .arg("-f")
         .arg(format!("{in_file1},{partition}:{out_file1}"))
         .arg("-f")
@@ -552,8 +603,8 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
-        .arg("file")
-        .arg("copy-from-image")
+        .arg("file-copy")
+        .arg("from-image")
         .arg("-f")
         .arg(format!("{partition}:{out_file1},{out_file3}"))
         .arg("-f")
@@ -580,8 +631,8 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
-        .arg("file")
-        .arg("copy-to-image")
+        .arg("file-copy")
+        .arg("to-image")
         .arg("-f")
         .arg(format!("{in_file3},{partition}:{out_file1}"))
         .arg("-f")
@@ -599,8 +650,8 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
 
     let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_from_img
-        .arg("file")
-        .arg("copy-from-image")
+        .arg("file-copy")
+        .arg("from-image")
         .arg("-f")
         .arg(format!("{partition}:{out_file1},{out_file3}"))
         .arg("-f")
@@ -628,8 +679,8 @@ fn check_bmap_generation_wic() {
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
-        .arg("file")
-        .arg("copy-to-image")
+        .arg("file-copy")
+        .arg("to-image")
         .arg("-f")
         .arg(format!("{in_file},boot:/my-file"))
         .arg("-i")
@@ -642,8 +693,8 @@ fn check_bmap_generation_wic() {
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
-        .arg("file")
-        .arg("copy-to-image")
+        .arg("file-copy")
+        .arg("to-image")
         .arg("-f")
         .arg(format!("{in_file},boot:/my-file"))
         .arg("-i")
@@ -677,8 +728,8 @@ fn check_bmap_generation_wic_xz() {
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
-        .arg("file")
-        .arg("copy-to-image")
+        .arg("file-copy")
+        .arg("to-image")
         .arg("-f")
         .arg(format!("{in_file},boot:/my-file"))
         .arg("-i")
@@ -708,8 +759,8 @@ fn check_image_compression() {
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
-        .arg("file")
-        .arg("copy-to-image")
+        .arg("file-copy")
+        .arg("to-image")
         .arg("-f")
         .arg(format!("{in_file},boot:/my-file"))
         .arg("-i")
@@ -721,8 +772,8 @@ fn check_image_compression() {
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
-        .arg("file")
-        .arg("copy-to-image")
+        .arg("file-copy")
+        .arg("to-image")
         .arg("-f")
         .arg(format!("{in_file},boot:/my-file"))
         .arg("-i")
@@ -736,8 +787,8 @@ fn check_image_compression() {
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
-        .arg("file")
-        .arg("copy-to-image")
+        .arg("file-copy")
+        .arg("to-image")
         .arg("-f")
         .arg(format!("{in_file},factory:/my-file"))
         .arg("-i")
@@ -763,8 +814,8 @@ fn check_image_decompression() {
 
     let mut copy_to_img = Command::cargo_bin("omnect-cli").unwrap();
     let assert = copy_to_img
-        .arg("file")
-        .arg("copy-to-image")
+        .arg("file-copy")
+        .arg("to-image")
         .arg("-f")
         .arg(format!("{in_file},boot:/my-file"))
         .arg("-i")

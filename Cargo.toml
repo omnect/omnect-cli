@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.19.3"
+version = "0.20.0"
 
 [dependencies]
 actix-web = "4.4"
@@ -18,7 +18,6 @@ azure_identity = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag 
 azure_storage = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2023-11-03" }
 azure_storage_blobs = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2023-11-03" }
 base64 = "0.13"
-bytes = "1.0"
 bzip2 = "0.4"
 clap = { version = "4.0", features = ["derive"] }
 directories = "5.0"
@@ -30,7 +29,6 @@ keyring = "2.0"
 lazy_static = "1.4"
 libfs = "0.5"
 log = "0.4"
-md5 = "0.7"
 num_cpus = "1.13"
 oauth2 = "4.4"
 open = "4.1"
@@ -59,6 +57,7 @@ xz2 = "0.1"
 
 [dev-dependencies]
 assert_cmd = "2.0"
+assert-json-diff = "2.0"
 data-encoding = "2.5"
 file_diff = "1.0"
 httpmock = "0.6"
