@@ -132,7 +132,7 @@ pub enum IdentityConfig {
 #[command(after_help = COPYRIGHT)]
 /// iothub-device-update commands
 pub enum IotHubDeviceUpdate {
-    /// copy device-update configuration to image 
+    /// copy device-update configuration to image
     SetDeviceConfig {
         /// path to device-update configuration file
         #[arg(short = 'c', long = "config")]
