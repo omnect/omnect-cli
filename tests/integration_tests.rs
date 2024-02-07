@@ -658,7 +658,7 @@ fn check_bmap_generation_wic() {
     // still match after the copy operations
     let assert = Command::new("bmaptool")
         .arg("copy")
-        .args(&["--bmap", &bmap_path.to_string_lossy()])
+        .args(["--bmap", &bmap_path.to_string_lossy()])
         .arg(&image_path)
         .arg(&image_path_copy)
         .assert();
@@ -691,7 +691,7 @@ fn check_bmap_generation_wic_xz() {
     // still match after the copy operations
     let assert = Command::new("bmaptool")
         .arg("copy")
-        .args(&["--bmap", &image_path_bmap.to_string_lossy()])
+        .args(["--bmap", &image_path_bmap.to_string_lossy()])
         .arg(&image_path_wic)
         .arg(&image_path_wic_copy)
         .assert();

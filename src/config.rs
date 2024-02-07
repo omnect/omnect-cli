@@ -52,7 +52,7 @@ lazy_static::lazy_static! {
     pub static ref AUTH_INFO_PROD: AuthProvider = {
         let provider = "https://keycloak.omnect.conplement.cloud".to_string();
         let realm = "cp-prod".to_string();
-        let client_id = "cp-production".to_string();
+        let client_id = "cp-cli".to_string();
         let bind_addr = "localhost:4000".to_string();
         let redirect = url::Url::parse(&format!("http://{bind_addr}")).unwrap();
 

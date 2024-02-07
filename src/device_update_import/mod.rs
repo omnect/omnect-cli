@@ -221,7 +221,10 @@ pub async fn import() -> Result<()> {
     let manifest_sha256 =
         base64::encode_config(sha2::Sha256::digest(&manifest_data), base64::STANDARD);
 
-    let manifest_url =  uploader.write_blob(&manifest_name, manifest_data).await.context("Error uploading import manifest")?;
+    let manifest_url = uploader
+        .write_blob(&manifest_name, manifest_data)
+        .await
+        .context("Error uploading import manifest")?;
 
     info!("Manifest is at {:?}", manifest_url);
 
@@ -269,9 +272,8 @@ async fn get_file_attributes(
         Err(_e) => {
             debug!("{file_path_env} not set, assuming file already uploaded.");
             let basename = match get_env(file_uri_env) {
-                Err(_e) => 
+                Err(_e) =>
                     anyhow::bail!("Neither {file_path_env} nor {file_uri_env} set, no idea how to generate update from. Bailing out."),
-                
                 Ok(image_url_str) => {
                     debug!("{file_uri_env}: {image_url_str}");
                     let url = url::Url::parse(&image_url_str)?;
@@ -300,8 +302,11 @@ async fn get_file_attributes(
         Ok(file_path) => {
             debug!("{file_path_env}: {file_path}");
 
-            anyhow::ensure!(std::fs::metadata(&file_path)?.len() <= MAX_DEVICE_UPDATE_SIZE,  "Azure device update limits the update file size to {}.",
-            MAX_DEVICE_UPDATE_SIZE);
+            anyhow::ensure!(
+                std::fs::metadata(&file_path)?.len() <= MAX_DEVICE_UPDATE_SIZE,
+                "Azure device update limits the update file size to {}.",
+                MAX_DEVICE_UPDATE_SIZE
+            );
 
             let basename = std::path::Path::new(&file_path)
                 .file_name()
@@ -314,7 +319,10 @@ async fn get_file_attributes(
 
             sha256 = base64::encode_config(sha2::Sha256::digest(&data), base64::STANDARD);
 
-            let url =  uploader.write_blob(&basename, data).await.context("Error uploading file")?;
+            let url = uploader
+                .write_blob(&basename, data)
+                .await
+                .context("Error uploading file")?;
             info!("File is at {url}");
 
             (url, basename, size, sha256)

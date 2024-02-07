@@ -184,7 +184,7 @@ backend = 'https://cp.dev.omnect.conplement.cloud'
 [auth.Keycloak]
 provider = 'https://keycloak.omnect.conplement.cloud'
 realm = 'cp-dev'
-client_id = 'cp-development'
+client_id = 'cp-cli'
 bind_addr = 'localhost:4000'
 redirect = 'http://localhost:4000'
 ```
