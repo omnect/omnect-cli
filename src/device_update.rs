@@ -5,7 +5,6 @@ use azure_storage::{shared_access_signature::service_sas::BlobSasPermissions, St
 use azure_storage_blobs::prelude::{BlobServiceClient, ContainerClient};
 use log::{debug, info};
 use serde::Serialize;
-use serde_json::json;
 use sha2::Digest;
 use std::{collections::HashMap, fs::OpenOptions, path::Path};
 use time::format_description::well_known::Rfc3339;
@@ -88,10 +87,26 @@ struct ImportManifest {
     manifest_version: &'static str,
 }
 
-struct FileAttributes {
-    basename: String,
-    size: u64,
-    sha256: String,
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FileUrl {
+    url: Url,
+    size_in_bytes: u64,
+    hashes: HashMap<&'static str, String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FileNameUrl {
+    filename: String,
+    url: Url,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportUpdate {
+    import_manifest: FileUrl,
+    files: Vec<FileNameUrl>,
 }
 
 #[tokio::main]
@@ -111,12 +126,13 @@ pub async fn create_import_manifest(
     let installed_criteria = format!("{name} {version}");
     let image_attributes = get_file_attributes(image_path)?;
     let script_attributes = get_file_attributes(script_path)?;
+    let import_manifest_path = format!("{}.importManifest.json", image_attributes.filename);
     let steps = Vec::<Step>::from([
         Step {
             step_type: "inline",
             description: "User consent for swupdate",
             handler: consent_handler,
-            files: vec![image_attributes.basename.clone()],
+            files: vec![image_attributes.filename.clone()],
             handler_properties: HandlerProperties::UserConsent(UserConsentHandlerProperties {
                 installed_criteria: installed_criteria.clone(),
             }),
@@ -126,13 +142,13 @@ pub async fn create_import_manifest(
             description: "Update rootfs using A/B update strategy",
             handler: swupdate_handler,
             files: vec![
-                image_attributes.basename.clone(),
-                script_attributes.basename.clone(),
+                image_attributes.filename.clone(),
+                script_attributes.filename.clone(),
             ],
             handler_properties: HandlerProperties::SWUpdate(SWUpdateHandlerProperties {
-                swu_file_name: image_attributes.basename.clone(),
+                swu_file_name: image_attributes.filename.clone(),
                 arguments: "",
-                script_file_name: script_attributes.basename.clone(),
+                script_file_name: script_attributes.filename.clone(),
                 installed_criteria,
             }),
         },
@@ -151,18 +167,7 @@ pub async fn create_import_manifest(
             compatibilityid,
         }],
         instructions: Instructions { steps },
-        files: vec![
-            File {
-                filename: image_attributes.basename.clone(),
-                size_in_bytes: image_attributes.size,
-                hashes: HashMap::from([("sha256", image_attributes.sha256)]),
-            },
-            File {
-                filename: script_attributes.basename.clone(),
-                size_in_bytes: script_attributes.size,
-                hashes: HashMap::from([("sha256", script_attributes.sha256)]),
-            },
-        ],
+        files: vec![image_attributes, script_attributes],
         created_date_time: time::OffsetDateTime::now_utc().format(&Rfc3339)?,
         manifest_version: MANIFEST_VERSION,
     };
@@ -172,7 +177,7 @@ pub async fn create_import_manifest(
             .write(true)
             .create(true)
             .truncate(true)
-            .open(format!("{}.importManifest.json", image_attributes.basename))
+            .open(import_manifest_path)
             .context("create import manifest file")?,
         &import_manifest,
     )
@@ -227,10 +232,12 @@ pub async fn import_update(
 
     let file_name1 = manifest["instructions"]["steps"][1]["files"][0]
         .as_str()
-        .context("step1 file not found")?;
+        .context("step1 file not found")?
+        .to_string();
     let file_name2 = manifest["instructions"]["steps"][1]["files"][1]
         .as_str()
-        .context("step2 file not found")?;
+        .context("step2 file not found")?
+        .to_string();
 
     let storage_credentials =
         StorageCredentials::access_key(&blob_storage_account, &blob_storage_key);
@@ -238,46 +245,40 @@ pub async fn import_update(
     let container_client = storage_account_client.container_client(&container_name);
     let import_manifest_path = import_manifest_path.file_name().unwrap().to_str().unwrap();
     let manifest_url = generate_sas_url(&container_client, import_manifest_path).await?;
-    let file_url1 = generate_sas_url(&container_client, file_name1).await?;
-    let file_url2 = generate_sas_url(&container_client, file_name2).await?;
-    let import_manifest = json!(
-    [
-        {
-            "importManifest":
-            {
-                "url": manifest_url,
-                "sizeInBytes": manifest_file_size,
-                "hashes": {
-                    "sha256": manifest_sha256
-                }
+    let file_url1 = generate_sas_url(&container_client, file_name1.clone()).await?;
+    let file_url2 = generate_sas_url(&container_client, file_name2.clone()).await?;
+    let import_update = vec![ImportUpdate {
+        import_manifest: FileUrl {
+            url: manifest_url,
+            size_in_bytes: manifest_file_size,
+            hashes: HashMap::from([("sha256", manifest_sha256)]),
+        },
+        files: vec![
+            FileNameUrl {
+                filename: file_name1,
+                url: file_url1,
             },
-            "files": [
-                {
-                    "filename": file_name1,
-                    "url": file_url1
-                },
-                {
-                    "filename": file_name2,
-                    "url": file_url2
-                }
-            ]
-        }
-    ]);
+            FileNameUrl {
+                filename: file_name2,
+                url: file_url2,
+            },
+        ],
+    }];
 
-    debug!("{}", import_manifest.to_string());
+    let import_update = serde_json::to_string(&import_update).context("context")?;
 
-    let import_update_response = client
-        .import_update(&instance_id, import_manifest.to_string())
-        .await?;
+    debug!("{import_update}");
+
+    let import_update_response = client.import_update(&instance_id, import_update).await?;
     info!("Result of import: {:?}", &import_update_response);
 
     Ok(())
 }
 
-fn get_file_attributes(file: &Path) -> Result<FileAttributes> {
+fn get_file_attributes(file: &Path) -> Result<File> {
     debug!("get file attributes for {file:#?}");
 
-    let basename = file
+    let filename = file
         .file_name()
         .unwrap()
         .to_os_string()
@@ -286,31 +287,34 @@ fn get_file_attributes(file: &Path) -> Result<FileAttributes> {
 
     let file = file.to_str().unwrap();
 
-    let size = std::fs::metadata(file)
+    let size_in_bytes = std::fs::metadata(file)
         .context(format!("cannot get file metadata of {}", file))?
         .len();
 
     anyhow::ensure!(
-        size <= MAX_DEVICE_UPDATE_SIZE,
+        size_in_bytes <= MAX_DEVICE_UPDATE_SIZE,
         "Azure device update limits the update file size to {}.",
         MAX_DEVICE_UPDATE_SIZE
     );
 
-    let sha256 = base64::encode_config(
-        sha2::Sha256::digest(std::fs::read(file).context(format!("cannot read {}", file))?),
-        base64::STANDARD,
-    );
+    let hashes = HashMap::from([(
+        "sha256",
+        base64::encode_config(
+            sha2::Sha256::digest(std::fs::read(file).context(format!("cannot read {}", file))?),
+            base64::STANDARD,
+        ),
+    )]);
 
-    Ok(FileAttributes {
-        basename,
-        size,
-        sha256,
+    Ok(File {
+        filename,
+        size_in_bytes,
+        hashes,
     })
 }
 
 pub async fn generate_sas_url(
     container_client: &ContainerClient,
-    blob_name: &str,
+    blob_name: impl Into<String>,
 ) -> Result<url::Url> {
     let blob_client = container_client.blob_client(blob_name);
 
