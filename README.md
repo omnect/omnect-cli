@@ -102,7 +102,7 @@ Copying files into or from the image is restricted to partitions `boot`, `rootA`
 
 Detailed description:
 ```sh
-omnect-cli file-copy from-image --help
+omnect-cli file copy-from-image --help
 ```
 
 ### Copy files to image
@@ -111,7 +111,7 @@ omnect-cli file-copy from-image --help
 
 Detailed description:
 ```sh
-omnect-cli file-copy to-image --help
+omnect-cli file copy-to-image --help
 ```
 
 **Note1**: If you need special permissions on copied files, you have to additionally copy a systemd-tmpfiles.d configuration file which handles these permissions.<br>
