@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - device update import command:
   - splitted import command into create-import-manifest and import-update
   - added test case for create-import-manifest command
-- file copy command: changed command signature from e.g. 'file copy-to-image' to 'file-copy to-image'
 - documentation: reduced examples in Readme.md but therefore improved comments in clap cli
 
 ## [0.19.3] Q1 2024

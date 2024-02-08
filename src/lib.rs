@@ -10,7 +10,7 @@ mod validators;
 use anyhow::{Context, Result};
 use cli::{
     Command,
-    FileCopy::{FromImage, ToImage},
+    File::{CopyFromImage, CopyToImage},
     IdentityConfig::{
         SetConfig, SetDeviceCertificate, SetIotLeafSasConfig, SetIotedgeGatewayConfig,
     },
@@ -259,7 +259,7 @@ pub fn run() -> Result<()> {
                 env_conf,
             )?;
         }
-        Command::FileCopy(ToImage {
+        Command::File(CopyToImage {
             file_copy_params,
             image,
             generate_bmap,
@@ -267,7 +267,7 @@ pub fn run() -> Result<()> {
         }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
             file::copy_to_image(&file_copy_params, img)
         })?,
-        Command::FileCopy(FromImage {
+        Command::File(CopyFromImage {
             file_copy_params,
             image,
         }) => run_image_command(image, false, None, |img: &PathBuf| {

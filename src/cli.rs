@@ -13,9 +13,9 @@ const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 #[derive(Parser, Debug)]
 #[command(after_help = COPYRIGHT)]
 /// copy files to or from a firmware image
-pub enum FileCopy {
-    /// copy files into image
-    ToImage {
+pub enum File {
+    /// file commands, e.g. copy multiple files to/from image
+    CopyToImage {
         /// vector of copy triples in the format [in-file-path,out-partition:out-file-path]
         #[clap(short = 'f', long = "files", value_parser = clap::value_parser!(FileCopyToParams), required(true))]
         file_copy_params: Vec<FileCopyToParams>,
@@ -30,7 +30,7 @@ pub enum FileCopy {
         compress_image: Option<Compression>,
     },
     /// copy files from image
-    FromImage {
+    CopyFromImage {
         /// vector of copy triples in the format [in-partition:in-file-path,out-file-path]
         #[clap(short = 'f', long = "files", value_parser = clap::value_parser!(FileCopyFromParams), required(true))]
         file_copy_params: Vec<FileCopyFromParams>,
@@ -132,7 +132,7 @@ pub enum IdentityConfig {
 
 #[derive(Parser, Debug)]
 #[command(after_help = COPYRIGHT)]
-/// commands related to firmware updates via "Azure Device Update for IoT Hub" 
+/// commands related to firmware updates via "Azure Device Update for IoT Hub"
 pub enum IotHubDeviceUpdate {
     /// copy device update configuration to image
     SetDeviceConfig {
@@ -280,7 +280,7 @@ pub enum SshConfig {
 /// https://github.com/omnect/omnect-cli
 pub enum Command {
     #[command(subcommand)]
-    FileCopy(FileCopy),
+    File(File),
     #[command(subcommand)]
     Identity(IdentityConfig),
     #[command(subcommand)]
