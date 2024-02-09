@@ -1,11 +1,10 @@
 mod common;
-use std::path::PathBuf;
-
 use assert_cmd::Command;
+use assert_json_diff::assert_json_eq;
 use common::Testrunner;
-
 use httpmock::prelude::*;
 use omnect_cli::ssh;
+use std::path::PathBuf;
 use stdext::function_name;
 
 #[macro_use]
@@ -499,6 +498,58 @@ fn check_set_iot_hub_device_update_template() {
         adu_config_file_path.to_str().unwrap(),
         adu_config_file_out_path
     ));
+}
+
+#[test]
+fn check_set_iot_hub_device_update_create_import_manifest() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let image_path = tr.to_pathbuf("testfiles/image.swu");
+    let script_path = tr.to_pathbuf("testfiles/image.swu.sh");
+    let manifest_created = script_path.with_extension("importManifest.json");
+    let manifest_original = tr.to_pathbuf("testfiles/image.swu.importManifest.json.orig");
+
+    let mut set_iot_hub_device_update_config = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = set_iot_hub_device_update_config
+        .current_dir(tr.pathbuf())
+        .arg("iot-hub-device-update")
+        .arg("create-import-manifest")
+        .arg("-d")
+        .arg("OMNECT-gateway-devel")
+        .arg("-v")
+        .arg("4.0.15.0")
+        .arg("-i")
+        .arg(&image_path)
+        .arg("-s")
+        .arg(&script_path)
+        .arg("-n")
+        .arg("omnect-raspberrypi4-64-gateway-devel")
+        .arg("-c")
+        .arg("2")
+        .assert();
+    assert.success();
+
+    let mut manifest_created: serde_json::Value = serde_json::from_reader(
+        std::fs::OpenOptions::new()
+            .read(true)
+            .create(false)
+            .open(&manifest_created)
+            .unwrap(),
+    )
+    .unwrap();
+
+    manifest_created["createdDateTime"] = serde_json::json!("removed");
+
+    let manifest_original: serde_json::Value = serde_json::from_reader(
+        std::fs::OpenOptions::new()
+            .read(true)
+            .create(false)
+            .open(&manifest_original)
+            .unwrap(),
+    )
+    .unwrap();
+
+    assert_json_eq!(manifest_created, manifest_original);
 }
 
 #[test]

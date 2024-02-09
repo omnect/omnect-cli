@@ -1,0 +1,63 @@
+{
+  "updateId": {
+    "provider": "conplement-AG",
+    "name": "OMNECT-gateway-devel",
+    "version": "4.0.15.0"
+  },
+  "isDeployable": true,
+  "compatibility": [
+    {
+      "manufacturer": "conplement-ag",
+      "model": "omnect-raspberrypi4-64-gateway-devel",
+      "compatibilityid": "2"
+    }
+  ],
+  "instructions": {
+    "steps": [
+      {
+        "type": "inline",
+        "description": "User consent for swupdate",
+        "handler": "omnect/swupdate_consent:1",
+        "files": [
+          "image.swu"
+        ],
+        "handlerProperties": {
+          "installedCriteria": "OMNECT-gateway-devel 4.0.15.0"
+        }
+      },
+      {
+        "type": "inline",
+        "description": "Update rootfs using A/B update strategy",
+        "handler": "microsoft/swupdate:2",
+        "files": [
+          "image.swu",
+          "image.swu.sh"
+        ],
+        "handlerProperties": {
+          "installedCriteria": "OMNECT-gateway-devel 4.0.15.0",
+          "swuFileName": "image.swu",
+          "arguments": "",
+          "scriptFileName": "image.swu.sh"
+        }
+      }
+    ]
+  },
+  "files": [
+    {
+      "filename": "image.swu",
+      "sizeInBytes": 0,
+      "hashes": {
+        "sha256": "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
+      }
+    },
+    {
+      "filename": "image.swu.sh",
+      "sizeInBytes": 0,
+      "hashes": {
+        "sha256": "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
+      }
+    }
+  ],
+  "createdDateTime": "removed",
+  "manifestVersion": "5.0"
+}
