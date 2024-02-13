@@ -20,19 +20,19 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 ARG omnect_cli_version
+ARG debian_dir=build/target/debian
 
-COPY source-omnect-cli/build/target/debian/omnect-cli_${omnect_cli_version}_amd64.deb omnect-cli_${omnect_cli_version}_amd64.deb
+COPY ${debian_dir}/omnect-cli_${omnect_cli_version}_amd64.deb omnect-cli_${omnect_cli_version}_amd64.deb
 
 RUN dpkg -i omnect-cli_${omnect_cli_version}_amd64.deb
 
 COPY --from=distroless /var/lib/dpkg/status.d /distroless_pkgs
 
-
 SHELL ["/bin/bash", "-c"]
 RUN <<EOT
     set -eu
 
-    executable=omnect-cli
+    executable=/usr/bin/omnect-cli
     mkdir -p /copy/status.d
 
     # gather libraries installed in distroless image to skip them
@@ -67,5 +67,8 @@ RUN <<EOT
 EOT
 
 FROM ${distroless_image} AS base
-COPY --from=builder /usr/lib/omnect-cli /
+COPY --from=builder /usr/bin/omnect-cli /
+COPY --from=builder /copy/usr/lib/ /usr/lib/
+COPY --from=builder /copy/lib/ /lib/
+COPY --from=builder /copy/status.d /var/lib/dpkg/status.d
 ENTRYPOINT [ "/omnect-cli" ]
