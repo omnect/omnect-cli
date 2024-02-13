@@ -4,4 +4,3 @@
 *.bmap
 *.wic.*
 .vscode/launch.json
-Dockerfile
