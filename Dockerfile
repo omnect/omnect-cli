@@ -1,10 +1,10 @@
-ARG DOCKER_NAMESPACE
-ARG VERSION_RUST_CONTAINER
+ARG docker_namespace
+ARG version_rust_container
 
 ARG distroless_image=gcr.io/distroless/base-debian12:nonroot
 FROM ${distroless_image} AS distroless
 
-FROM ${DOCKER_NAMESPACE}/rust:${VERSION_RUST_CONTAINER} AS builder
+FROM ${docker_namespace}/rust:${version_rust_container} AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
