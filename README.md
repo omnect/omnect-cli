@@ -20,8 +20,7 @@ Further omnect-cli supports device management features. Currently supported:
   - open a ssh tunnel on a device in the field to connect to it
 
 # Installation
-
-ToDo mention docker image
+## Debian package
 
 Available debian packages can be listed as a xml document via this [link](https://omnectassetst.blob.core.windows.net/omnect-cli?restype=container&comp=list). Choose, download and install a version:
 ```sh
@@ -29,6 +28,22 @@ wget https://omnectassetst.blob.core.windows.net/omnect-cli/omnect-cli_<version>
 sudo dpkg -i omnect-cli_<version>_amd64.deb
 ```
 **Note**: `dpkg` lists necessary runtime dependencies in case they are not present.
+
+## Docker image
+
+`omnect-cli` is also provided as docker image.<br>
+
+Example usage:
+
+```ssh
+docker run --rm -it \
+  --mount type=bind,source="$(pwd)"/,target=/source \
+  --env RUST_LOG=info \
+  --user $(id -u) \
+  omnect/omnect-cli:0.20.1 file copy-to-image --files /source/dev_env.toml,boot:/my-file2 -i /source/image.wic
+  ```
+
+  **Note**: `omnect-cli ssh set-connection`command is currently not supported by docker image.
 
 # Build from sources
 

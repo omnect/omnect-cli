@@ -245,7 +245,7 @@ pub enum SshConfig {
         compress_image: Option<Compression>,
     },
 
-    /// set ssh connection parameters
+    /// set ssh connection parameters (currently not working in docker image)
     SetConnection {
         /// username for the login on the device.
         #[arg(short = 'u', long = "user", default_value = "omnect")]
