@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.20.1] Q1 2024
 - added distroless docker image
+- refactored partition handling of file functions
 
 ## [0.20.0] Q1 2024
 - device update import command:

@@ -37,10 +37,10 @@ Example usage:
 
 ```ssh
 docker run --rm -it \
-  --mount type=bind,source="$(pwd)"/,target=/source \
-  --env RUST_LOG=info \
-  --user $(id -u) \
-  omnect/omnect-cli:0.20.1 file copy-to-image --files /source/dev_env.toml,boot:/my-file2 -i /source/image.wic
+  -v "$(pwd)":/source \
+  -e RUST_LOG=debug \
+  -u $(id -u) \
+  omnect/omnect-cli:0.20.1 file copy-to-image --files /source/my-source-file,boot:/my-dest-file -i /source/my-image.wic
   ```
 
   **Note**: `omnect-cli ssh set-connection`command is currently not supported by docker image.
