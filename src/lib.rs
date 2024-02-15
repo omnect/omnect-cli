@@ -56,7 +56,10 @@ where
         dest_image_file.set_extension("");
     } else {
         // copy sparse file (std::fs::copy isn't able)
-        libfs::copy_file(&image_file, &tmp_image_file)?;
+        libfs::copy_file(&image_file, &tmp_image_file).context(format!(
+            "error: libfs::copy_file({:?}, {:?})",
+            image_file, tmp_image_file
+        ))?;
     }
 
     // run command
@@ -68,17 +71,26 @@ where
         let tmp_bmap = PathBuf::from(format!("{}.bmap", tmp_image_file.to_str().unwrap()));
         file::functions::generate_bmap_file(tmp_image_file.to_str().unwrap())?;
         target_bmap.push(tmp_bmap.file_name().unwrap());
-        std::fs::copy(tmp_bmap, target_bmap)?;
+        std::fs::copy(&tmp_bmap, &target_bmap).context(format!(
+            "error: std::fs::copy({:?}, {:?})",
+            tmp_bmap, target_bmap
+        ))?;
     }
 
     // if applicable compress image
     if let Some(c) = target_compression {
         tmp_image_file = compression::compress(&tmp_image_file, &c)?;
         dest_image_file.set_file_name(tmp_image_file.file_name().unwrap());
-        std::fs::copy(&tmp_image_file, &dest_image_file)?;
+        std::fs::copy(&tmp_image_file, &dest_image_file).context(format!(
+            "error: std::fs::copy({:?}, {:?})",
+            tmp_image_file, dest_image_file
+        ))?;
     } else {
         // copy sparse file (std::fs::copy isn't able)
-        libfs::copy_file(&tmp_image_file, &dest_image_file)?;
+        libfs::copy_file(&tmp_image_file, &dest_image_file).context(format!(
+            "error: libfs::copy_file({:?}, {:?})",
+            tmp_image_file, dest_image_file
+        ))?;
     }
 
     Ok(())
