@@ -1,3 +1,4 @@
+# local build
 docker build \
   --build-arg docker_namespace=omnectweucopsacr.azurecr.io \
   --build-arg version_rust_container=1.76.0-bookworm \
