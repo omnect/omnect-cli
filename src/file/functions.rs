@@ -370,7 +370,9 @@ fn get_partition_info(image_file: &str, partition: &Partition) -> Result<Partiti
         }
     };
 
-    let re = Regex::new(format!(r"{image_file}{partition_num}\s+(\d+)\s+(\d+)").as_str()).unwrap();
+    let re = Regex::new(format!(r"{image_file}{partition_num}\s+(\d+)\s+(\d+)").as_str())
+        .context("get_partition_info: failed to create regex")?;
+
     let matches = re
         .captures(&fdisk_out)
         .context("get_partition_info: regex no matches found")?;
