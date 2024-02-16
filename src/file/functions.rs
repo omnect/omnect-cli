@@ -346,8 +346,7 @@ fn get_partition_info(image_file: &str, partition: &Partition) -> Result<Partiti
         Partition::boot => 1,
         Partition::rootA => 2,
         p @ (Partition::factory | Partition::cert) => {
-            let re = Regex::new(r"Disklabel type: (\D{3})")
-                .context("get_partition_info: failed to create regex")?;
+            let re = Regex::new(r"Disklabel type: (\D{3})").unwrap();
 
             let matches = re
                 .captures(&fdisk_out)
@@ -371,9 +370,7 @@ fn get_partition_info(image_file: &str, partition: &Partition) -> Result<Partiti
         }
     };
 
-    let re = Regex::new(format!(r"{image_file}{partition_num}\s+(\d+)\s+(\d+)").as_str())
-        .context("get_partition_info: failed to create regex")?;
-
+    let re = Regex::new(format!(r"{image_file}{partition_num}\s+(\d+)\s+(\d+)").as_str()).unwrap();
     let matches = re
         .captures(&fdisk_out)
         .context("get_partition_info: regex no matches found")?;
