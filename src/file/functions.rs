@@ -1,9 +1,10 @@
 use anyhow::{Context, Result};
 use log::{debug, warn};
+use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::str::FromStr;
 use stdext::function_name;
 
@@ -14,6 +15,13 @@ pub enum Partition {
     rootA,
     cert,
     factory,
+}
+
+#[derive(Debug)]
+struct PartitionInfo {
+    num: String,
+    start: String,
+    end: String,
 }
 
 impl FromStr for Partition {
@@ -162,52 +170,14 @@ macro_rules! try_exec_cmd {
     };
 }
 
-macro_rules! exec_pipe_cmd {
+macro_rules! exec_cmd_with_output {
     ($cmd:expr) => {{
-        let res = $cmd.stdout(Stdio::piped()).spawn().context(format!(
-            "{}: spawn {:?}",
-            function_name!(),
-            $cmd
-        ))?;
-
-        let cmd_out = res
-            .stdout
-            .context(format!("{}: output {:?}", function_name!(), $cmd))?;
-
-        debug!("{}: {:?}", function_name!(), $cmd);
-
-        cmd_out
-    }};
-
-    ($cmd:expr, $stdin:expr) => {{
         let res = $cmd
-            .stdin(Stdio::from($stdin))
-            .stdout(Stdio::piped())
-            .spawn()
+            .output()
             .context(format!("{}: spawn {:?}", function_name!(), $cmd))?;
 
-        let cmd_out = res
-            .stdout
-            .context(format!("{}: output {:?}", function_name!(), $cmd))?;
-
-        debug!("{}: {:?}", function_name!(), $cmd);
-
-        cmd_out
-    }};
-}
-
-macro_rules! exec_pipe_cmd_finnish {
-    ($cmd:expr, $stdin:expr) => {{
-        let res = $cmd
-            .stdin(Stdio::from($stdin))
-            .stdout(Stdio::piped())
-            .spawn()
-            .context(format!("{}: spawn {:?}", function_name!(), $cmd))?;
-
-        let output = res.wait_with_output().context("{}: spawn awk output")?;
-
-        let output = String::from_utf8(output.stdout)
-            .context(format!("{}: get output", function_name!()))?;
+        let output =
+            String::from_utf8(res.stdout).context(format!("{}: get output", function_name!()))?;
 
         let output = output.trim();
 
@@ -239,16 +209,13 @@ pub fn copy_to_image(file_copy_params: &[FileCopyToParams], image_file: &Path) -
     // 1. for each involved partition
     for partition in partition_map.keys() {
         let mut partition_file = working_dir.clone();
-        let partition_num = get_partition_num(image_file, partition)?.to_string();
-        let partition_num = partition_num.as_str();
+        let partition_info = get_partition_info(image_file, partition)?;
 
-        partition_file.push(Path::new(&format!("{partition_num}.img")));
+        partition_file.push(Path::new(&format!("{}.img", partition_info.num)));
         let partition_file = partition_file.to_str().unwrap();
 
-        let partition_offset = get_partition_offset(image_file, partition_num)?;
-
         // 2. read partition
-        read_partition(image_file, partition_file, &partition_offset)?;
+        read_partition(image_file, partition_file, &partition_info)?;
 
         // 3. copy files
         for (in_file, out_file) in partition_map.get(partition).unwrap().iter() {
@@ -296,7 +263,7 @@ pub fn copy_to_image(file_copy_params: &[FileCopyToParams], image_file: &Path) -
         }
 
         // 4. write back partition
-        write_partition(image_file, partition_file, &partition_offset)?;
+        write_partition(image_file, partition_file, &partition_info)?;
     }
 
     Ok(())
@@ -315,16 +282,13 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
         let mut partition_file = working_dir.clone();
         let mut tmp_out_file = working_dir.clone();
         let working_dir = working_dir.to_str().unwrap();
-        let partition_num = get_partition_num(image_file, &param.partition)?.to_string();
-        let partition_num = partition_num.as_str();
+        let partition_info = get_partition_info(image_file, &param.partition)?;
         let in_file = param.in_file.to_str().unwrap();
 
-        partition_file.push(Path::new(&format!("{partition_num}.img")));
+        partition_file.push(Path::new(&format!("{}.img", partition_info.num)));
         let partition_file = partition_file.to_str().unwrap();
 
-        let partition_offset = get_partition_offset(image_file, partition_num)?;
-
-        read_partition(image_file, partition_file, &partition_offset)?;
+        read_partition(image_file, partition_file, &partition_info)?;
 
         // 1. copy to working_dir
         if param.partition == Partition::boot {
@@ -369,73 +333,71 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
     Ok(())
 }
 
-fn get_partition_num(image_file: &str, partition: &Partition) -> Result<u8> {
-    match partition {
-        Partition::boot => Ok(1),
-        Partition::rootA => Ok(2),
-        p @ (Partition::factory | Partition::cert) => {
-            let mut fdisk = Command::new("fdisk");
-            fdisk.arg("-l").arg(image_file);
-            let fdisk_out = exec_pipe_cmd!(fdisk);
-
-            let mut grep = Command::new("grep");
-            grep.arg("^Disklabel type:");
-            let grep_out = exec_pipe_cmd!(grep, fdisk_out);
-
-            let mut awk = Command::new("awk");
-            awk.arg("{print $NF}");
-            let partition_type = exec_pipe_cmd_finnish!(awk, grep_out);
-
-            debug!("partition type: {partition_type}");
-
-            match (p, partition_type.as_str()) {
-                (Partition::factory, "gpt") => Ok(4),
-                (Partition::factory, "dos") => Ok(5),
-                (Partition::cert, "gpt") => Ok(5),
-                (Partition::cert, "dos") => Ok(6),
-                _ => anyhow::bail!("get_partition_num: unhandled partition type"),
-            }
-        }
-    }
-}
-
-fn get_partition_offset(image_file: &str, partition: &str) -> Result<(String, String)> {
+fn get_partition_info(image_file: &str, partition: &Partition) -> Result<PartitionInfo> {
     let mut fdisk = Command::new("fdisk");
     fdisk
         .arg("-l")
         .arg("-o")
         .arg("Device,Start,End")
         .arg(image_file);
-    let fdisk_out = exec_pipe_cmd!(fdisk);
+    let fdisk_out = exec_cmd_with_output!(fdisk);
 
-    let mut grep = Command::new("grep");
-    grep.arg(format!("{image_file}{partition}"));
-    let grep_out = exec_pipe_cmd!(grep, fdisk_out);
+    let partition_num = match partition {
+        Partition::boot => 1,
+        Partition::rootA => 2,
+        p @ (Partition::factory | Partition::cert) => {
+            let re = Regex::new(r"Disklabel type: (\D{3})").unwrap();
 
-    let mut awk = Command::new("awk");
-    awk.arg("{print $2 \" \" $3}");
+            let matches = re
+                .captures(&fdisk_out)
+                .context("get_partition_info: regex no matches found")?;
+            anyhow::ensure!(
+                matches.len() == 2,
+                "'get_partition_info: regex contains unexpected number of matches"
+            );
 
-    let partition_offset = exec_pipe_cmd_finnish!(awk, grep_out);
+            let partition_type = &matches[1];
 
-    let partition_offset = partition_offset.split_once(' ').context(format!(
-        "get_partition_offset: split offset {partition_offset}"
-    ))?;
+            debug!("partition type: {partition_type}");
 
-    debug!(
-        "get_partition_offset: start: {} end: {}",
-        partition_offset.0, partition_offset.1
+            match (p, partition_type) {
+                (Partition::factory, "gpt") => 4,
+                (Partition::factory, "dos") => 5,
+                (Partition::cert, "gpt") => 5,
+                (Partition::cert, "dos") => 6,
+                _ => anyhow::bail!("get_partition_info: unhandled partition type"),
+            }
+        }
+    };
+
+    let re = Regex::new(format!(r"{image_file}{partition_num}\s+(\d+)\s+(\d+)").as_str())
+        .context("get_partition_info: failed to create regex")?;
+
+    let matches = re
+        .captures(&fdisk_out)
+        .context("get_partition_info: regex no matches found")?;
+    anyhow::ensure!(
+        matches.len() == 3,
+        "'get_partition_info: regex contains unexpected number of matches"
     );
 
-    Ok((
-        partition_offset.0.to_string(),
-        partition_offset.1.to_string(),
-    ))
+    let partition_offset = (matches[1].to_string(), matches[2].to_string());
+
+    let info = PartitionInfo {
+        num: partition_num.to_string(),
+        start: partition_offset.0,
+        end: partition_offset.1,
+    };
+
+    debug!("get_partition_info: {:?}", info);
+
+    Ok(info)
 }
 
 fn read_partition(
     image_file: &str,
     partition_file: &str,
-    partition_offset: &(String, String),
+    partition_info: &PartitionInfo,
 ) -> Result<()> {
     if let Ok(true) = PathBuf::from(partition_file).try_exists() {
         return Ok(());
@@ -445,8 +407,8 @@ fn read_partition(
     dd.arg(format!("if={image_file}"))
         .arg(format!("of={partition_file}"))
         .arg("bs=512")
-        .arg(format!("skip={}", partition_offset.0))
-        .arg(format!("count={}", partition_offset.1))
+        .arg(format!("skip={}", partition_info.start))
+        .arg(format!("count={}", partition_info.end))
         .arg("conv=sparse")
         .arg("status=none");
     exec_cmd!(dd);
@@ -457,17 +419,17 @@ fn read_partition(
     Ok(())
 }
 
-pub fn write_partition(
+fn write_partition(
     image_file: &str,
     partition_file: &str,
-    partition_offset: &(String, String),
+    partition_info: &PartitionInfo,
 ) -> Result<()> {
     let mut dd = Command::new("dd");
     dd.arg(format!("if={partition_file}"))
         .arg(format!("of={image_file}"))
         .arg("bs=512")
-        .arg(format!("seek={}", partition_offset.0))
-        .arg(format!("count={}", partition_offset.1))
+        .arg(format!("seek={}", partition_info.start))
+        .arg(format!("count={}", partition_info.end))
         .arg("conv=notrunc,sparse")
         .arg("status=none");
     exec_cmd!(dd);

@@ -1,5 +1,5 @@
 use env_logger::{Builder, Env};
-use log::error;
+use log::{error, info};
 use std::process;
 
 fn main() {
@@ -29,6 +29,8 @@ fn main() {
         )))
         .init();
     }
+
+    info!("version: {}", env!("CARGO_PKG_VERSION"));
 
     if let Err(e) = omnect_cli::run() {
         error!("Application error: {e:#?}");

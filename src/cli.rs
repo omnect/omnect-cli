@@ -19,7 +19,7 @@ pub enum File {
         /// vector of copy triples in the format [in-file-path,out-partition:out-file-path]
         #[clap(short = 'f', long = "files", value_parser = clap::value_parser!(FileCopyToParams), required(true))]
         file_copy_params: Vec<FileCopyToParams>,
-        /// path to wic image file
+        /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
         /// optional: generate bmap file
@@ -34,7 +34,7 @@ pub enum File {
         /// vector of copy triples in the format [in-partition:in-file-path,out-file-path]
         #[clap(short = 'f', long = "files", value_parser = clap::value_parser!(FileCopyFromParams), required(true))]
         file_copy_params: Vec<FileCopyFromParams>,
-        /// path to wic image file
+        /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
     },
@@ -52,7 +52,7 @@ pub enum IdentityConfig {
         /// optional: path to extra DPS payload file
         #[arg(short = 'e', long = "extra-dps-payload")]
         payload: Option<PathBuf>,
-        /// path to wic image file
+        /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
         /// optional: generate bmap file
@@ -67,7 +67,7 @@ pub enum IdentityConfig {
         /// path to config.toml file
         #[arg(short = 'c', long = "config")]
         config: PathBuf,
-        /// path to wic image file
+        /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
         /// path to root ca certificate file
@@ -91,7 +91,7 @@ pub enum IdentityConfig {
         /// path to config.toml file
         #[arg(short = 'c', long = "config")]
         config: PathBuf,
-        /// path to wic image file
+        /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
         /// path to root ca certificate file
@@ -112,7 +112,7 @@ pub enum IdentityConfig {
         /// path to intermediate key pem file
         #[arg(short = 'k', long = "intermediate-key")]
         intermediate_key: PathBuf,
-        /// path to wic image file
+        /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
         /// device id
@@ -139,7 +139,7 @@ pub enum IotHubDeviceUpdate {
         /// path to device-update configuration file
         #[arg(short = 'c', long = "config")]
         iot_hub_device_update_config: PathBuf,
-        /// path to wic image file
+        /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
         /// optional: generate bmap file
@@ -228,7 +228,7 @@ pub enum IotHubDeviceUpdate {
 pub enum SshConfig {
     /// set ssh tunnel certificate
     SetCertificate {
-        /// path to wic image file
+        /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
         /// path to public key of the ssh root ca
@@ -245,7 +245,7 @@ pub enum SshConfig {
         compress_image: Option<Compression>,
     },
 
-    /// set ssh connection parameters
+    /// set ssh connection parameters (currently not working in docker image)
     SetConnection {
         /// username for the login on the device.
         #[arg(short = 'u', long = "user", default_value = "omnect")]
@@ -276,7 +276,7 @@ pub enum SshConfig {
 
 #[derive(Parser, Debug)]
 #[command(version, after_help = COPYRIGHT, verbatim_doc_comment)]
-/// This tools helps to manage your omnect devices. For more information visit:
+/// This tool helps to manage your omnect devices. For more information visit:
 /// https://github.com/omnect/omnect-cli
 pub enum Command {
     #[command(subcommand)]
