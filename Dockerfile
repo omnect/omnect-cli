@@ -13,7 +13,7 @@ COPY ${debian_dir}/omnect-cli_${omnect_cli_version}_amd64.deb omnect-cli_${omnec
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    bmap-tools \
+bmap-tools \
     ca-certificates \
     e2tools \
     fdisk \
@@ -34,14 +34,15 @@ RUN <<EOT
     mkdir -p /copy/status.d
 
     executables=( \
-        /usr/bin/omnect-cli \
-        /usr/sbin/fdisk \
         /usr/bin/dd \
-        /usr/bin/sync \
-        /usr/bin/e2mkdir \
         /usr/bin/e2cp \
+        /usr/bin/e2mkdir \
         /usr/bin/fallocate \
         /usr/bin/mcopy \
+        /usr/bin/omnect-cli \
+        /usr/bin/ssh-keygen \
+        /usr/bin/sync \
+        /usr/sbin/fdisk \
     ) 
 
     for executable in ${executables[@]}; do

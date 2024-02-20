@@ -22,7 +22,7 @@ pub enum File {
         /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
-        /// optional: generate bmap file
+        /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
         /// optional: pack image [xz, bzip2, gzip]
@@ -55,7 +55,7 @@ pub enum IdentityConfig {
         /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
-        /// optional: generate bmap file
+        /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
         /// optional: pack image [xz, bzip2, gzip]
@@ -79,7 +79,7 @@ pub enum IdentityConfig {
         /// path to device identity certificate key file
         #[arg(short = 'k', long = "device_identity_key")]
         device_identity_key: PathBuf,
-        /// optional: generate bmap file
+        /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
         /// optional: pack image [xz, bzip2, gzip]
@@ -97,7 +97,7 @@ pub enum IdentityConfig {
         /// path to root ca certificate file
         #[arg(short = 'r', long = "root_ca")]
         root_ca: PathBuf,
-        /// optional: generate bmap file
+        /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
         /// optional: pack image [xz, bzip2, gzip]
@@ -121,7 +121,7 @@ pub enum IdentityConfig {
         /// period of validity in days
         #[arg(short = 'D', long = "days")]
         days: u32,
-        /// optional: generate bmap file
+        /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
         /// optional: pack image [xz, bzip2, gzip]
@@ -142,7 +142,7 @@ pub enum IotHubDeviceUpdate {
         /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
-        /// optional: generate bmap file
+        /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
         /// optional: pack image [xz, bzip2, gzip]
@@ -237,7 +237,7 @@ pub enum SshConfig {
         /// device-id
         #[arg(short = 'd', long = "device-principal")]
         device_principal: String,
-        /// optional: generate bmap file
+        /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
         /// optional: pack image [xz, bzip2, gzip]
