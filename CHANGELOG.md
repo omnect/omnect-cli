@@ -6,8 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.20.2] Q1 2024
-- fixed `omnect-cli ssh set-certificate` command in `omnect/omnect-cli:0.20.1` docker image
-- documented `-b` option to create bmap file is not working in `omnect/omnect-cli` docker image
+- omnect/omnect-cli docker image:
+  - fixed `omnect-cli ssh set-certificate` command
+  - documented `-b` option to create bmap file is not working
 
 ## [0.20.1] Q1 2024
 - added distroless docker image
