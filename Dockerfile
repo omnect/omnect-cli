@@ -13,7 +13,7 @@ COPY ${debian_dir}/omnect-cli_${omnect_cli_version}_amd64.deb omnect-cli_${omnec
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-bmap-tools \
+    bmap-tools \
     ca-certificates \
     e2tools \
     fdisk \
