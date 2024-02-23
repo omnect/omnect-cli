@@ -1,5 +1,5 @@
-# local buildversion
-cli_version="0.20.2"
+# local build
+cli_version=$(toml get --raw Cargo.toml package.version)
 rust_version="1.76.0-bookworm"
 
 docker build \
