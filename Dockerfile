@@ -22,7 +22,7 @@ RUN apt-get update && \
     libmagic1 \
     libssl3 \
     mtools \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* && \
+        && apt-get clean && rm -rf /var/lib/apt/lists/* && \
     dpkg -i omnect-cli_${omnect_cli_version}_amd64.deb
 
 COPY --from=distroless /var/lib/dpkg/status.d /distroless_pkgs
@@ -34,6 +34,9 @@ RUN <<EOT
     mkdir -p /copy/status.d
 
     executables=( \
+        /bin/bash \
+        /bin/readlink \
+        /bin/sed \
         /usr/bin/dd \
         /usr/bin/e2cp \
         /usr/bin/e2mkdir \
@@ -86,6 +89,7 @@ EOT
 
 FROM ${distroless_image} AS base
 COPY --from=builder /usr/share/misc/magic.mgc /usr/share/misc/magic.mgc
+COPY --from=builder /copy/bin/ /bin/
 COPY --from=builder /copy/usr/bin/ /usr/bin/
 COPY --from=builder /copy/usr/sbin/ /usr/sbin/
 COPY --from=builder /copy/usr/lib/ /usr/lib/
