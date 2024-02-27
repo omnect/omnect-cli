@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.20.2] Q1 2024
 - omnect/omnect-cli docker image:
+  - added bash, readlink and sed
   - fixed `omnect-cli ssh set-certificate` command
   - documented `-b` option to create bmap file is not working
 
