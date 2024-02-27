@@ -7,6 +7,7 @@ docker build \
   --build-arg version_rust_container="${rust_version}" \
   --build-arg omnect_cli_version="${cli_version}" \
   --build-arg debian_dir=target/debian \
+  --build-arg add_cicd_tools=true \
   -f Dockerfile \
   --progress=plain \
   -t omnect-cli:"${cli_version}" .
