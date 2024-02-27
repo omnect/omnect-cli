@@ -27,6 +27,8 @@ RUN apt-get update && \
 
 COPY --from=distroless /var/lib/dpkg/status.d /distroless_pkgs
 
+ARG add_cicd_tools=false
+
 SHELL ["/bin/bash", "-c"]
 RUN <<EOT
     set -eu
@@ -86,7 +88,7 @@ EOT
 
 FROM ${distroless_image} AS base
 COPY --from=builder /usr/share/misc/magic.mgc /usr/share/misc/magic.mgc
-COPY --from=builder /copy/bin/ /bin/
+COPY --from=builder /copy/bi[n]/ /bin/
 COPY --from=builder /copy/usr/bin/ /usr/bin/
 COPY --from=builder /copy/usr/sbin/ /usr/sbin/
 COPY --from=builder /copy/usr/lib/ /usr/lib/
