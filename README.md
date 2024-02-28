@@ -40,10 +40,11 @@ docker run --rm -it \
   -v "$(pwd)":/source \
   -e RUST_LOG=debug \
   -u $(id -u) \
-  omnect/omnect-cli:0.20.1 file copy-to-image --files /source/my-source-file,boot:/my-dest-file -i /source/my-image.wic
+  omnect/omnect-cli:latest file copy-to-image --files /source/my-source-file,boot:/my-dest-file -i /source/my-image.wic
   ```
 
-  **Note**: `omnect-cli ssh set-connection`command is currently not supported by docker image.
+  **Note1**: `omnect-cli ssh set-connection`command is not supported by docker image.
+  **Note2**: `-b` option to create bmap file is not supported by docker image.
 
 # Build from sources
 

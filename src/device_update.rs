@@ -265,9 +265,9 @@ pub async fn import_update(
         ],
     }];
 
-    let import_update = serde_json::to_string(&import_update).context("context")?;
+    let import_update = serde_json::to_string_pretty(&import_update).context("Cannot parse import_update")?;
 
-    debug!("{import_update}");
+    debug!("import update: {import_update}");
 
     let import_update_response = client.import_update(&instance_id, import_update).await?;
     info!("Result of import: {:?}", &import_update_response);
