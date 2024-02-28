@@ -22,12 +22,10 @@ RUN apt-get update && \
     libmagic1 \
     libssl3 \
     mtools \
-        && apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* && \
     dpkg -i omnect-cli_${omnect_cli_version}_amd64.deb
 
 COPY --from=distroless /var/lib/dpkg/status.d /distroless_pkgs
-
-ARG add_cicd_tools=false
 
 SHELL ["/bin/bash", "-c"]
 RUN <<EOT
@@ -46,15 +44,6 @@ RUN <<EOT
         /usr/bin/sync \
         /usr/sbin/fdisk \
     )
-
-    # add cicd tools
-    if [ "${add_cicd_tools}" == "true" ]; then
-        executables+=( \
-            /bin/bash \
-            /bin/readlink \
-            /bin/sed \
-        )
-    fi
 
     for executable in ${executables[@]}; do
         echo "${executable}"
@@ -97,7 +86,6 @@ EOT
 
 FROM ${distroless_image} AS base
 COPY --from=builder /usr/share/misc/magic.mgc /usr/share/misc/magic.mgc
-COPY --from=builder /copy/bi[n]/ /bin/
 COPY --from=builder /copy/usr/bin/ /usr/bin/
 COPY --from=builder /copy/usr/sbin/ /usr/sbin/
 COPY --from=builder /copy/usr/lib/ /usr/lib/
