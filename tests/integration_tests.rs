@@ -533,7 +533,7 @@ fn check_set_iot_hub_device_update_create_import_manifest() {
         std::fs::OpenOptions::new()
             .read(true)
             .create(false)
-            .open(&manifest_created)
+            .open(manifest_created)
             .unwrap(),
     )
     .unwrap();
@@ -544,7 +544,7 @@ fn check_set_iot_hub_device_update_create_import_manifest() {
         std::fs::OpenOptions::new()
             .read(true)
             .create(false)
-            .open(&manifest_original)
+            .open(manifest_original)
             .unwrap(),
     )
     .unwrap();
