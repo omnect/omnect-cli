@@ -832,7 +832,7 @@ fn check_image_decompression() {
 
 #[tokio::test]
 async fn check_ssh_tunnel_setup() {
-    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+    let tr = Testrunner::new("check_ssh_tunnel_setup");
 
     let mock_access_token = oauth2::AccessToken::new("test_token_mock".to_string());
 
@@ -866,7 +866,7 @@ async fn check_ssh_tunnel_setup() {
 
     assert!(tr
         .pathbuf()
-        .join("ssh_config")
+        .join("config")
         .try_exists()
         .is_ok_and(|exists| exists));
     assert!(tr
@@ -890,7 +890,7 @@ async fn check_ssh_tunnel_setup() {
         .try_exists()
         .is_ok_and(|exists| exists));
 
-    let ssh_config = std::fs::read_to_string(tr.pathbuf().join("ssh_config")).unwrap();
+    let ssh_config = std::fs::read_to_string(tr.pathbuf().join("config")).unwrap();
     let expected_config = format!(
         r#"Host bastion
 	User bastion_user
@@ -904,7 +904,7 @@ Host test_device
 	User test_user
 	IdentityFile {}/id_ed25519
 	CertificateFile {}/device-cert.pub
-	ProxyCommand ssh -F {}/ssh_config bastion
+	ProxyCommand ssh -F {}/config bastion
 "#,
         tr.pathbuf().to_string_lossy(),
         tr.pathbuf().to_string_lossy(),
@@ -914,4 +914,62 @@ Host test_device
     );
 
     assert_eq!(ssh_config, expected_config);
+}
+
+#[tokio::test]
+async fn check_existing_ssh_config_not_overwritten() {
+    let tr = Testrunner::new("check_existing_ssh_config_not_overwritten");
+
+    let mock_access_token = oauth2::AccessToken::new("test_token_mock".to_string());
+
+    let server = MockServer::start();
+
+    let request_reply = r#"{
+	"clientBastionCert": "-----BEGIN CERTIFICATE-----\nMIIFrjCCA5agAwIBAgIBATANBgkqhkiG...",
+	"clientDeviceCert": "-----BEGIN CERTIFICATE-----\nMIIFrjCCA5agAwIBAgIBATANBgkqhkiG...",
+	"host": "132.23.0.1",
+	"port": 22,
+	"bastionUser": "bastion_user"
+}
+"#;
+
+    let _ = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/devices/prepareSSHConnection")
+            .header("authorization", "Bearer test_token_mock");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(request_reply);
+    });
+
+    let mut config_path = tr.pathbuf();
+    config_path.push("config");
+
+    let config_content_before = "some_test_data";
+    std::fs::write(&config_path, config_content_before).unwrap();
+
+    let mut config = ssh::Config::new(
+        "test-backend",
+        Some(tr.pathbuf()),
+        None,
+        Some(config_path.clone()),
+    )
+    .unwrap();
+
+    config.set_backend(url::Url::parse(&server.base_url()).unwrap());
+
+    let result =
+        ssh::ssh_create_tunnel("test_device", "test_user", config, mock_access_token).await;
+
+    assert!(matches!(result, Result::Err(_)));
+
+    assert_eq!(
+        result.err().unwrap().to_string(),
+        r#"ssh config file already exists and would be overwritten.
+Please remove config file first."#
+    );
+
+    let config_content_after = std::fs::read_to_string(&config_path).unwrap();
+
+    assert_eq!(config_content_before, &config_content_after);
 }

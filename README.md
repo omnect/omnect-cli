@@ -43,8 +43,8 @@ docker run --rm -it \
   omnect/omnect-cli:latest file copy-to-image --files /source/my-source-file,boot:/my-dest-file -i /source/my-image.wic
   ```
 
-  **Note1**: `omnect-cli ssh set-connection`command is not supported by docker image.
-  **Note2**: `-b` option to create bmap file is not supported by docker image.
+  **Note1**: `-b` option to create bmap file is not supported by docker image.
+  **Note2**: The ssh tunnel option requires some additional settings. See [here](Usage-with-docker) for more details.
 
 # Build from sources
 
@@ -175,7 +175,7 @@ omnect-cli ssh set-connection --help
 
 Open an ssh tunnel to the device `prod_device` in the `prod` environment as follows:
 ```sh
-~ omnect-cli ssh set-connection prod_device
+omnect-cli ssh set-connection prod_device
 
 Successfully established ssh tunnel!
 Certificate dir: /run/user/1000/omnect-cli
@@ -186,7 +186,7 @@ ssh -F /run/user/1000/omnect-cli/ssh_config prod_device
 Now follow the command output to establish a connection to the device as such:
 
 ```sh
-~ ssh -F /run/user/1000/omnect-cli/ssh_config prod_device
+ssh -F /run/user/1000/omnect-cli/ssh_config prod_device
 
 [omnect@prod_device ~]$
 ```
@@ -208,11 +208,38 @@ redirect = 'http://localhost:4000'
 
 You then have to pass this configuration with the `--env` flag:
 ```sh
-~ omnect-cli ssh set-connection dev_device --env dev_env.toml
+omnect-cli ssh set-connection dev_device --env dev_env.toml
 
 Successfully established ssh tunnel!
 ...
 ```
+
+#### Usage with docker
+
+To use the ssh tunnel feature within a docker image, some additional steps are
+necessary:
+
+1. bind mount the directory to where the ssh keys and configurations should be generated to
+2. set `CONTAINERIZED` environment variable as "true". The provided docker image
+   already has this variable set accordingly. **Note**: if running on a Windows
+   host, you additionally have to set the `CONTAINER_HOST` variable to
+   `windows`.
+3. map the container's port on localhost 4000 to the hosts port 4000
+
+With our `prod_device` from above, the call would then look, for example, as follows:
+
+```sh
+docker run --rm \
+  -u 0:0 \
+  -v "~/.ssh":/root/.local/share/omnect-cli \
+  -p 127.0.0.1:4000:4000 \
+  omnect/omnect-cli:latest \
+  ssh set-connection
+```
+
+If you want to use a custom backend configuration, you additionally have to
+bind mount the config file, as well, i.e., `-v host/path/to/config.toml:/config.toml`,
+and then tell omnect-cli to use this path.
 
 # Troubleshooting
 

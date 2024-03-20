@@ -16,7 +16,7 @@ static SSH_KEY_FORMAT: &str = "ed25519";
 
 static BASTION_CERT_NAME: &str = "bastion-cert.pub";
 static DEVICE_CERT_NAME: &str = "device-cert.pub";
-static SSH_CONFIG_NAME: &str = "ssh_config";
+static SSH_CONFIG_NAME: &str = "config";
 
 pub struct Config {
     backend: Url,
@@ -46,7 +46,15 @@ impl Config {
         };
 
         let dir = match dir {
-            Some(dir) => dir,
+            Some(dir) => {
+                if let Ok("true") | Ok("1") = std::env::var("CONTAINERIZED").as_deref() {
+                    anyhow::bail!(
+                        "Custom config paths are not supported in containerized environments."
+                    );
+                }
+
+                dir
+            }
             None => ProjectDirs::from("de", "conplement AG", "omnect-cli")
                 .ok_or_else(|| anyhow::anyhow!("Application dirs not accessible"))?
                 .data_dir()
@@ -192,16 +200,61 @@ fn create_ssh_config(
 ) -> Result<()> {
     let config_file = fs::OpenOptions::new()
         .write(true)
-        .create(true)
-        .truncate(true)
+        .create_new(true)
         .open(config_path.to_str().unwrap())
-        .map_err(|err| anyhow::anyhow!("Failed to open ssh config file: {err}"))?;
+        .map_err(|err| match err.kind() {
+            std::io::ErrorKind::AlreadyExists => {
+                anyhow::anyhow!(
+                    r#"ssh config file already exists and would be overwritten.
+Please remove config file first."#
+                )
+            }
+            _ => anyhow::anyhow!("Failed to create ssh config file: {err}"),
+        })?;
 
     let mut writer = BufWriter::new(config_file);
 
-    writeln!(
-        &mut writer,
-        r#"Host bastion
+    if let Ok("windows") = std::env::var("CONTAINER_HOST").as_deref() {
+        writeln!(
+            &mut writer,
+            r#"Host bastion
+	User {}
+	Hostname {}
+	Port {}
+	IdentityFile ~/.ssh/{}
+	CertificateFile ~/.ssh/{}
+	ProxyCommand none
+
+Host {}
+	User {}
+	IdentityFile ~/.ssh/{}
+	CertificateFile ~/.ssh/{}
+	ProxyCommand ssh bastion"#,
+            bastion_details.username,
+            bastion_details.hostname,
+            bastion_details.port,
+            bastion_details
+                .priv_key
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap(), // safe
+            bastion_details.cert.file_name().unwrap().to_str().unwrap(), // safe
+            device_details.hostname,
+            device_details.username,
+            device_details
+                .priv_key
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap(), // safe
+            device_details.cert.file_name().unwrap().to_str().unwrap(), // safe
+        )
+        .map_err(|err| anyhow::anyhow!("Failed to write ssh config file: {err}"))?;
+    } else {
+        writeln!(
+            &mut writer,
+            r#"Host bastion
 	User {}
 	Hostname {}
 	Port {}
@@ -214,32 +267,40 @@ Host {}
 	IdentityFile {}
 	CertificateFile {}
 	ProxyCommand ssh -F {} bastion"#,
-        bastion_details.username,
-        bastion_details.hostname,
-        bastion_details.port,
-        bastion_details.priv_key.to_str().unwrap(), // safe
-        bastion_details.cert.to_str().unwrap(),     // safe
-        device_details.hostname,
-        device_details.username,
-        device_details.priv_key.to_str().unwrap(), // safe
-        device_details.cert.to_str().unwrap(),     // safe
-        config_path.to_str().unwrap(),             // safe
-    )
-    .map_err(|err| anyhow::anyhow!("Failed to write ssh config file: {err}"))?;
+            bastion_details.username,
+            bastion_details.hostname,
+            bastion_details.port,
+            bastion_details.priv_key.to_str().unwrap(), // safe
+            bastion_details.cert.to_str().unwrap(),     // safe
+            device_details.hostname,
+            device_details.username,
+            device_details.priv_key.to_str().unwrap(), // safe
+            device_details.cert.to_str().unwrap(),     // safe
+            config_path.to_str().unwrap(),             // safe
+        )
+        .map_err(|err| anyhow::anyhow!("Failed to write ssh config file: {err}"))?;
+    }
 
     Ok(())
 }
 
 fn print_ssh_tunnel_info(cert_dir: &Path, config_path: &Path, destination: &str) {
     println!("Successfully established ssh tunnel!");
-    println!("Certificate dir: {}", cert_dir.to_str().unwrap());
-    println!("Configuration path: {}", config_path.to_str().unwrap());
-    println!(
-        "Use the configuration in \"{}\" to use the tunnel, e.g.:\nssh -F {} {}",
-        config_path.to_str().unwrap(), // safe
-        config_path.to_str().unwrap(), // safe
-        destination
-    );
+    if let Ok("windows") = std::env::var("CONTAINER_HOST").as_deref() {
+        println!(
+            "You can ssh to now ssh to your device via its device name, e.g.:\nssh {}",
+            destination
+        );
+    } else {
+        println!("Certificate dir: {}", cert_dir.to_str().unwrap());
+        println!("Configuration path: {}", config_path.to_str().unwrap());
+        println!(
+            "Use the configuration in \"{}\" to use the tunnel, e.g.:\nssh -F {} {}",
+            config_path.to_str().unwrap(), // safe
+            config_path.to_str().unwrap(), // safe
+            destination
+        );
+    }
 }
 
 pub async fn ssh_create_tunnel(
