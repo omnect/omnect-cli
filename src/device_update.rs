@@ -199,7 +199,6 @@ pub async fn import_update(
     blob_storage_account: String,
     blob_storage_key: String,
 ) -> Result<()> {
-    // credentials for deviceupdate
     let creds = std::sync::Arc::new(ClientSecretCredential::new(
         azure_core::new_http_client(),
         tenant_id,
@@ -265,12 +264,44 @@ pub async fn import_update(
         ],
     }];
 
-    let import_update = serde_json::to_string_pretty(&import_update).context("Cannot parse import_update")?;
+    let import_update =
+        serde_json::to_string_pretty(&import_update).context("Cannot parse import_update")?;
 
     debug!("import update: {import_update}");
 
     let import_update_response = client.import_update(&instance_id, import_update).await?;
-    info!("Result of import: {:?}", &import_update_response);
+    info!("Result of import update: {:?}", &import_update_response);
+
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+#[tokio::main]
+pub async fn remove_update(
+    tenant_id: String,
+    client_id: String,
+    client_secret: String,
+    instance_id: String,
+    device_update_endpoint_url: &Url,
+    provider: String,
+    name: String,
+    version: String,
+) -> Result<()> {
+    let creds = std::sync::Arc::new(ClientSecretCredential::new(
+        azure_core::new_http_client(),
+        tenant_id,
+        client_id,
+        client_secret,
+        TokenCredentialOptions::default(),
+    ));
+    let client = DeviceUpdateClient::new(device_update_endpoint_url.as_str(), creds)?;
+
+    debug!("remove update");
+
+    let remove_update_response = client
+        .delete_update(&instance_id, &provider, &name, &version)
+        .await?;
+    info!("Result of remove update: {remove_update_response}");
 
     Ok(())
 }
