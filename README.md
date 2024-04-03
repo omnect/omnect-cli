@@ -110,8 +110,6 @@ Detailed description:
 omnect-cli iot-hub-device-update remove-update --help
 ```
 
-**Note**: The import process may take several minutes.
-
 ### Inject `du-config.json` configuration file
 This command injects a device update configuration into a firmware image.
 
