@@ -6,7 +6,7 @@ use azure_storage_blobs::prelude::{BlobServiceClient, ContainerClient};
 use log::{debug, info};
 use serde::Serialize;
 use sha2::Digest;
-use std::{collections::HashMap, fs::OpenOptions, path::Path};
+use std::{borrow::Cow, collections::HashMap, fs::OpenOptions, path::Path};
 use time::format_description::well_known::Rfc3339;
 use url::Url;
 
@@ -15,98 +15,98 @@ const MAX_DEVICE_UPDATE_SIZE: u64 = 2000000000; // 2GB, may also actually be 2^3
 const MANIFEST_VERSION: &str = "5.0";
 
 #[derive(Serialize)]
-struct UpdateId {
-    provider: String,
-    name: String,
-    version: String,
+struct UpdateId<'a> {
+    provider: &'a str,
+    name: &'a str,
+    version: &'a str,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct UserConsentHandlerProperties {
-    installed_criteria: String,
+struct UserConsentHandlerProperties<'a> {
+    installed_criteria: &'a str,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct SWUpdateHandlerProperties {
-    installed_criteria: String,
-    swu_file_name: String,
-    arguments: &'static str,
-    script_file_name: String,
+struct SWUpdateHandlerProperties<'a> {
+    installed_criteria: &'a str,
+    swu_file_name: &'a str,
+    arguments: &'a str,
+    script_file_name: &'a str,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-enum HandlerProperties {
-    UserConsent(UserConsentHandlerProperties),
-    SWUpdate(SWUpdateHandlerProperties),
+enum HandlerProperties<'a> {
+    UserConsent(UserConsentHandlerProperties<'a>),
+    SWUpdate(SWUpdateHandlerProperties<'a>),
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Step {
+struct Step<'a> {
     #[serde(rename = "type")]
-    step_type: &'static str,
-    description: &'static str,
-    handler: String,
-    files: Vec<String>,
-    handler_properties: HandlerProperties,
+    step_type: &'a str,
+    description: &'a str,
+    handler: &'a str,
+    files: Vec<&'a str>,
+    handler_properties: HandlerProperties<'a>,
 }
 
 #[derive(Serialize)]
-struct Instructions {
-    steps: Vec<Step>,
+struct Instructions<'a> {
+    steps: Vec<Step<'a>>,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct File {
-    filename: String,
+struct File<'a> {
+    filename: Cow<'a, str>,
     size_in_bytes: u64,
-    hashes: HashMap<&'static str, String>,
+    hashes: HashMap<&'a str, String>,
 }
 
 #[derive(Serialize)]
-struct Compatibility {
-    manufacturer: String,
-    model: String,
-    compatibilityid: String,
+struct Compatibility<'a> {
+    manufacturer: &'a str,
+    model: &'a str,
+    compatibilityid: &'a str,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct ImportManifest {
-    update_id: UpdateId,
+struct ImportManifest<'a> {
+    update_id: UpdateId<'a>,
     is_deployable: bool,
-    compatibility: Vec<Compatibility>,
-    instructions: Instructions,
-    files: Vec<File>,
-    created_date_time: String,
-    manifest_version: &'static str,
+    compatibility: Vec<Compatibility<'a>>,
+    instructions: Instructions<'a>,
+    files: Vec<&'a File<'a>>,
+    created_date_time: &'a str,
+    manifest_version: &'a str,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct FileUrl {
+struct FileUrl<'a> {
     url: Url,
     size_in_bytes: u64,
-    hashes: HashMap<&'static str, String>,
+    hashes: HashMap<&'a str, String>,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct FileNameUrl {
-    filename: String,
+struct FileNameUrl<'a> {
+    filename: &'a str,
     url: Url,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct ImportUpdate {
-    import_manifest: FileUrl,
-    files: Vec<FileNameUrl>,
+struct ImportUpdate<'a> {
+    import_manifest: FileUrl<'a>,
+    files: Vec<FileNameUrl<'a>>,
 }
 
 #[tokio::main]
@@ -114,41 +114,40 @@ struct ImportUpdate {
 pub async fn create_import_manifest(
     image_path: &Path,
     script_path: &Path,
-    manufacturer: String,
-    model: String,
-    compatibilityid: String,
-    provider: String,
-    consent_handler: String,
-    swupdate_handler: String,
-    name: String,
-    version: String,
+    manufacturer: &str,
+    model: &str,
+    compatibilityid: &str,
+    provider: &str,
+    consent_handler: &str,
+    swupdate_handler: &str,
+    name: &str,
+    version: &str,
 ) -> Result<()> {
     let installed_criteria = format!("{name} {version}");
+    let installed_criteria = installed_criteria.as_str();
     let image_attributes = get_file_attributes(image_path)?;
     let script_attributes = get_file_attributes(script_path)?;
     let import_manifest_path = format!("{}.importManifest.json", image_attributes.filename);
+    let time_stamp = time::OffsetDateTime::now_utc().format(&Rfc3339)?;
     let steps = Vec::<Step>::from([
         Step {
             step_type: "inline",
             description: "User consent for swupdate",
             handler: consent_handler,
-            files: vec![image_attributes.filename.clone()],
+            files: vec![&image_attributes.filename],
             handler_properties: HandlerProperties::UserConsent(UserConsentHandlerProperties {
-                installed_criteria: installed_criteria.clone(),
+                installed_criteria,
             }),
         },
         Step {
             step_type: "inline",
             description: "Update rootfs using A/B update strategy",
             handler: swupdate_handler,
-            files: vec![
-                image_attributes.filename.clone(),
-                script_attributes.filename.clone(),
-            ],
+            files: vec![&image_attributes.filename, &script_attributes.filename],
             handler_properties: HandlerProperties::SWUpdate(SWUpdateHandlerProperties {
-                swu_file_name: image_attributes.filename.clone(),
+                swu_file_name: &image_attributes.filename,
                 arguments: "",
-                script_file_name: script_attributes.filename.clone(),
+                script_file_name: &script_attributes.filename,
                 installed_criteria,
             }),
         },
@@ -167,8 +166,8 @@ pub async fn create_import_manifest(
             compatibilityid,
         }],
         instructions: Instructions { steps },
-        files: vec![image_attributes, script_attributes],
-        created_date_time: time::OffsetDateTime::now_utc().format(&Rfc3339)?,
+        files: vec![&image_attributes, &script_attributes],
+        created_date_time: time_stamp.as_str(),
         manifest_version: MANIFEST_VERSION,
     };
 
@@ -190,20 +189,20 @@ pub async fn create_import_manifest(
 #[tokio::main]
 pub async fn import_update(
     import_manifest_path: &Path,
-    container_name: String,
-    tenant_id: String,
-    client_id: String,
-    client_secret: String,
-    instance_id: String,
+    container_name: &str,
+    tenant_id: &str,
+    client_id: &str,
+    client_secret: &str,
+    instance_id: &str,
     device_update_endpoint_url: &Url,
-    blob_storage_account: String,
-    blob_storage_key: String,
+    blob_storage_account: &str,
+    blob_storage_key: &str,
 ) -> Result<()> {
     let creds = std::sync::Arc::new(ClientSecretCredential::new(
         azure_core::new_http_client(),
-        tenant_id,
-        client_id,
-        client_secret,
+        tenant_id.to_string(),
+        client_id.to_string(),
+        client_secret.to_string(),
         TokenCredentialOptions::default(),
     ));
     let client = DeviceUpdateClient::new(device_update_endpoint_url.as_str(), creds)?;
@@ -239,9 +238,9 @@ pub async fn import_update(
         .to_string();
 
     let storage_credentials =
-        StorageCredentials::access_key(&blob_storage_account, &blob_storage_key);
-    let storage_account_client = BlobServiceClient::new(&blob_storage_account, storage_credentials);
-    let container_client = storage_account_client.container_client(&container_name);
+        StorageCredentials::access_key(blob_storage_account, blob_storage_key);
+    let storage_account_client = BlobServiceClient::new(blob_storage_account, storage_credentials);
+    let container_client = storage_account_client.container_client(container_name);
     let import_manifest_path = import_manifest_path.file_name().unwrap().to_str().unwrap();
     let manifest_url = generate_sas_url(&container_client, import_manifest_path).await?;
     let file_url1 = generate_sas_url(&container_client, file_name1.clone()).await?;
@@ -254,11 +253,11 @@ pub async fn import_update(
         },
         files: vec![
             FileNameUrl {
-                filename: file_name1,
+                filename: &file_name1,
                 url: file_url1,
             },
             FileNameUrl {
-                filename: file_name2,
+                filename: &file_name2,
                 url: file_url2,
             },
         ],
@@ -278,20 +277,20 @@ pub async fn import_update(
 #[allow(clippy::too_many_arguments)]
 #[tokio::main]
 pub async fn remove_update(
-    tenant_id: String,
-    client_id: String,
-    client_secret: String,
-    instance_id: String,
+    tenant_id: &str,
+    client_id: &str,
+    client_secret: &str,
+    instance_id: &str,
     device_update_endpoint_url: &Url,
-    provider: String,
-    name: String,
-    version: String,
+    provider: &str,
+    name: &str,
+    version: &str,
 ) -> Result<()> {
     let creds = std::sync::Arc::new(ClientSecretCredential::new(
         azure_core::new_http_client(),
-        tenant_id,
-        client_id,
-        client_secret,
+        tenant_id.to_string(),
+        client_id.to_string(),
+        client_secret.to_string(),
         TokenCredentialOptions::default(),
     ));
     let client = DeviceUpdateClient::new(device_update_endpoint_url.as_str(), creds)?;
@@ -309,12 +308,7 @@ pub async fn remove_update(
 fn get_file_attributes(file: &Path) -> Result<File> {
     debug!("get file attributes for {file:#?}");
 
-    let filename = file
-        .file_name()
-        .unwrap()
-        .to_os_string()
-        .into_string()
-        .unwrap();
+    let filename = file.file_name().unwrap().to_string_lossy();
 
     let file = file.to_str().unwrap();
 
