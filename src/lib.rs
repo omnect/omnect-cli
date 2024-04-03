@@ -198,7 +198,7 @@ pub fn run() -> Result<()> {
             &client_id,
             &client_secret,
             &instance_id,
-            &&device_update_endpoint_url,
+            &device_update_endpoint_url,
             &blob_storage_account,
             &blob_storage_key,
         )?,

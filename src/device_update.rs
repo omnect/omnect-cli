@@ -268,7 +268,7 @@ pub async fn import_update(
 
     debug!("import update: {import_update}");
 
-    let import_update_response = client.import_update(&instance_id, import_update).await?;
+    let import_update_response = client.import_update(instance_id, import_update).await?;
     info!("Result of import update: {:?}", &import_update_response);
 
     Ok(())
@@ -298,7 +298,7 @@ pub async fn remove_update(
     debug!("remove update");
 
     let remove_update_response = client
-        .delete_update(&instance_id, &provider, &name, &version)
+        .delete_update(instance_id, provider, name, version)
         .await?;
     info!("Result of remove update: {remove_update_response}");
 
