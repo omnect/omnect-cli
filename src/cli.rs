@@ -179,6 +179,33 @@ pub enum IotHubDeviceUpdate {
         #[arg(short = 'k', long = "blob-storage-key")]
         blob_storage_key: String,
     },
+    /// remove update from azure iot-hub
+    RemoveUpdate {
+        /// azure tenant id
+        #[arg(short = 't', long = "tenant-id")]
+        tenant_id: String,
+        /// azure client id
+        #[arg(short = 'c', long = "client-id")]
+        client_id: String,
+        /// azure client secret
+        #[arg(short = 's', long = "client-secret")]
+        client_secret: String,
+        /// azure instance id
+        #[arg(short = 'i', long = "instance-id")]
+        instance_id: String,
+        /// url of iot-hub device update endpoint
+        #[arg(short = 'e', long = "device-update-endpoint")]
+        device_update_endpoint_url: Url,
+        /// overwrite default update provider
+        #[arg(short = 'p', long = "provider", default_value = "conplement-AG")]
+        provider: String,
+        /// distro variant, e.g. OMNECT-gateway or OMNECT-gateway-devel
+        #[arg(short = 'd', long = "distro-variant")]
+        distro_name: String,
+        /// image version
+        #[arg(short = 'v', long = "version")]
+        version: String,
+    },
     /// create import manifest
     CreateImportManifest {
         /// distro variant, e.g. OMNECT-gateway or OMNECT-gateway-devel

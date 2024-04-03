@@ -8,7 +8,7 @@ omnect-cli is a command-line tool to manage omnect-os empowered devices. It prov
   - Inject general identity configuration for AIS (Azure Identity Service)
   - Inject a device certificate with corresponding key from a given intermediate full-chain-certificate and corresponding key
 - Device Update for IoT Hub:
-  - create import manifest and import update to IoT Hub (https://learn.microsoft.com/en-us/azure/iot-hub-device-update/import-concepts)
+  - manage updates (create, import, remove) (https://learn.microsoft.com/en-us/azure/iot-hub-device-update/import-concepts)
   - inject configuration file `du-config.json` (https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
 - Generic configuration of services
   - copy files to image in order to configure e.g. boot service, firewall, wifi and others
@@ -101,6 +101,14 @@ omnect-cli iot-hub-device-update import-update --help
 ```
 
 **Note**: The import process may take several minutes.
+
+### Remove update from IoT Hub
+This command removes an update from Azure Device Update for IoT Hub that was previously imported by `import-update` command.
+
+Detailed description:
+```sh
+omnect-cli iot-hub-device-update remove-update --help
+```
 
 ### Inject `du-config.json` configuration file
 This command injects a device update configuration into a firmware image.
