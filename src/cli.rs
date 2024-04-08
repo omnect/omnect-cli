@@ -261,9 +261,6 @@ pub enum SshConfig {
         /// path to public key of the ssh root ca
         #[arg(short = 'r', long = "root_ca")]
         root_ca: PathBuf,
-        /// device-id
-        #[arg(short = 'd', long = "device-principal")]
-        device_principal: String,
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,

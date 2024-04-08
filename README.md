@@ -14,7 +14,7 @@ omnect-cli is a command-line tool to manage omnect-os empowered devices. It prov
   - copy files to image in order to configure e.g. boot service, firewall, wifi and others
   - copy files from image, e.g. to patch and re-inject configurations
 - ssh:
-  - inject a ssh root ca and device principal for ssh tunnel creation
+  - inject a ssh root ca for ssh tunnel creation
 
 Further omnect-cli supports device management features. Currently supported:
   - open a ssh tunnel on a device in the field to connect to it
@@ -151,7 +151,7 @@ omnect-cli file copy-to-image --help
 
 ### Inject ssh tunnel credentials
 
-For the ssh feature, the device requires the public key of the ssh root ca and the principal. The latter should be the device id.
+For the ssh feature, the device requires the public key of the ssh root ca.
 
 Detailed description:
 ```sh
