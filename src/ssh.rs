@@ -288,7 +288,7 @@ fn print_ssh_tunnel_info(cert_dir: &Path, config_path: &Path, destination: &str)
     println!("Successfully established ssh tunnel!");
     if let Ok("windows") = std::env::var("CONTAINER_HOST").as_deref() {
         println!(
-            "You can ssh to now ssh to your device via its device name, e.g.:\nssh {}",
+            "You can ssh now to your device via its device name, e.g.:\nssh {}",
             destination
         );
     } else {
