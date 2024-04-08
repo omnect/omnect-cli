@@ -217,7 +217,8 @@ Please remove config file first."#
     if let Ok("windows") = std::env::var("CONTAINER_HOST").as_deref() {
         writeln!(
             &mut writer,
-            r#"Host bastion
+            "\
+Host bastion
 	User {}
 	Hostname {}
 	Port {}
@@ -229,7 +230,7 @@ Host {}
 	User {}
 	IdentityFile ~/.ssh/{}
 	CertificateFile ~/.ssh/{}
-	ProxyCommand ssh bastion"#,
+	ProxyCommand ssh bastion",
             bastion_details.username,
             bastion_details.hostname,
             bastion_details.port,
@@ -254,7 +255,8 @@ Host {}
     } else {
         writeln!(
             &mut writer,
-            r#"Host bastion
+            "\
+Host bastion
 	User {}
 	Hostname {}
 	Port {}
@@ -266,7 +268,7 @@ Host {}
 	User {}
 	IdentityFile {}
 	CertificateFile {}
-	ProxyCommand ssh -F {} bastion"#,
+	ProxyCommand ssh -F {} bastion",
             bastion_details.username,
             bastion_details.hostname,
             bastion_details.port,
