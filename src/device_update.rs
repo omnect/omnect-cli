@@ -200,10 +200,10 @@ pub async fn import_update(
 ) -> Result<()> {
     let creds = std::sync::Arc::new(ClientSecretCredential::new(
         azure_core::new_http_client(),
+        TokenCredentialOptions::default().authority_host()?,
         tenant_id.to_string(),
         client_id.to_string(),
         client_secret.to_string(),
-        TokenCredentialOptions::default(),
     ));
     let client = DeviceUpdateClient::new(device_update_endpoint_url.as_str(), creds)?;
     let manifest_file_size = std::fs::metadata(import_manifest_path)
@@ -238,7 +238,7 @@ pub async fn import_update(
         .to_string();
 
     let storage_credentials =
-        StorageCredentials::access_key(blob_storage_account, blob_storage_key);
+        StorageCredentials::access_key(blob_storage_account, blob_storage_key.to_string());
     let storage_account_client = BlobServiceClient::new(blob_storage_account, storage_credentials);
     let container_client = storage_account_client.container_client(container_name);
     let import_manifest_path = import_manifest_path.file_name().unwrap().to_str().unwrap();
@@ -288,10 +288,10 @@ pub async fn remove_update(
 ) -> Result<()> {
     let creds = std::sync::Arc::new(ClientSecretCredential::new(
         azure_core::new_http_client(),
+        TokenCredentialOptions::default().authority_host()?,
         tenant_id.to_string(),
         client_id.to_string(),
         client_secret.to_string(),
-        TokenCredentialOptions::default(),
     ));
     let client = DeviceUpdateClient::new(device_update_endpoint_url.as_str(), creds)?;
 

@@ -7,16 +7,25 @@ license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.21.1"
+version = "0.21.2"
 
 [dependencies]
 actix-web = "4.4"
 anyhow = "1"
-azure_core = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2023-11-03" }
-azure_iot_deviceupdate = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2023-11-03" }
-azure_identity = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2023-11-03" }
-azure_storage = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2023-11-03" }
-azure_storage_blobs = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2023-11-03" }
+# switch back to https://github.com/Azure/azure-sdk-for-rust.git as soon as
+# https://github.com/Azure/azure-sdk-for-rust/pull/1636 
+# is merged and a new new release is available
+#azure_core = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2024-??-??" }
+#azure_iot_deviceupdate = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2024-??-??" }
+#azure_identity = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2024-??-??" }
+#azure_storage = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2024-??-??" }
+#azure_storage_blobs = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2024-??-??" }
+azure_core = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
+azure_iot_deviceupdate = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
+azure_identity = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
+azure_storage = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
+azure_storage_blobs = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
+
 base64 = "0.13"
 bzip2 = "0.4"
 clap = { version = "4.0", features = ["derive"] }
@@ -48,7 +57,7 @@ tokio = { version = "1", features = [
     "io-util",
     "fs",
     "net",
-    "rt-multi-thread"
+    "rt-multi-thread",
 ] }
 toml = "0.8"
 uuid = { version = "0.8", default-features = false, features = ["v4"] }
