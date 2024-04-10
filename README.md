@@ -226,15 +226,16 @@ necessary:
    `windows`.
 3. map the container's port on localhost 4000 to the hosts port 4000
 
-With our `prod_device` from above, the call would then look, for example, as follows:
+With our `dev_device` from above, the call would then look, for example, as follows:
 
 ```sh
 docker run --rm \
   -u 0:0 \
   -v "~/.ssh":/root/.local/share/omnect-cli \
+  -v dev_env.toml:/dev_env.toml \
   -p 127.0.0.1:4000:4000 \
   omnect/omnect-cli:latest \
-  ssh set-connection
+  ssh set-connection dev_device --env dev_env.toml
 ```
 
 If you want to use a custom backend configuration, you additionally have to
