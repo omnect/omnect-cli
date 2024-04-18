@@ -167,11 +167,10 @@ pub fn run() -> Result<()> {
         Command::Ssh(SetCertificate {
             image,
             root_ca,
-            device_principal,
             generate_bmap,
             compress_image,
         }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
-            file::set_ssh_tunnel_certificate(img, &root_ca, &device_principal)
+            file::set_ssh_tunnel_certificate(img, &root_ca)
         })?,
         Command::IotHubDeviceUpdate(IotHubDeviceUpdateSet {
             iot_hub_device_update_config,

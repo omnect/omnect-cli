@@ -76,24 +76,15 @@ pub fn set_iot_leaf_sas_config(
     copy_to_image(&file_copies, image_file)
 }
 
-pub fn set_ssh_tunnel_certificate(
-    image_file: &Path,
-    root_ca_file: &Path,
-    device_principal: &str,
-) -> Result<()> {
+pub fn set_ssh_tunnel_certificate(image_file: &Path, root_ca_file: &Path) -> Result<()> {
     validate_ssh_pub_key(root_ca_file)?;
-    let authorized_principals_file = get_file_path(image_file.parent(), "authorized_principals")?;
-    fs::write(&authorized_principals_file, device_principal)?;
 
     copy_to_image(
-        &[
-            FileCopyToParams::new(root_ca_file, Partition::cert, Path::new("/ssh/root_ca")),
-            FileCopyToParams::new(
-                &authorized_principals_file.to_path_buf(),
-                Partition::cert,
-                Path::new("/ssh/authorized_principals"),
-            ),
-        ],
+        &[FileCopyToParams::new(
+            root_ca_file,
+            Partition::cert,
+            Path::new("/ssh/root_ca"),
+        )],
         image_file,
     )
 }
