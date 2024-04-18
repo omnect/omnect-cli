@@ -92,4 +92,6 @@ COPY --from=builder /copy/usr/lib/ /usr/lib/
 COPY --from=builder /copy/lib/ /lib/
 COPY --from=builder /copy/status.d /var/lib/dpkg/status.d
 
+ENV CONTAINERIZED="true"
+
 ENTRYPOINT [ "/usr/bin/omnect-cli" ]

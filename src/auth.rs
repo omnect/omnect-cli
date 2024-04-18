@@ -175,7 +175,11 @@ pub async fn authorize<A>(auth_provider: A) -> Result<oauth2::AccessToken>
 where
     A: Into<AuthInfo>,
 {
-    let auth_info: AuthInfo = auth_provider.into();
+    let mut auth_info: AuthInfo = auth_provider.into();
+
+    if let Ok("true") | Ok("1") = std::env::var("CONTAINERIZED").as_deref() {
+        auth_info.bind_addr = "0.0.0.0:4000".to_string();
+    }
 
     // If there is a refresh token from previous runs, try to create our access
     // token from that. Note, that we don't store access tokens themselves as
