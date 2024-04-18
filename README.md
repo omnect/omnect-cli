@@ -232,7 +232,7 @@ for example, as follows:
 ```sh
 docker run --rm \
   -u 0:0 \
-  -v "~/.ssh":/root/.local/share/omnect-cli \
+  -v "C:/absolute/host/path/to/.ssh":/root/.local/share/omnect-cli \
   -v dev_env.toml:/dev_env.toml \
   -e CONTAINER_HOST=windows \
   -p 127.0.0.1:4000:4000 \
