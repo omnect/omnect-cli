@@ -7,13 +7,13 @@ license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.23.1"
+version = "0.23.2"
 
 [dependencies]
 actix-web = "4.4"
 anyhow = "1"
 # switch back to https://github.com/Azure/azure-sdk-for-rust.git as soon as
-# https://github.com/Azure/azure-sdk-for-rust/pull/1636 
+# https://github.com/Azure/azure-sdk-for-rust/pull/1636
 # is merged and a new new release is available
 #azure_core = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2024-??-??" }
 #azure_iot_deviceupdate = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2024-??-??" }
@@ -73,7 +73,7 @@ file_diff = "1.0"
 httpmock = "0.6"
 ring = "0.17"
 
-# metadata for building with cargo-deb (https://crates.io/crates/cargo-deb) 
+# metadata for building with cargo-deb (https://crates.io/crates/cargo-deb)
 [package.metadata.deb]
 depends = "bmap-tools, e2tools, fdisk, keychain, libc6 (>= 2.34), libmagic1, libssl3 (>= 3.0.0), mtools"
 revision = ""
