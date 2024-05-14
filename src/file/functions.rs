@@ -323,10 +323,15 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
                 parent.to_str().unwrap()
             ))?;
         }
-        fs::rename(&tmp_out_file, &param.out_file).context(format!(
-            "copy_from_image: couldn't move temp file {} to destination {}",
+        // instead of rename we copy and delete to prevent "Invalid cross-device link" errors
+        fs::copy(&tmp_out_file, &param.out_file).context(format!(
+            "copy_from_image: couldn't copy temp file {} to destination {}",
             tmp_out_file.to_str().unwrap(),
             param.out_file.to_str().unwrap()
+        ))?;
+        fs::remove_file(&tmp_out_file).context(format!(
+            "copy_from_image: couldn't delete temp file {}",
+            tmp_out_file.to_str().unwrap()
         ))?;
     }
 
