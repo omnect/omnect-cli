@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
 use stdext::function_name;
+use uuid::Uuid;
 
 #[derive(clap::ValueEnum, Debug, Clone, Eq, Hash, PartialEq)]
 #[allow(non_camel_case_types)]
@@ -281,7 +282,6 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
     for param in file_copy_params.iter() {
         let mut partition_file = working_dir.clone();
         let mut tmp_out_file = working_dir.clone();
-        let working_dir = working_dir.to_str().unwrap();
         let partition_info = get_partition_info(image_file, &param.partition)?;
         let in_file = param.in_file.to_str().unwrap();
 
@@ -289,22 +289,27 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
         let partition_file = partition_file.to_str().unwrap();
 
         read_partition(image_file, partition_file, &partition_info)?;
+        tmp_out_file.push(format!(
+            "{}-{}",
+            Uuid::new_v4(),
+            param.out_file.file_name().unwrap().to_str().unwrap()
+        ));
+        anyhow::ensure!(
+            tmp_out_file != param.out_file,
+            "copy_to_image: temp file is same as out_file"
+        );
 
         // 1. copy to working_dir
         if param.partition == Partition::boot {
-            tmp_out_file.push(param.in_file.file_name().unwrap());
-
             let mut mcopy = Command::new("mcopy");
             mcopy
                 .arg("-o")
                 .arg("-i")
                 .arg(partition_file)
                 .arg(format!("::{in_file}"))
-                .arg(working_dir);
+                .arg(&tmp_out_file);
             exec_cmd!(mcopy);
         } else {
-            tmp_out_file.push(param.out_file.file_name().unwrap());
-
             let mut e2cp = Command::new("e2cp");
             e2cp.arg(format!("{partition_file}:{in_file}"))
                 .arg(tmp_out_file.to_str().unwrap());
@@ -323,12 +328,17 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
                 parent.to_str().unwrap()
             ))?;
         }
+
         // instead of rename we copy and delete to prevent "Invalid cross-device link" errors
-        fs::copy(&tmp_out_file, &param.out_file).context(format!(
+        let bytes_copied = fs::copy(&tmp_out_file, &param.out_file).context(format!(
             "copy_from_image: couldn't copy temp file {} to destination {}",
             tmp_out_file.to_str().unwrap(),
             param.out_file.to_str().unwrap()
         ))?;
+        anyhow::ensure!(
+            tmp_out_file.metadata().unwrap().len() == bytes_copied,
+            "copy_from_image: copy temp file failed"
+        );
         fs::remove_file(&tmp_out_file).context(format!(
             "copy_from_image: couldn't delete temp file {}",
             tmp_out_file.to_str().unwrap()

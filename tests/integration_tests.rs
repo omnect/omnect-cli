@@ -110,6 +110,9 @@ fn check_set_identity_gateway_config() {
         edge_device_identity_key_file_path.to_str().unwrap(),
         edge_device_identity_key_file_out_path
     ));
+    assert!(std::path::Path::new(hosts_file_out_path)
+        .try_exists()
+        .is_ok_and(|exists| exists));
 
     assert!(std::fs::read_to_string(hosts_file_out_path)
         .unwrap()
