@@ -294,10 +294,6 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
             Uuid::new_v4(),
             param.out_file.file_name().unwrap().to_str().unwrap()
         ));
-        anyhow::ensure!(
-            tmp_out_file != param.out_file,
-            "copy_to_image: temp file is same as out_file"
-        );
 
         // 1. copy to working_dir
         if param.partition == Partition::boot {
