@@ -4,7 +4,7 @@ use assert_json_diff::assert_json_eq;
 use common::Testrunner;
 use httpmock::prelude::*;
 use omnect_cli::ssh;
-use std::path::PathBuf;
+use std::{fs::create_dir_all, path::PathBuf};
 use stdext::function_name;
 
 #[macro_use]
@@ -38,6 +38,7 @@ fn check_set_identity_gateway_config() {
 
     let mut config_file_out_path = tr.pathbuf();
     config_file_out_path.push("dir1");
+    create_dir_all(config_file_out_path.clone()).unwrap();
     let mut root_ca_file_out_path = config_file_out_path.clone();
     let mut edge_device_identity_full_chain_file_out_path = config_file_out_path.clone();
     let mut edge_device_identity_key_file_out_path = config_file_out_path.clone();
@@ -145,6 +146,7 @@ fn check_set_identity_leaf_config() {
 
     let mut config_file_out_path = tr.pathbuf();
     config_file_out_path.push("dir1");
+    create_dir_all(config_file_out_path.clone()).unwrap();
     let mut root_ca_file_out_path = config_file_out_path.clone();
     let mut hosts_file_out_path = config_file_out_path.clone();
     let mut hostname_file_out_path = config_file_out_path.clone();
@@ -215,6 +217,7 @@ fn check_set_identity_config_est_template() {
 
     let mut config_file_out_path = tr.pathbuf();
     config_file_out_path.push("dir1");
+    create_dir_all(config_file_out_path.clone()).unwrap();
     let mut hosts_file_out_path = config_file_out_path.clone();
     let mut hostname_file_out_path = config_file_out_path.clone();
 
@@ -279,6 +282,7 @@ fn check_set_identity_config_payload_template() {
 
     let mut config_file_out_path = tr.pathbuf();
     config_file_out_path.push("dir1");
+    create_dir_all(config_file_out_path.clone()).unwrap();
     let mut payload_out_path = config_file_out_path.clone();
     let mut hosts_file_out_path = config_file_out_path.clone();
     let mut hostname_file_out_path = config_file_out_path.clone();
@@ -351,6 +355,7 @@ fn check_set_identity_config_tpm_template() {
 
     let mut config_file_out_path = tr.pathbuf();
     config_file_out_path.push("dir1");
+    create_dir_all(config_file_out_path.clone()).unwrap();
     let mut hosts_file_out_path = config_file_out_path.clone();
     let mut hostname_file_out_path = config_file_out_path.clone();
 
@@ -418,6 +423,8 @@ fn check_set_device_cert() {
 
     let mut device_id_cert_out_path = tr.pathbuf();
     device_id_cert_out_path.push("dir1");
+    create_dir_all(device_id_cert_out_path.clone()).unwrap();
+
     let mut device_id_cert_key_out_path = device_id_cert_out_path.clone();
     let mut ca_crt_pem_out_path = device_id_cert_out_path.clone();
     let mut ca_pem_out_path = device_id_cert_out_path.clone();
@@ -481,6 +488,7 @@ fn check_set_iot_hub_device_update_template() {
 
     let mut adu_config_file_out_path = tr.pathbuf();
     adu_config_file_out_path.push("dir1");
+    create_dir_all(adu_config_file_out_path.clone()).unwrap();
     adu_config_file_out_path.push("adu_config_file_out_path");
     let adu_config_file_out_path = adu_config_file_out_path.to_str().unwrap();
 
@@ -572,12 +580,18 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
     let in_file1 = in_file1.to_str().unwrap();
     let in_file2 = tr.to_pathbuf("testfiles/dps-payload.json");
     let in_file2 = in_file2.to_str().unwrap();
-    let out_file1 = "/test/test1.scr";
-    let out_file2 = "/test2.json";
+    let mut out_file1 = tr.pathbuf();
+    out_file1.push("test/test1.scr");
+    create_dir_all(out_file1.parent().unwrap()).unwrap();
+    let out_file1 = out_file1.to_str().unwrap();
+    let mut out_file2 = tr.pathbuf();
+    out_file2.push("test2.json");
+    let out_file2 = out_file2.to_str().unwrap();
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let mut out_file3 = tr.pathbuf();
     out_file3.push("dir1");
     out_file3.push("outfile3.scr");
+    create_dir_all(out_file3.parent().unwrap()).unwrap();
     let out_file3 = out_file3.to_str().unwrap();
     let mut out_file4 = tr.pathbuf();
     out_file4.push("outfile4.json");
