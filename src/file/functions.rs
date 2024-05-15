@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
 use stdext::function_name;
+use uuid::Uuid;
 
 #[derive(clap::ValueEnum, Debug, Clone, Eq, Hash, PartialEq)]
 #[allow(non_camel_case_types)]
@@ -280,8 +281,7 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
 
     for param in file_copy_params.iter() {
         let mut partition_file = working_dir.clone();
-        let mut tmp_out_file = working_dir.clone();
-        let working_dir = working_dir.to_str().unwrap();
+
         let partition_info = get_partition_info(image_file, &param.partition)?;
         let in_file = param.in_file.to_str().unwrap();
 
@@ -290,9 +290,25 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
 
         read_partition(image_file, partition_file, &partition_info)?;
 
-        // 1. copy to working_dir
+        anyhow::ensure!(
+            param
+                .out_file
+                .parent()
+                .unwrap()
+                .try_exists()
+                .is_ok_and(|exists| exists),
+            "copy_from_image: output dir does not exist."
+        );
+
+        // copy
         if param.partition == Partition::boot {
-            tmp_out_file.push(param.in_file.file_name().unwrap());
+            let mut tmp_out_file = working_dir.clone();
+            // mcopy deadlocks when target file is not residing in workingdir so we copy to a temp file
+            tmp_out_file.push(format!(
+                "{}-{}",
+                Uuid::new_v4(),
+                param.out_file.file_name().unwrap().to_str().unwrap()
+            ));
 
             let mut mcopy = Command::new("mcopy");
             mcopy
@@ -300,34 +316,33 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
                 .arg("-i")
                 .arg(partition_file)
                 .arg(format!("::{in_file}"))
-                .arg(working_dir);
+                .arg(&tmp_out_file);
             exec_cmd!(mcopy);
+            // instead of rename we copy and delete to prevent "Invalid cross-device link" errors
+            let bytes_copied = fs::copy(&tmp_out_file, &param.out_file).context(format!(
+                "copy_from_image: couldn't copy temp file {} to destination {}",
+                tmp_out_file.to_str().unwrap(),
+                param.out_file.to_str().unwrap()
+            ))?;
+            anyhow::ensure!(
+                tmp_out_file.metadata().unwrap().len() == bytes_copied,
+                "copy_from_image: copy temp file failed"
+            );
+            fs::remove_file(&tmp_out_file).context(format!(
+                "copy_from_image: couldn't delete temp file {}",
+                tmp_out_file.to_str().unwrap()
+            ))?;
         } else {
-            tmp_out_file.push(param.out_file.file_name().unwrap());
-
             let mut e2cp = Command::new("e2cp");
             e2cp.arg(format!("{partition_file}:{in_file}"))
-                .arg(tmp_out_file.to_str().unwrap());
+                .arg(param.out_file.to_str().unwrap());
             exec_cmd!(e2cp);
             // since e2cp doesn't return errors in any case we check if output file exists
             anyhow::ensure!(
-                tmp_out_file.try_exists().is_ok_and(|exists| exists),
+                param.out_file.try_exists().is_ok_and(|exists| exists),
                 format!("copy_from_image: cmd failed: {:?}", e2cp)
             )
         }
-
-        // 2.create final dir and move tmp file into
-        if let Some(parent) = param.out_file.parent() {
-            fs::create_dir_all(parent).context(format!(
-                "copy_from_image: couldn't create destination path {}",
-                parent.to_str().unwrap()
-            ))?;
-        }
-        fs::rename(&tmp_out_file, &param.out_file).context(format!(
-            "copy_from_image: couldn't move temp file {} to destination {}",
-            tmp_out_file.to_str().unwrap(),
-            param.out_file.to_str().unwrap()
-        ))?;
     }
 
     Ok(())
