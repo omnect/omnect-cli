@@ -5,6 +5,7 @@ pub mod cli;
 pub mod config;
 pub mod device_update;
 pub mod file;
+pub mod image;
 pub mod ssh;
 mod validators;
 use anyhow::{Context, Result};
