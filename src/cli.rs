@@ -1,6 +1,6 @@
 use crate::file::{
     compression::Compression,
-    functions::{FileCopyFromParams, FileCopyToParams},
+    functions::{FileCopyFromParams, FileCopyToParams, Partition},
 };
 use clap::Parser;
 use std::path::PathBuf;
@@ -9,6 +9,31 @@ use url::Url;
 const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 
 // ToDo: command completion
+#[derive(Parser, Debug)]
+#[command(after_help = COPYRIGHT)]
+/// inject and manage docker containers in a firmware image
+pub enum Docker {
+    Inject {
+        /// full qualified name of the docker image
+        #[clap(short = 'd', long = "docker-image", required(true))]
+        docker_image: String,
+        /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
+        #[arg(short = 'i', long = "image")]
+        image: PathBuf,
+        /// partition to store the image to
+        #[clap(short = 'a', long = "partition", value_enum)]
+        partition: Partition,
+        /// file path to store the docker image to
+        #[clap(short = 'e', long = "dest")]
+        dest: PathBuf,
+        /// optional: generate bmap file (currently not working in docker image)
+        #[arg(short = 'b', long = "generate-bmap-file")]
+        generate_bmap: bool,
+        /// optional: pack image [xz, bzip2, gzip]
+        #[arg(short = 'p', long = "pack-image", value_enum)]
+        compress_image: Option<Compression>,
+    },
+}
 
 #[derive(Parser, Debug)]
 #[command(after_help = COPYRIGHT)]
@@ -303,6 +328,8 @@ pub enum SshConfig {
 /// This tool helps to manage your omnect devices. For more information visit:
 /// https://github.com/omnect/omnect-cli
 pub enum Command {
+    #[command(subcommand)]
+    Docker(Docker),
     #[command(subcommand)]
     File(File),
     #[command(subcommand)]
