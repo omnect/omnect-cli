@@ -117,7 +117,7 @@ pub enum IdentityConfig {
         image: PathBuf,
         /// device id
         #[arg(short = 'd', long = "device-id")]
-        device_id: std::string::String,
+        device_id: String,
         /// period of validity in days
         #[arg(short = 'D', long = "days")]
         days: u32,
