@@ -348,6 +348,25 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
     Ok(())
 }
 
+pub fn read_file_from_image(
+    path: impl AsRef<Path>,
+    partition: Partition,
+    image_file: impl AsRef<Path>,
+) -> Result<String> {
+    let tmp_file = tempfile::NamedTempFile::new()
+        .context("read_file_from_image: could not create temporary file path")?;
+
+    let params = FileCopyFromParams::new(path.as_ref(), partition, tmp_file.path());
+
+    copy_from_image(&[params], image_file.as_ref())
+        .context("read_file_from_image: could not copy file content")?;
+
+    let content = std::fs::read_to_string(tmp_file.path())
+        .context("read_file_from_image: could not read file content")?;
+
+    Ok(content)
+}
+
 fn get_partition_info(image_file: &str, partition: &Partition) -> Result<PartitionInfo> {
     let mut fdisk = Command::new("fdisk");
     fdisk
