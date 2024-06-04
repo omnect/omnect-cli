@@ -15,6 +15,8 @@ omnect-cli is a command-line tool to manage omnect-os empowered devices. It prov
   - copy files from image, e.g. to patch and re-inject configurations
 - ssh:
   - inject a ssh root ca for ssh tunnel creation
+- docker:
+  - inject packed docker images into the image
 
 Further omnect-cli supports device management features. Currently supported:
   - open a ssh tunnel on a device in the field to connect to it
@@ -243,6 +245,17 @@ docker run --rm \
 If you want to use a custom backend configuration, you additionally have to
 bind mount the config file, as well, i.e., `-v host/path/to/config.toml:/config.toml`,
 and then tell omnect-cli to use this path.
+
+## docker
+
+### Inject docker images into firmware images
+
+This command downloads and injects a packed docker image into a firmware image.
+
+Detailed description:
+```sh
+omnect-cli docker inject --help
+```
 
 # Troubleshooting
 
