@@ -74,6 +74,7 @@ file_diff = "1.0"
 httpmock = "0.6"
 omnect-cli = { path = ".", features = ["mock"] }
 ring = "0.17"
+tar = "0.4.41"
 
 # metadata for building with cargo-deb (https://crates.io/crates/cargo-deb)
 [package.metadata.deb]
