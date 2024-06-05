@@ -11,6 +11,7 @@ use stdext::function_name;
 use uuid::Uuid;
 
 #[derive(clap::ValueEnum, Debug, Clone, Eq, Hash, PartialEq)]
+#[clap(rename_all = "verbatim")]
 #[allow(non_camel_case_types)]
 pub enum Partition {
     boot,
