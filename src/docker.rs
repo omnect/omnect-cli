@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use std::io::Write;
 use std::path::PathBuf;
 
 use crate::image::Architecture;
@@ -88,6 +87,8 @@ mod inner {
 #[cfg(feature = "mock")]
 mod inner {
     use super::*;
+
+    use std::io::Write;
 
     pub fn pull_image(name: impl AsRef<str>, _arch: Architecture) -> Result<PathBuf> {
         let out_path = std::path::PathBuf::from(format!("{}.tar.gz", name.as_ref()));
