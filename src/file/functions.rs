@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use log::{debug, warn};
 use regex::Regex;
 use std::collections::HashMap;
+use std::fmt::{self, Display};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -23,6 +24,17 @@ struct PartitionInfo {
     num: String,
     start: String,
     end: String,
+}
+
+impl Display for Partition {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Partition::boot => write!(f, "boot"),
+            Partition::rootA => write!(f, "rootA"),
+            Partition::cert => write!(f, "cert"),
+            Partition::factory => write!(f, "factory"),
+        }
+    }
 }
 
 impl FromStr for Partition {
