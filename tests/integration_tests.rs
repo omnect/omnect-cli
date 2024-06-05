@@ -993,8 +993,6 @@ Please remove config file first."#
 
 #[test]
 fn check_docker_inject_image_success() {
-    const EXPECTED: &str = "some test data";
-
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
     let image_path = tr.to_pathbuf("testfiles/image.wic");
@@ -1005,10 +1003,16 @@ fn check_docker_inject_image_success() {
         .arg("inject")
         .args(["--docker-image", "some-image"])
         .args(["--image", &image_path.to_string_lossy()])
-        .args(["--partition", "root-a"])
+        .args(["--partition", "rootA"])
         .args(["--dest", "/some/test/dir"])
         .assert();
+    let result_output = String::from_utf8(assert.get_output().stdout.to_vec()).unwrap();
+    let result_output = result_output.trim();
     assert.success();
+
+    const EXPECTED_OUTPUT: &str = "Stored some-image to rootA:/some/test/dir/some-image.tar.gz";
+
+    assert_eq!(EXPECTED_OUTPUT, result_output);
 
     let mut docker_image_out_path = tr.pathbuf();
     docker_image_out_path.push("docker");
@@ -1029,7 +1033,9 @@ fn check_docker_inject_image_success() {
         .assert();
     assert.success();
 
-    let result = std::fs::read_to_string(docker_image_out_path).unwrap();
+    const EXPECTED_CONTENT: &str = "some test data";
 
-    assert_eq!(EXPECTED, result);
+    let result_content = std::fs::read_to_string(docker_image_out_path).unwrap();
+
+    assert_eq!(EXPECTED_CONTENT, result_content);
 }
