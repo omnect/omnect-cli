@@ -24,7 +24,7 @@ pub enum Docker {
         #[clap(short = 'a', long = "partition", value_enum, default_value = "rootA")]
         partition: Partition,
         /// file path to store the docker image to
-        #[clap(short = 'e', long = "dest")]
+        #[clap(short = 'e', long = "dest", default_value = "/")]
         dest: PathBuf,
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
