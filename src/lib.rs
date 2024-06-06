@@ -119,17 +119,18 @@ pub fn run() -> Result<()> {
             dest.push(docker_file_name);
 
             let params = FileCopyToParams::new(&docker_path, partition.clone(), &dest);
-            file::copy_to_image(&[params], img)?;
-            std::fs::remove_file(docker_path)?;
+            let result = file::copy_to_image(&[params], img);
 
-            println!(
-                "Stored {} to {}:{}",
-                docker_image,
-                partition,
-                dest.to_string_lossy(),
-            );
+            if result.is_ok() {
+                println!(
+                    "Stored {} to {}:{}",
+                    docker_image,
+                    partition,
+                    dest.to_string_lossy(),
+                );
+            }
 
-            Ok(())
+            result
         })?,
         Command::Identity(SetConfig {
             config,
