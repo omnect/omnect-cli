@@ -64,7 +64,7 @@ mod inner {
         let stdout = child.stdout.take().unwrap();
         let image_file = File::from(stdout.as_fd().try_clone_to_owned()?);
 
-        let out_path = std::path::PathBuf::from(format!("{}.tar.gz", name.as_ref()));
+        let out_path = std::path::PathBuf::from(format!("{}.tar.xz", name.as_ref()));
         let out_file = std::fs::File::options()
             .create_new(true)
             .write(true)
