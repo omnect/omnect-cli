@@ -6,7 +6,9 @@ use crate::image::Architecture;
 impl From<Architecture> for &str {
     fn from(arch: Architecture) -> &'static str {
         match arch {
-            Architecture::Arm64 => "linux/arm64",
+            Architecture::ARM32 => "linux/arm/v7",
+            Architecture::ARM64 => "linux/arm64",
+            Architecture::x86_64 => "linux/amd64",
         }
     }
 }

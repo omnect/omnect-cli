@@ -17,8 +17,11 @@ lazy_static::lazy_static! {
     };
 }
 
+#[allow(non_camel_case_types)]
 pub enum Architecture {
-    Arm64,
+    ARM32,
+    ARM64,
+    x86_64,
 }
 
 impl TryInto<Architecture> for &str {
@@ -26,7 +29,10 @@ impl TryInto<Architecture> for &str {
 
     fn try_into(self) -> Result<Architecture> {
         let arch = match self {
-            "aarch64" => Architecture::Arm64,
+            // for simplicity we assume that our devices are at least armv7
+            "arm" => Architecture::ARM32,
+            "aarch64" => Architecture::ARM64,
+            "x86_64" => Architecture::x86_64,
             _ => {
                 anyhow::bail!("unknown architecture: {self}")
             }
