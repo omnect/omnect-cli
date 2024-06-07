@@ -21,7 +21,7 @@ pub enum Docker {
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
         /// partition to store the image to
-        #[clap(short = 'a', long = "partition", value_enum, default_value = "rootA")]
+        #[clap(short = 'a', long = "partition", value_enum, default_value = "factory")]
         partition: Partition,
         /// file path to store the docker image to
         #[clap(short = 'e', long = "dest", default_value = "/")]

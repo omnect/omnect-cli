@@ -1003,14 +1003,14 @@ fn check_docker_inject_image_success() {
         .arg("inject")
         .args(["--docker-image", "some-image"])
         .args(["--image", &image_path.to_string_lossy()])
-        .args(["--partition", "rootA"])
+        .args(["--partition", "factory"])
         .args(["--dest", "/some/test/dir"])
         .assert();
     let result_output = String::from_utf8(assert.get_output().stdout.to_vec()).unwrap();
     let result_output = result_output.trim();
     assert.success();
 
-    const EXPECTED_OUTPUT: &str = "Stored some-image to rootA:/some/test/dir/some-image.tar.gz";
+    const EXPECTED_OUTPUT: &str = "Stored some-image to factory:/some/test/dir/some-image.tar.gz";
 
     assert_eq!(EXPECTED_OUTPUT, result_output);
 
@@ -1025,7 +1025,7 @@ fn check_docker_inject_image_success() {
         .arg("copy-from-image")
         .arg("-f")
         .arg(format!(
-            "rootA:/some/test/dir/some-image.tar.gz,{}",
+            "factory:/some/test/dir/some-image.tar.gz,{}",
             docker_image_out_path.to_string_lossy(),
         ))
         .arg("-i")
