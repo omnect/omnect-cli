@@ -120,6 +120,7 @@ pub fn run() -> Result<()> {
 
             let params = FileCopyToParams::new(&docker_path, partition.clone(), &dest);
             let result = file::copy_to_image(&[params], img);
+            std::fs::remove_file(docker_path)?;
 
             if result.is_ok() {
                 println!(
