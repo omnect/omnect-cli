@@ -1,3 +1,4 @@
+use std::convert::AsRef;
 use std::fs;
 use std::io::prelude::*;
 use std::io::BufWriter;
@@ -5,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::str;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use oauth2::AccessToken;
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,30 @@ pub struct Config {
     dir: PathBuf,
     priv_key_path: Option<PathBuf>,
     config_path: PathBuf,
+}
+
+fn query_yes_no<R, W>(query: impl AsRef<str>, mut reader: R, mut writer: W) -> Result<bool>
+where
+    R: std::io::BufRead,
+    W: std::io::Write,
+{
+    writeln!(writer, "{}", query.as_ref())?;
+
+    loop {
+        let mut buffer = String::new();
+        reader
+            .read_line(&mut buffer)
+            .map(|err| anyhow::anyhow!("Can't read from stdin: {err}"))
+            .context("create ssh configuration")?;
+
+        match buffer.as_str() {
+            "y" | "yes" => return Ok(true),
+            "N" | "No" | "" => return Ok(false),
+            _ => {
+                eprintln!("Please specify either y(es) or N(o)");
+            }
+        }
+    }
 }
 
 impl Config {
@@ -61,7 +86,7 @@ impl Config {
                 .to_path_buf(),
         };
 
-        // check that key pair exists
+        // if user wants to use existing key pair, check that it exists
         if let Some(key_path) = &priv_key_path {
             if !key_path.try_exists().is_ok_and(|exists| exists)
                 || !key_path
@@ -70,6 +95,29 @@ impl Config {
                     .is_ok_and(|exists| exists)
             {
                 anyhow::bail!("Missing private/public ssh key.");
+            }
+        }
+
+        // if user wants specific config file path, check whether an existing
+        // config file would be overwritten. If so, query, whether this is
+        // intended.
+        if let Some(ref config_path) = config_path {
+            if config_path.exists() {
+                if query_yes_no(
+                    format!(
+                        r#"Config file "{}" would be overwritten by operation. Continue? [y/N]"#,
+                        config_path.to_string_lossy(),
+                    ),
+                    std::io::BufReader::new(std::io::stdin()),
+                    std::io::stderr(),
+                )? {
+                    log::info!(
+                        "Overwriting existing config: {}",
+                        config_path.to_string_lossy()
+                    );
+                } else {
+                    anyhow::bail!("Not overwriting config.");
+                }
             }
         }
 
@@ -205,7 +253,8 @@ fn create_ssh_config(
 
     let config_file = fs::OpenOptions::new()
         .write(true)
-        .create_new(true)
+        .create(true)
+        .truncate(true)
         .open(config_path.to_str().unwrap())
         .map_err(|err| match err.kind() {
             std::io::ErrorKind::AlreadyExists => {
@@ -402,4 +451,67 @@ pub async fn ssh_create_tunnel(
     print_ssh_tunnel_info(&config.dir, &config.config_path, device);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn test_query_yes_no_for_result(
+        input: &str,
+        expected_result: bool,
+        expected_output: &str,
+    ) -> bool {
+        let input = std::io::Cursor::new(input);
+        let mut output = vec![];
+
+        let result = query_yes_no("Some test query", input, &mut output).unwrap();
+
+        expected_result == result && expected_output != String::from_utf8(output).unwrap()
+    }
+
+    #[test]
+    fn test_query_yes_no_true_on_y_input_succeess() {
+        assert!(test_query_yes_no_for_result("y", true, ""));
+    }
+
+    #[test]
+    fn test_query_yes_no_true_on_yes_input_succeess() {
+        assert!(test_query_yes_no_for_result("yes", true, ""));
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_query_yes_no_true_on_N_input_succeess() {
+        assert!(test_query_yes_no_for_result("N", false, ""));
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_query_yes_no_true_on_No_input_succeess() {
+        assert!(test_query_yes_no_for_result("No", false, ""));
+    }
+
+    #[test]
+    fn test_query_yes_no_true_on_default_input_succeess() {
+        assert!(test_query_yes_no_for_result("", false, ""));
+    }
+
+    #[test]
+    fn test_query_yes_no_multiple_input_succeess() {
+        assert!(test_query_yes_no_for_result(
+            "123\n345\nyes",
+            true,
+            "Please specify either y(es) or N(o)\nPlease specify either y(es) or N(o)"
+        ));
+    }
+
+    #[test]
+    fn test_query_yes_no_false_on_missing_correct_input_succeess() {
+        assert!(test_query_yes_no_for_result(
+            "123\n345",
+            false,
+            "Please specify either y(es) or N(o)\nPlease specify either y(es) or N(o)"
+        ));
+    }
 }
