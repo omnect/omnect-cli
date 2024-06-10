@@ -11,7 +11,7 @@ use strum_macros::EnumIter;
 #[derive(Clone, Debug, EnumIter)]
 #[allow(non_camel_case_types)]
 pub enum Compression {
-    xz,
+    xz { compression_level: u32 },
     bzip2,
     gzip,
 }
@@ -21,7 +21,18 @@ impl FromStr for Compression {
 
     fn from_str(input: &str) -> Result<Compression> {
         match input {
-            "xz" => Ok(Compression::xz),
+            "xz" => {
+                let level = env::var("XZ_COMPRESSION_LEVEL")
+                    .unwrap_or_else(|_| "9".to_string())
+                    .parse()
+                    .unwrap_or(9);
+
+                let level = if (0..=9).contains(&level) { level } else { 4 };
+
+                Ok(Compression::xz {
+                    compression_level: level,
+                })
+            }
             "bzip2" => Ok(Compression::bzip2),
             "gzip" => Ok(Compression::gzip),
             _ => anyhow::bail!("unknown compression: use either xz, bzip2 or gzip"),
@@ -30,7 +41,7 @@ impl FromStr for Compression {
 }
 
 impl Compression {
-    fn compress(
+    pub fn compress(
         &self,
         source: &mut std::fs::File,
         destination: &mut std::fs::File,
@@ -44,16 +55,12 @@ impl Compression {
                 destination,
                 flate2::Compression::best(),
             )),
-            Compression::xz => {
-                let level = env::var("XZ_COMPRESSION_LEVEL")
-                    .unwrap_or_else(|_| "9".to_string())
-                    .parse()
-                    .unwrap_or(9);
-
-                let level = if (0..=9).contains(&level) { level } else { 4 };
+            Compression::xz {
+                compression_level: level,
+            } => {
                 let stream = xz2::stream::MtStreamBuilder::new()
                     .threads(num_cpus::get() as u32)
-                    .preset(level)
+                    .preset(*level)
                     .encoder()?;
                 Box::new(xz2::write::XzEncoder::new_stream(destination, stream))
             }
@@ -64,7 +71,7 @@ impl Compression {
         Ok(bytes_written)
     }
 
-    fn decompress(
+    pub fn decompress(
         &self,
         source: &mut std::fs::File,
         destination: &mut std::fs::File,
@@ -72,7 +79,7 @@ impl Compression {
         let mut dec: Box<dyn std::io::Write> = match &self {
             Compression::bzip2 => Box::new(bzip2::write::BzDecoder::new(destination)),
             Compression::gzip => Box::new(flate2::write::GzDecoder::new(destination)),
-            Compression::xz => Box::new(xz2::write::XzDecoder::new(destination)),
+            Compression::xz { .. } => Box::new(xz2::write::XzDecoder::new(destination)),
         };
 
         let bytes_written = std::io::copy(source, &mut dec)?;
@@ -85,7 +92,7 @@ impl Compression {
         match &self {
             Compression::bzip2 => "bzip2 compressed data",
             Compression::gzip => "gzip compressed data",
-            Compression::xz => "XZ compressed data",
+            Compression::xz { .. } => "XZ compressed data",
         }
     }
 
@@ -93,7 +100,7 @@ impl Compression {
         match &self {
             Compression::bzip2 => "bzip2",
             Compression::gzip => "gzip",
-            Compression::xz => "xz",
+            Compression::xz { .. } => "xz",
         }
     }
 

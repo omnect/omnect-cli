@@ -4,12 +4,15 @@ pub mod auth;
 pub mod cli;
 pub mod config;
 pub mod device_update;
+pub mod docker;
 pub mod file;
+pub mod image;
 pub mod ssh;
 mod validators;
 use anyhow::{Context, Result};
 use cli::{
     Command,
+    Docker::Inject,
     File::{CopyFromImage, CopyToImage},
     IdentityConfig::{
         SetConfig, SetDeviceCertificate, SetIotLeafSasConfig, SetIotedgeGatewayConfig,
@@ -17,7 +20,7 @@ use cli::{
     IotHubDeviceUpdate::{self, SetDeviceConfig as IotHubDeviceUpdateSet},
     SshConfig::{SetCertificate, SetConnection},
 };
-use file::compression::Compression;
+use file::{compression::Compression, functions::FileCopyToParams};
 use std::{fs, path::PathBuf};
 use uuid::Uuid;
 
@@ -98,6 +101,38 @@ where
 
 pub fn run() -> Result<()> {
     match cli::from_args() {
+        Command::Docker(Inject {
+            docker_image,
+            image,
+            partition,
+            mut dest,
+            generate_bmap,
+            compress_image,
+        }) => run_image_command(image, generate_bmap, compress_image, |img| {
+            let arch = image::image_arch(img)?;
+
+            let docker_path = docker::pull_image(&docker_image, arch)?;
+
+            let docker_file_name = docker_path
+                .file_name()
+                .ok_or(anyhow::anyhow!("invalid docker image archive name"))?;
+            dest.push(docker_file_name);
+
+            let params = FileCopyToParams::new(&docker_path, partition.clone(), &dest);
+            let result = file::copy_to_image(&[params], img);
+            std::fs::remove_file(docker_path)?;
+
+            if result.is_ok() {
+                println!(
+                    "Stored {} to {}:{}",
+                    docker_image,
+                    partition,
+                    dest.to_string_lossy(),
+                );
+            }
+
+            result
+        })?,
         Command::Identity(SetConfig {
             config,
             image,

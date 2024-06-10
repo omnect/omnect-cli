@@ -990,3 +990,52 @@ Please remove config file first."#
 
     assert_eq!(config_content_before, &config_content_after);
 }
+
+#[test]
+fn check_docker_inject_image_success() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+
+    let mut docker_inject_image_config = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = docker_inject_image_config
+        .arg("docker")
+        .arg("inject")
+        .args(["--docker-image", "some-image"])
+        .args(["--image", &image_path.to_string_lossy()])
+        .args(["--partition", "factory"])
+        .args(["--dest", "/some/test/dir"])
+        .assert();
+    let result_output = String::from_utf8(assert.get_output().stdout.to_vec()).unwrap();
+    let result_output = result_output.trim();
+    assert.success();
+
+    const EXPECTED_OUTPUT: &str = "Stored some-image to factory:/some/test/dir/some-image.tar.gz";
+
+    assert_eq!(EXPECTED_OUTPUT, result_output);
+
+    let mut docker_image_out_path = tr.pathbuf();
+    docker_image_out_path.push("docker");
+    create_dir_all(docker_image_out_path.clone()).unwrap();
+    docker_image_out_path.push("some-image.tar.gz");
+
+    let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = copy_from_img
+        .arg("file")
+        .arg("copy-from-image")
+        .arg("-f")
+        .arg(format!(
+            "factory:/some/test/dir/some-image.tar.gz,{}",
+            docker_image_out_path.to_string_lossy(),
+        ))
+        .arg("-i")
+        .arg(&image_path)
+        .assert();
+    assert.success();
+
+    const EXPECTED_CONTENT: &str = "some test data";
+
+    let result_content = std::fs::read_to_string(docker_image_out_path).unwrap();
+
+    assert_eq!(EXPECTED_CONTENT, result_content);
+}

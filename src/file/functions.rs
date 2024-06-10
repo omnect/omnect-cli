@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use log::{debug, warn};
 use regex::Regex;
 use std::collections::HashMap;
+use std::fmt::{self, Display};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -10,6 +11,7 @@ use stdext::function_name;
 use uuid::Uuid;
 
 #[derive(clap::ValueEnum, Debug, Clone, Eq, Hash, PartialEq)]
+#[clap(rename_all = "verbatim")]
 #[allow(non_camel_case_types)]
 pub enum Partition {
     boot,
@@ -23,6 +25,17 @@ struct PartitionInfo {
     num: String,
     start: String,
     end: String,
+}
+
+impl Display for Partition {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Partition::boot => write!(f, "boot"),
+            Partition::rootA => write!(f, "rootA"),
+            Partition::cert => write!(f, "cert"),
+            Partition::factory => write!(f, "factory"),
+        }
+    }
 }
 
 impl FromStr for Partition {
@@ -346,6 +359,25 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
     }
 
     Ok(())
+}
+
+pub fn read_file_from_image(
+    path: impl AsRef<Path>,
+    partition: Partition,
+    image_file: impl AsRef<Path>,
+) -> Result<String> {
+    let tmp_file = tempfile::NamedTempFile::new()
+        .context("read_file_from_image: could not create temporary file path")?;
+
+    let params = FileCopyFromParams::new(path.as_ref(), partition, tmp_file.path());
+
+    copy_from_image(&[params], image_file.as_ref())
+        .context("read_file_from_image: could not copy file content")?;
+
+    let content = std::fs::read_to_string(tmp_file.path())
+        .context("read_file_from_image: could not read file content")?;
+
+    Ok(content)
 }
 
 fn get_partition_info(image_file: &str, partition: &Partition) -> Result<PartitionInfo> {
