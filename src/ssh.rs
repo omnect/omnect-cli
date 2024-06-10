@@ -198,6 +198,11 @@ fn create_ssh_config(
     bastion_details: BastionDetails,
     device_details: DeviceDetails,
 ) -> Result<()> {
+    log::info!(
+        r#"creating new ssh config to: "{}""#,
+        config_path.to_string_lossy()
+    );
+
     let config_file = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
