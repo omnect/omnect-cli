@@ -204,12 +204,18 @@ fn create_ssh_config(
         .open(config_path.to_str().unwrap())
         .map_err(|err| match err.kind() {
             std::io::ErrorKind::AlreadyExists => {
-                anyhow::anyhow!(
+                eprintln!(
                     r#"ssh config file already exists and would be overwritten.
 Please remove config file first."#
-                )
+                );
+
+                anyhow::anyhow!(r#"config file already exists and would be overwritten."#)
             }
-            _ => anyhow::anyhow!("Failed to create ssh config file: {err}"),
+            _ => {
+                eprintln!("Failed to create ssh config file: {err}");
+
+                anyhow::anyhow!("Failed to create ssh config file: {err}")
+            }
         })?;
 
     let mut writer = BufWriter::new(config_file);
