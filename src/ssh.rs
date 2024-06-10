@@ -205,16 +205,26 @@ fn create_ssh_config(
         .map_err(|err| match err.kind() {
             std::io::ErrorKind::AlreadyExists => {
                 eprintln!(
-                    r#"ssh config file already exists and would be overwritten.
-Please remove config file first."#
+                    r#"ssh config file "{}" already exists and would be overwritten.
+Please remove config file first."#,
+                    config_path.to_string_lossy(),
                 );
 
-                anyhow::anyhow!(r#"config file already exists and would be overwritten."#)
+                anyhow::anyhow!(
+                    r#"config file "{}" already exists and would be overwritten."#,
+                    config_path.to_string_lossy(),
+                )
             }
             _ => {
-                eprintln!("Failed to create ssh config file: {err}");
+                eprintln!(
+                    r#"Failed to create ssh config file "{}": {err}"#,
+                    config_path.to_string_lossy()
+                );
 
-                anyhow::anyhow!("Failed to create ssh config file: {err}")
+                anyhow::anyhow!(
+                    r#"Failed to create ssh config file "{}": {err}"#,
+                    config_path.to_string_lossy()
+                )
             }
         })?;
 
