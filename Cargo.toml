@@ -72,7 +72,6 @@ assert-json-diff = "2.0"
 data-encoding = "2.5"
 file_diff = "1.0"
 httpmock = "0.6"
-omnect-cli = { path = ".", features = ["mock"] }
 ring = "0.17"
 tar = "0.4.41"
 
@@ -80,7 +79,3 @@ tar = "0.4.41"
 [package.metadata.deb]
 depends = "bmap-tools, e2tools, fdisk, keychain, libc6 (>= 2.34), libmagic1, libssl3 (>= 3.0.0), mtools"
 revision = ""
-
-[features]
-default = []
-mock = []

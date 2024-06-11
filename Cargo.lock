@@ -2611,7 +2611,6 @@ dependencies = [
  "log",
  "num_cpus",
  "oauth2",
- "omnect-cli",
  "omnect-crypto",
  "open",
  "regex",
