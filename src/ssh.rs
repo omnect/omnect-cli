@@ -80,10 +80,16 @@ impl Config {
 
                 dir
             }
-            None => ProjectDirs::from("de", "conplement AG", "omnect-cli")
-                .ok_or_else(|| anyhow::anyhow!("Application dirs not accessible"))?
-                .data_dir()
-                .to_path_buf(),
+            None => {
+                let project_dirs = ProjectDirs::from("de", "conplement AG", "omnect-cli")
+                    .ok_or_else(|| anyhow::anyhow!("Application dirs not accessible"))?;
+
+                project_dirs
+                    .runtime_dir()
+                    .or_else(|| Some(project_dirs.config_dir()))
+                    .unwrap()
+                    .to_path_buf()
+            }
         };
 
         // if user wants to use existing key pair, check that it exists
