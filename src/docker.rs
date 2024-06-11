@@ -1,7 +1,11 @@
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 
+use crate::file::compression::Compression;
 use crate::image::Architecture;
+use std::fs::File;
+use std::os::fd::AsFd;
+use std::process::{Command, Stdio};
 
 impl From<Architecture> for &str {
     fn from(arch: Architecture) -> &'static str {
@@ -12,11 +16,6 @@ impl From<Architecture> for &str {
         }
     }
 }
-
-use crate::file::compression::Compression;
-use std::fs::File;
-use std::os::fd::AsFd;
-use std::process::{Command, Stdio};
 
 const COMPRESSION_LEVEL: u32 = 9;
 
