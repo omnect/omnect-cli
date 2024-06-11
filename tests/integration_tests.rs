@@ -991,6 +991,9 @@ Please remove config file first."#
     assert_eq!(config_content_before, &config_content_after);
 }
 
+// currently disabled as we have no way to test this in our pipeline were we
+// don't have docker installed
+#[ignore]
 #[test]
 fn check_docker_inject_image_success() {
     let image = std::env::var("TEST_DOCKER_IMAGE").unwrap_or("busybox".to_string());
