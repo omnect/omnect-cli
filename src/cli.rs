@@ -310,7 +310,7 @@ pub enum SshConfig {
         #[arg(short = 'k', long = "key")]
         priv_key_path: Option<PathBuf>,
         /// optional: path where the ssh configuration is stored. Defaults to system
-        /// local runtime directory (e.g. ${XDG_RUNTIME_DIR}/omnect-cli/ssh_config on
+        /// local runtime directory (e.g. ${XDG_RUNTIME_DIR}/omnect-cli/config on
         /// Linux).
         #[arg(short = 'c', long = "config-path")]
         config_path: Option<PathBuf>,
