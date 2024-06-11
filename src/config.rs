@@ -7,7 +7,7 @@ pub struct KeycloakInfo {
     provider: String,
     realm: String,
     client_id: String,
-    bind_addr: String,
+    bind_addrs: Vec<String>,
     redirect: url::Url,
 }
 
@@ -22,7 +22,7 @@ impl From<KeycloakInfo> for AuthInfo {
                 "{}/realms/{}/protocol/openid-connect/token",
                 val.provider, val.realm
             ),
-            bind_addr: val.bind_addr,
+            bind_addrs: val.bind_addrs,
             redirect_addr: val.redirect,
             client_id: val.client_id,
         }
@@ -53,15 +53,15 @@ lazy_static::lazy_static! {
         let provider = "https://keycloak.omnect.conplement.cloud".to_string();
         let realm = "cp-prod".to_string();
         let client_id = "cp-cli".to_string();
-        let bind_addr = "localhost:4000".to_string();
-        let redirect = url::Url::parse(&format!("http://{bind_addr}")).unwrap();
+        let bind_addrs = vec!["127.0.0.1:4000".to_string(), "[::1]:4000".to_string()];
+        let redirect = url::Url::parse("http://localhost:4000").unwrap();
 
         AuthProvider::Keycloak(
             KeycloakInfo {
             provider,
             realm,
             client_id,
-            bind_addr,
+            bind_addrs,
             redirect,
         })
     };

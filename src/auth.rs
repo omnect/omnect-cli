@@ -1,3 +1,4 @@
+use std::net::ToSocketAddrs;
 use std::sync::Arc;
 
 use tokio::sync::mpsc;
@@ -41,23 +42,45 @@ async fn index(
     }
 }
 
-async fn redirect_server(bind_addr: String, server_setup_complete: Arc<Notify>) -> Result<String> {
+async fn redirect_server<A: ToSocketAddrs>(
+    bind_addrs: Vec<A>,
+    server_setup_complete: Arc<Notify>,
+) -> Result<String> {
     let mut retry_count: usize = 0;
     loop {
         // Logically, a oneshot channel would be sufficient here, but the actix
         // server expects the handler to be possibly called multiple times.
         let (tx, mut rx) = mpsc::channel(1);
 
-        let server = HttpServer::new(move || {
-            App::new()
-                .app_data(web::Data::new(tx.clone()))
-                .service(index)
-        })
-        .bind(bind_addr.clone())?
-        .disable_signals() // actix is not the main application so it must not handle signals
-        .run();
+        let server_builder = {
+            // workaround with quirk of lifetimes of the Fn context. We put the
+            // mutable builder into a separate scope to ensure it is only used
+            // for construction.
 
-        log::debug!("Started redirect server at {:#?}", &bind_addr);
+            let mut builder = HttpServer::new(move || {
+                App::new()
+                    .app_data(web::Data::new(tx.clone()))
+                    .service(index)
+            });
+
+            for addr in &bind_addrs {
+                builder = builder.bind(addr)?;
+            }
+
+            builder = builder.disable_signals(); // actix is not the main application so it must not handle signals
+
+            builder
+        };
+
+        let server = server_builder.run();
+
+        let addr_repr = &bind_addrs
+            .iter()
+            .flat_map(|addrs| addrs.to_socket_addrs().unwrap().map(|x| x.to_string()))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        log::debug!("Started redirect server at {addr_repr}",);
 
         server_setup_complete.notify_one();
 
@@ -131,7 +154,7 @@ async fn request_access_token(auth_info: &AuthInfo) -> Result<Token> {
     // start the redirect server so that clients may connect to them.
     let server_setup_complete = Arc::new(Notify::new());
     let server_task = tokio::spawn(redirect_server(
-        auth_info.bind_addr.clone(),
+        auth_info.bind_addrs.clone(),
         server_setup_complete.clone(),
     ));
     server_setup_complete.notified().await;
@@ -178,7 +201,7 @@ where
     let mut auth_info: AuthInfo = auth_provider.into();
 
     if let Ok("true") | Ok("1") = std::env::var("CONTAINERIZED").as_deref() {
-        auth_info.bind_addr = "0.0.0.0:4000".to_string();
+        auth_info.bind_addrs = vec!["0.0.0.0:4000".to_string()];
     }
 
     // If there is a refresh token from previous runs, try to create our access
@@ -202,7 +225,7 @@ where
 pub struct AuthInfo {
     pub auth_url: String,
     pub token_url: String,
-    pub bind_addr: String,
+    pub bind_addrs: Vec<String>,
     pub redirect_addr: url::Url,
     pub client_id: String,
 }
