@@ -181,14 +181,14 @@ omnect-cli ssh set-connection prod_device
 
 Successfully established ssh tunnel!
 Certificate dir: /run/user/1000/omnect-cli
-Configuration path: /run/user/1000/omnect-cli/ssh_config
-Use the configuration in "/run/user/1000/omnect-cli/ssh_config" to use the tunnel, e.g.:
-ssh -F /run/user/1000/omnect-cli/ssh_config prod_device
+Configuration path: /run/user/1000/omnect-cli/config
+Use the configuration in "/run/user/1000/omnect-cli/config" to use the tunnel, e.g.:
+ssh -F /run/user/1000/omnect-cli/config prod_device
 ```
 Now follow the command output to establish a connection to the device as such:
 
 ```sh
-ssh -F /run/user/1000/omnect-cli/ssh_config prod_device
+ssh -F /run/user/1000/omnect-cli/config prod_device
 
 [omnect@prod_device ~]$
 ```
