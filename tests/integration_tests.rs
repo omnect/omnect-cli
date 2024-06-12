@@ -933,8 +933,13 @@ Host test_device
     assert_eq!(ssh_config, expected_config);
 }
 
+// currently disabled as we have no way to test this in our pipeline were we
+// don't have docker installed
+#[ignore]
 #[test]
 fn check_docker_inject_image_success() {
+    let image = std::env::var("TEST_DOCKER_IMAGE").unwrap_or("busybox".to_string());
+
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
     let image_path = tr.to_pathbuf("testfiles/image.wic");
@@ -943,7 +948,7 @@ fn check_docker_inject_image_success() {
     let assert = docker_inject_image_config
         .arg("docker")
         .arg("inject")
-        .args(["--docker-image", "some-image"])
+        .args(["--docker-image", &image])
         .args(["--image", &image_path.to_string_lossy()])
         .args(["--partition", "factory"])
         .args(["--dest", "/some/test/dir"])
