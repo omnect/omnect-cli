@@ -300,8 +300,8 @@ pub enum SshConfig {
         #[arg(short = 'u', long = "user", default_value = "omnect")]
         username: String,
         /// optional: path where the ssh key pair, the certificates, and the
-        /// temporary ssh configuration is stored. Defaults to system local data
-        /// directories (e.g. ${XDG_RUNTIME_DIR}/omnect-cli on Linux).
+        /// temporary ssh configuration is stored. Defaults to system local
+        /// runtime directory (e.g. ${XDG_RUNTIME_DIR}/omnect-cli on Linux).
         #[arg(short = 'd', long = "dir")]
         dir: Option<PathBuf>,
         /// optional: path to a pre-existing ssh private key that is used. Note:
@@ -310,7 +310,7 @@ pub enum SshConfig {
         #[arg(short = 'k', long = "key")]
         priv_key_path: Option<PathBuf>,
         /// optional: path where the ssh configuration is stored. Defaults to system
-        /// local data directories (e.g. ${XDG_RUNTIME_DIR}/omnect-cli/ssh_config on
+        /// local runtime directory (e.g. ${XDG_RUNTIME_DIR}/omnect-cli/config on
         /// Linux).
         #[arg(short = 'c', long = "config-path")]
         config_path: Option<PathBuf>,
