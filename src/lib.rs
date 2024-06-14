@@ -112,7 +112,10 @@ pub fn run() -> Result<()> {
             let arch = image::image_arch(img)?;
 
             let docker_path = docker::pull_image(&docker_image, arch)?;
-            dest.push("image.tar.gz");
+
+            if !dest.to_string_lossy().ends_with("tar.gz") {
+                dest.push("image.tar.gz");
+            }
 
             let result = file::copy_to_image(
                 &[FileCopyToParams::new(
