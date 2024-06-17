@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use crate::file::compression::Compression;
 use crate::image::Architecture;
-use std::fs::File;
+use std::fs::{self, File};
 use std::os::fd::AsFd;
 use std::process::{Command, Stdio};
 
@@ -42,12 +42,15 @@ pub fn pull_image(name: impl AsRef<str>, arch: Architecture) -> Result<PathBuf> 
     let stdout = child.stdout.take().unwrap();
     let mut image_file = File::from(stdout.as_fd().try_clone_to_owned()?);
 
-    let out_path = std::path::PathBuf::from(format!("{}.tar.xz", name.as_ref()));
+    let out_path = std::path::PathBuf::from("./image.tar.xz");
     let mut out_file = std::fs::File::options()
         .create_new(true)
         .write(true)
         .open(out_path.clone())
-        .context("pull_docker_image: could not create output file")?;
+        .context(format!(
+            "pull_docker_image: could not create output file {}",
+            fs::canonicalize(&out_path).unwrap().to_string_lossy(),
+        ))?;
 
     let xz = Compression::xz {
         compression_level: COMPRESSION_LEVEL,
