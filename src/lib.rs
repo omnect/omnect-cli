@@ -113,13 +113,18 @@ pub fn run() -> Result<()> {
 
             let docker_path = docker::pull_image(&docker_image, arch)?;
 
-            let docker_file_name = docker_path
-                .file_name()
-                .ok_or(anyhow::anyhow!("invalid docker image archive name"))?;
-            dest.push(docker_file_name);
+            if !dest.to_string_lossy().ends_with("tar.gz") {
+                dest.push("image.tar.gz");
+            }
 
-            let params = FileCopyToParams::new(&docker_path, partition.clone(), &dest);
-            let result = file::copy_to_image(&[params], img);
+            let result = file::copy_to_image(
+                &[FileCopyToParams::new(
+                    &docker_path,
+                    partition.clone(),
+                    &dest,
+                )],
+                img,
+            );
             std::fs::remove_file(docker_path)?;
 
             if result.is_ok() {

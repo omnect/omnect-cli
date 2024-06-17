@@ -23,8 +23,8 @@ pub enum Docker {
         /// partition to store the image to
         #[clap(short = 'a', long = "partition", value_enum, default_value = "factory")]
         partition: Partition,
-        /// file path to store the docker image to
-        #[clap(short = 'e', long = "dest", default_value = "/oci_images")]
+        /// optional: file path to store the docker image to
+        #[clap(short = 'e', long = "dest", default_value = "/oci_images/image.tar.gz")]
         dest: PathBuf,
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
