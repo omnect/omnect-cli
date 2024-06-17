@@ -105,17 +105,21 @@ pub fn run() -> Result<()> {
             docker_image,
             image,
             partition,
-            mut dest,
+            dest,
             generate_bmap,
             compress_image,
         }) => run_image_command(image, generate_bmap, compress_image, |img| {
+            anyhow::ensure!(
+                dest.to_string_lossy().ends_with(".tar.gz"),
+                format!(
+                    "invalid destination file path \"{}\". Must end in \".tar.gz\".",
+                    dest.to_string_lossy(),
+                ),
+            );
+
             let arch = image::image_arch(img)?;
 
             let docker_path = docker::pull_image(&docker_image, arch)?;
-
-            if !dest.to_string_lossy().ends_with("tar.gz") {
-                dest.push("image.tar.gz");
-            }
 
             let result = file::copy_to_image(
                 &[FileCopyToParams::new(
