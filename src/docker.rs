@@ -17,8 +17,6 @@ impl From<Architecture> for &str {
     }
 }
 
-const COMPRESSION_LEVEL: u32 = 9;
-
 pub fn pull_image(name: impl AsRef<str>, arch: Architecture) -> Result<PathBuf> {
     let cmd_out = Command::new("docker")
         .args(["pull"])
@@ -42,7 +40,7 @@ pub fn pull_image(name: impl AsRef<str>, arch: Architecture) -> Result<PathBuf> 
     let stdout = child.stdout.take().unwrap();
     let mut image_file = File::from(stdout.as_fd().try_clone_to_owned()?);
 
-    let out_path = std::path::PathBuf::from("./image.tar.xz");
+    let out_path = std::path::PathBuf::from("./image.tar.gz");
     let mut out_file = std::fs::File::options()
         .create_new(true)
         .write(true)
@@ -52,10 +50,7 @@ pub fn pull_image(name: impl AsRef<str>, arch: Architecture) -> Result<PathBuf> 
             fs::canonicalize(&out_path).unwrap().to_string_lossy(),
         ))?;
 
-    let xz = Compression::xz {
-        compression_level: COMPRESSION_LEVEL,
-    };
-    xz.compress(&mut image_file, &mut out_file)?;
+    Compression::gzip.compress(&mut image_file, &mut out_file)?;
 
     let error_code = child.wait()?;
 
