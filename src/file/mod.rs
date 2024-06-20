@@ -12,6 +12,34 @@ use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub trait CertData {
+    fn cert_data(&self) -> Result<Vec<u8>>;
+}
+
+impl CertData for &[u8] {
+    fn cert_data(&self) -> Result<Vec<u8>> {
+        Ok(Vec::from(*self))
+    }
+}
+
+impl CertData for PathBuf {
+    fn cert_data(&self) -> Result<Vec<u8>> {
+        Ok(fs::read(self)?)
+    }
+}
+
+impl CertData for &Path {
+    fn cert_data(&self) -> Result<Vec<u8>> {
+        Ok(fs::read(self)?)
+    }
+}
+
+impl CertData for Vec<u8> {
+    fn cert_data(&self) -> Result<Vec<u8>> {
+        Ok(self.clone())
+    }
+}
+
 pub fn set_iotedge_gateway_config(
     config_file: &Path,
     image_file: &Path,
@@ -116,18 +144,25 @@ pub fn set_identity_config(
 }
 
 pub fn set_device_cert(
-    intermediate_full_chain_cert_path: &Path,
-    device_full_chain_cert: &Vec<u8>,
-    device_key: &Vec<u8>,
+    intermediate_full_chain_cert: &impl CertData,
+    device_full_chain_cert: &impl CertData,
+    device_key: &impl CertData,
     image_file: &Path,
 ) -> Result<()> {
     let parent = image_file.parent();
+    let intermediate_full_chain_path = get_file_path(parent, "intermediate_full_chain.pem")?;
     let device_cert_path = get_file_path(parent, "device_cert_path.pem")?;
     let device_key_path = get_file_path(parent, "device_key_path.key.pem")?;
 
-    fs::write(&device_cert_path, device_full_chain_cert)
+    fs::write(
+        &intermediate_full_chain_path,
+        intermediate_full_chain_cert.cert_data()?,
+    )
+    .context("set_device_cert: write intermediate_full_chain")?;
+    fs::write(&device_cert_path, device_full_chain_cert.cert_data()?)
         .context("set_device_cert: write device_cert_path")?;
-    fs::write(&device_key_path, device_key).context("set_device_cert: write device_key_path")?;
+    fs::write(&device_key_path, device_key.cert_data()?)
+        .context("set_device_cert: write device_key_path")?;
 
     copy_to_image(
         &vec![
@@ -142,12 +177,12 @@ pub fn set_device_cert(
                 Path::new("/priv/device_id_cert_key.pem"),
             ),
             FileCopyToParams::new(
-                intermediate_full_chain_cert_path,
+                &intermediate_full_chain_path,
                 Partition::cert,
                 Path::new("/priv/ca.crt.pem"),
             ),
             FileCopyToParams::new(
-                intermediate_full_chain_cert_path,
+                &intermediate_full_chain_path,
                 Partition::cert,
                 Path::new("/ca/ca.crt"),
             ),
