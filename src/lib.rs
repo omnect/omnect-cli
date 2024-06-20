@@ -6,6 +6,7 @@ pub mod config;
 pub mod device_update;
 pub mod docker;
 pub mod file;
+pub mod identity;
 pub mod image;
 pub mod ssh;
 mod validators;
@@ -15,7 +16,7 @@ use cli::{
     Docker::Inject,
     File::{CopyFromImage, CopyToImage},
     IdentityConfig::{
-        SetConfig, SetDeviceCertificate, SetIotLeafSasConfig, SetIotedgeGatewayConfig,
+        SetConfig, SetDeviceCertificate, SetIotLeafSasConfig, SetIotedgeGatewayConfig, SetPkiConfig,
     },
     IotHubDeviceUpdate::{self, SetDeviceConfig as IotHubDeviceUpdateSet},
     SshConfig::{SetCertificate, SetConnection},
@@ -178,6 +179,24 @@ pub fn run() -> Result<()> {
                     &intermediate_full_chain_cert,
                     &device_cert_pem,
                     &device_key_pem,
+                    img,
+                )
+            })?
+        }
+        Command::Identity(SetPkiConfig {
+            image,
+            device_id,
+            provider,
+            generate_bmap,
+            compress_image,
+        }) => {
+            let cert_data = identity::request_cert_from_pki(&device_id, provider)?;
+
+            run_image_command(image, generate_bmap, compress_image, |img| {
+                file::set_device_cert(
+                    &cert_data.full_chain_cert,
+                    &cert_data.device_cert,
+                    &cert_data.device_key,
                     img,
                 )
             })?

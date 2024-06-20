@@ -2,7 +2,8 @@ use crate::file::{
     compression::Compression,
     functions::{FileCopyFromParams, FileCopyToParams, Partition},
 };
-use clap::Parser;
+use crate::identity::ecos::{CaId, Password};
+use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 use url::Url;
 
@@ -65,6 +66,27 @@ pub enum File {
     },
 }
 
+#[derive(Args, Debug)]
+pub struct EcosConfig {
+    /// username for ECOS service
+    #[arg(short = 'u', long = "user")]
+    user: String,
+    /// password for ECOS service. Be sure that you understand the
+    /// consequences of passing the password as CLI argument.
+    #[arg(short = 'p', long = "password", value_parser = clap::value_parser!(Password))]
+    password: Password,
+    /// id of the ca on the ECOS Appliance server
+    #[arg(short = 'c', long = "ca", value_parser = clap::value_parser!(CaId))]
+    ca: CaId,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum EstProvider {
+    /// ECOS PKI backend provider settings
+    #[command(name = "--ecos")]
+    Ecos(EcosConfig),
+}
+
 #[derive(Parser, Debug)]
 #[command(after_help = COPYRIGHT)]
 /// configure Azure IoT identity settings
@@ -80,6 +102,24 @@ pub enum IdentityConfig {
         /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
+        /// optional: generate bmap file (currently not working in docker image)
+        #[arg(short = 'b', long = "generate-bmap-file")]
+        generate_bmap: bool,
+        /// optional: pack image [xz, bzip2, gzip]
+        #[arg(short = 'p', long = "pack-image", value_enum)]
+        compress_image: Option<Compression>,
+    },
+    /// EXPERIMENTAL: setup config.toml file and certificate from PKI service provider
+    SetPkiConfig {
+        /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
+        #[arg(short = 'i', long = "image")]
+        image: PathBuf,
+        /// name of the device
+        #[arg(short = 'd', long = "device_id")]
+        device_id: String,
+        /// PKI provider service
+        #[command(subcommand)]
+        provider: EstProvider,
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
