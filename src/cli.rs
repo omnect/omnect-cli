@@ -70,18 +70,18 @@ pub enum File {
 pub struct EcosConfig {
     /// username for ECOS service
     #[arg(short = 'u', long = "user")]
-    user: String,
+    pub user: String,
     /// password for ECOS service. Be sure that you understand the
     /// consequences of passing the password as CLI argument.
     #[arg(short = 'p', long = "password", value_parser = clap::value_parser!(Password))]
-    password: Password,
+    pub password: Password,
     /// id of the ca on the ECOS Appliance server
     #[arg(short = 'c', long = "ca", value_parser = clap::value_parser!(CaId))]
-    ca: CaId,
+    pub ca: CaId,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum EstProvider {
+pub enum ProviderConfig {
     /// ECOS PKI backend provider settings
     #[command(name = "--ecos")]
     Ecos(EcosConfig),
@@ -119,7 +119,7 @@ pub enum IdentityConfig {
         device_id: String,
         /// PKI provider service
         #[command(subcommand)]
-        provider: EstProvider,
+        provider: ProviderConfig,
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,

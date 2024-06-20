@@ -19,6 +19,7 @@ use cli::{
         SetConfig, SetDeviceCertificate, SetIotLeafSasConfig, SetIotedgeGatewayConfig, SetPkiConfig,
     },
     IotHubDeviceUpdate::{self, SetDeviceConfig as IotHubDeviceUpdateSet},
+    ProviderConfig,
     SshConfig::{SetCertificate, SetConnection},
 };
 use file::{compression::Compression, functions::FileCopyToParams};
@@ -190,7 +191,16 @@ pub fn run() -> Result<()> {
             generate_bmap,
             compress_image,
         }) => {
-            let cert_data = identity::request_cert_from_pki(&device_id, provider)?;
+            #[tokio::main]
+            async fn request_certs(
+                device_id: String,
+                provider: ProviderConfig,
+            ) -> Result<identity::Certs> {
+                let backend = identity::create_est_backend(provider).await?;
+                identity::request_cert_from_pki(&device_id, backend).await
+            }
+
+            let cert_data = request_certs(device_id, provider)?;
 
             run_image_command(image, generate_bmap, compress_image, |img| {
                 file::set_device_cert(

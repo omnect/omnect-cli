@@ -6,7 +6,7 @@ use openssl::rsa::Rsa;
 
 pub mod ecos;
 
-use crate::cli::EstProvider;
+use crate::cli::ProviderConfig;
 
 fn create_key_pair() -> Result<PKey<Private>> {
     let rsa = Rsa::generate(4096)?;
@@ -44,7 +44,7 @@ pub struct Certs {
     pub device_key: Vec<u8>,
 }
 
-pub fn request_cert_from_pki(device_id: &str, provider: impl PkiProvider) -> Result<Certs> {
+pub async fn request_cert_from_pki(device_id: &str, provider: impl PkiProvider) -> Result<Certs> {
     let pkey = create_key_pair().context("couldn't create key pair")?;
     let csr = create_csr(device_id, &pkey).context("couldn't create CSR")?;
 
@@ -92,19 +92,8 @@ pub trait PkiProvider {
     async fn full_chain_cert(&self) -> Result<openssl::x509::X509>;
 }
 
-// NOTE: the enum variants implement PkiProvider but we can't dispatch it
-// automatically, so this manual glue code is necessary.
-#[async_trait]
-impl PkiProvider for EstProvider {
-    async fn sign_csr(&self, csr: openssl::x509::X509Req) -> Result<openssl::x509::X509> {
-        match self {
-            EstProvider::Ecos(config) => config.sign_csr(csr).await,
-        }
-    }
-
-    async fn full_chain_cert(&self) -> Result<openssl::x509::X509> {
-        match self {
-            EstProvider::Ecos(config) => config.full_chain_cert().await,
-        }
+pub async fn create_est_backend(backend_config: ProviderConfig) -> Result<impl PkiProvider> {
+    match backend_config {
+        ProviderConfig::Ecos(config) => ecos::EcosBackend::try_from(config).await,
     }
 }

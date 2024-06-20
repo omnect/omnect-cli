@@ -1,10 +1,10 @@
 use anyhow::Result;
+use serde::Deserialize;
+use serde_json::json;
 use url::Url;
 
 use crate::cli::EcosConfig;
 use crate::identity::PkiProvider;
-
-const API_VERSION: &str = "v2.0";
 
 lazy_static::lazy_static! {
     static ref PKI_API: Url = {
@@ -14,15 +14,17 @@ lazy_static::lazy_static! {
 
         match tenant {
             Some(tenant) => Url::parse(
-                &format!("https://{host}/{tenant}/api/{API_VERSION}/")
+                &format!("https://{host}/{tenant}")
             ).unwrap(),
             None => Url::parse(
-                &format!("https://{host}/api/{API_VERSION}/")
+                &format!("https://{host}")
             ).unwrap(),
         }
 
     };
 }
+
+const AUTH_ENDPOINT: &str = "/_auth";
 
 #[allow(dead_code)]
 const CONTENT_TYPE: &str = "application/vnd.api+json";
@@ -53,9 +55,52 @@ impl From<&str> for CaId {
     }
 }
 
+#[derive(Deserialize)]
+struct AuthReply {
+    result: String,
+    token: String,
+}
+
+#[allow(dead_code)]
+pub struct EcosBackend {
+    client: reqwest::Client,
+    bearer: String,
+    ca: CaId,
+}
+
+impl EcosBackend {
+    pub async fn try_from(config: EcosConfig) -> Result<EcosBackend> {
+        let client = reqwest::Client::new();
+
+        let response: AuthReply = client
+            .post(PKI_API.join(AUTH_ENDPOINT)?)
+            .json(&json!({
+                "uid": config.user,
+                "pw": config.password.0,
+            }))
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        anyhow::ensure!(response.result == "true");
+
+        Ok(EcosBackend {
+            client,
+            bearer: response.token,
+            ca: config.ca,
+        })
+    }
+}
+
 #[async_trait::async_trait]
-impl PkiProvider for EcosConfig {
+impl PkiProvider for EcosBackend {
     async fn sign_csr(&self, _csr: openssl::x509::X509Req) -> Result<openssl::x509::X509> {
+        // let response = self.client.
+        // .get(PKI_API.join(SOME_ENDPOINT))
+        // .bearer_auth(self.bearer)
+        // ...
+
         // cert_ca or cert_server?
         // TODO: step 1: PUT cert_ca object w/ CSR
         // - What data is necessary
@@ -68,6 +113,7 @@ impl PkiProvider for EcosConfig {
     }
 
     async fn full_chain_cert(&self) -> Result<openssl::x509::X509> {
+        // TODO fetch cert from API
         unimplemented!()
     }
 }
