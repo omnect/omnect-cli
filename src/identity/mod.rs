@@ -48,7 +48,7 @@ pub async fn request_cert_from_pki(device_id: &str, provider: impl PkiProvider) 
     let pkey = create_key_pair().context("couldn't create key pair")?;
     let csr = create_csr(device_id, &pkey).context("couldn't create CSR")?;
 
-    #[tokio::main]
+    //#[tokio::main]
     async fn request_certs(
         provider: impl PkiProvider,
         csr: openssl::x509::X509Req,
@@ -66,7 +66,7 @@ pub async fn request_cert_from_pki(device_id: &str, provider: impl PkiProvider) 
     }
 
     let (device_cert, full_chain_cert) =
-        request_certs(provider, csr).context("couldnt't request certificates from pki provider")?;
+        request_certs(provider, csr).await.context("couldnt't request certificates from pki provider")?;
 
     let intermediate_full_chain_cert = full_chain_cert
         .to_pem()
