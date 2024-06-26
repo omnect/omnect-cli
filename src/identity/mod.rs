@@ -52,25 +52,28 @@ pub async fn request_cert_from_pki(device_id: &str, provider: impl PkiProvider) 
     async fn request_certs(
         provider: impl PkiProvider,
         csr: openssl::x509::X509Req,
-    ) -> Result<(openssl::x509::X509, openssl::x509::X509)> {
-        let device_cert = provider
+    ) -> Result<(openssl::x509::X509, String)> {
+        let (device_cert, full_chain_cert) = provider
             .sign_csr(csr)
             .await
             .context("couldn't retrieve certificate")?;
-        let full_chain_cert = provider
-            .full_chain_cert()
-            .await
-            .context("couldn't get full chain certificate")?;
+        // let full_chain_cert = provider
+        //     .full_chain_cert()
+        //     .await
+        //     .context("couldn't get full chain certificate")?;
 
         Ok((device_cert, full_chain_cert))
     }
 
-    let (device_cert, full_chain_cert) =
-        request_certs(provider, csr).await.context("couldnt't request certificates from pki provider")?;
+    let (device_cert, full_chain_cert) = request_certs(provider, csr)
+        .await
+        .context("couldnt't request certificates from pki provider")?;
 
-    let intermediate_full_chain_cert = full_chain_cert
-        .to_pem()
-        .context("couldn't serialize full chain certificate")?;
+    let intermediate_full_chain_cert = full_chain_cert;
+
+    // let intermediate_full_chain_cert = full_chain_cert
+    //     .to_pem()
+    //     .context("couldn't serialize full chain certificate")?;
     let device_cert_pem = device_cert
         .to_pem()
         .context("couldn't serialize certificate")?;
@@ -79,7 +82,7 @@ pub async fn request_cert_from_pki(device_id: &str, provider: impl PkiProvider) 
         .context("couldn't serialize key")?;
 
     Ok(Certs {
-        full_chain_cert: intermediate_full_chain_cert,
+        full_chain_cert: intermediate_full_chain_cert.into(),
         device_cert: device_cert_pem,
         device_key: device_key_pem,
     })
@@ -87,9 +90,9 @@ pub async fn request_cert_from_pki(device_id: &str, provider: impl PkiProvider) 
 
 #[async_trait]
 pub trait PkiProvider {
-    async fn sign_csr(&self, csr: openssl::x509::X509Req) -> Result<openssl::x509::X509>;
+    async fn sign_csr(&self, csr: openssl::x509::X509Req) -> Result<(openssl::x509::X509, String)>;
 
-    async fn full_chain_cert(&self) -> Result<openssl::x509::X509>;
+    // async fn full_chain_cert(&self) -> Result<openssl::x509::X509>;
 }
 
 pub async fn create_est_backend(backend_config: ProviderConfig) -> Result<impl PkiProvider> {
