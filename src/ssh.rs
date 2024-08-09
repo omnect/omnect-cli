@@ -176,6 +176,24 @@ struct SshTunnelInfo {
     bastion_username: String,
 }
 
+async fn into_error_message(response: reqwest::Response) -> String {
+    #[derive(Deserialize)]
+    struct ErrorMessage {
+        #[serde(rename = "internalMsg")]
+        internal_message: String,
+    }
+
+    let status = response.status();
+
+    match response.json().await {
+        Ok(ErrorMessage { internal_message }) => internal_message,
+        Err(_) => format!(
+            "Something went wrong while creating the ssh tunnel: {}",
+            status.canonical_reason().unwrap() // safe
+        ),
+    }
+}
+
 async fn request_ssh_tunnel(
     backend: &Url,
     device_id: &str,
@@ -207,10 +225,8 @@ async fn request_ssh_tunnel(
         .map_err(|err| anyhow::anyhow!("Failed to perform ssh tunnel request: {err}"))?;
 
     if !response.status().is_success() {
-        anyhow::bail!(
-            "Something went wrong while creating the ssh tunnel: {}",
-            response.status().canonical_reason().unwrap()
-        ); // safe
+        let error_msg = into_error_message(response).await;
+        anyhow::bail!("Something went wrong while creating the ssh tunnel: {error_msg}");
     }
 
     Ok(response.json().await?)
