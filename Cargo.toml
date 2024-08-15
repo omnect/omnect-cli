@@ -30,7 +30,7 @@ base64 = "0.13"
 bzip2 = "0.4"
 clap = { version = "4.0", features = ["derive"] }
 directories = "5.0"
-env_logger = "0.11"
+env_logger = "0.10"
 filemagic = "0.12"
 flate2 = "1.0"
 omnect-crypto = { git = "https://github.com/omnect/omnect-crypto.git", tag = "0.4.0" }
