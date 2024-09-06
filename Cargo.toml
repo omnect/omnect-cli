@@ -2,12 +2,10 @@
 authors = ["omnect@conplement.de>"]
 description = "This tool provides a command-line interface to configure omnect-os images and to communicate with omnect-os empowered devices."
 edition = "2021"
-homepage = "https://www.omnect.io/home"
-license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.24.7"
+version = "0.24.8"
 
 [dependencies]
 actix-web = "4.4"

@@ -1,8 +1,6 @@
 use std::net::ToSocketAddrs;
-use std::sync::Arc;
 
-use tokio::sync::mpsc;
-use tokio::sync::Notify;
+use tokio::sync::{mpsc, oneshot};
 
 use anyhow::Result;
 
@@ -15,8 +13,6 @@ use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge, RedirectUrl, TokenResponse,
     TokenUrl,
 };
-
-const RETRY_THRESHOLD: usize = 8;
 
 #[derive(Deserialize)]
 struct QueryCode {
@@ -31,10 +27,13 @@ async fn index(
     log::debug!("Received callback from OAuth2 service");
 
     match tx.send(query.code.clone()).await {
-        Ok(_) => Ok(
-            "Got authorization token. You can close this tab and go back to omnect-cli."
-                .to_string(),
-        ),
+        Ok(_) => {
+            println!("query.code: {}", query.code);
+            Ok(
+                "Got authorization token. You can close this tab and go back to omnect-cli."
+                    .to_string(),
+            )
+        }
         Err(err) => {
             log::error!("channel closed upon sending code: {:?}", err);
             Err(error::ErrorBadRequest(err))
@@ -42,67 +41,78 @@ async fn index(
     }
 }
 
+enum RedirectServerState {
+    Running,
+    Failure(String),
+}
+
 async fn redirect_server<A: ToSocketAddrs>(
     bind_addrs: Vec<A>,
-    server_setup_complete: Arc<Notify>,
+    server_setup_complete: oneshot::Sender<RedirectServerState>,
 ) -> Result<String> {
-    let mut retry_count: usize = 0;
-    loop {
-        // Logically, a oneshot channel would be sufficient here, but the actix
-        // server expects the handler to be possibly called multiple times.
-        let (tx, mut rx) = mpsc::channel(1);
+    // Logically, a oneshot channel would be sufficient here, but the actix
+    // server expects the handler to be possibly called multiple times.
+    let (tx, mut rx) = mpsc::channel(1);
 
-        let server_builder = {
-            // workaround with quirk of lifetimes of the Fn context. We put the
-            // mutable builder into a separate scope to ensure it is only used
-            // for construction.
+    let server_builder = {
+        // workaround with quirk of lifetimes of the Fn context. We put the
+        // mutable builder into a separate scope to ensure it is only used
+        // for construction.
 
-            let mut builder = HttpServer::new(move || {
-                App::new()
-                    .app_data(web::Data::new(tx.clone()))
-                    .service(index)
-            });
+        let mut builder = HttpServer::new(move || {
+            App::new()
+                .app_data(web::Data::new(tx.clone()))
+                .service(index)
+        });
 
-            for addr in &bind_addrs {
-                builder = builder.bind(addr)?;
-            }
-
-            builder = builder.disable_signals(); // actix is not the main application so it must not handle signals
-
-            builder
-        };
-
-        let server = server_builder.run();
-
-        let addr_repr = &bind_addrs
-            .iter()
-            .flat_map(|addrs| addrs.to_socket_addrs().unwrap().map(|x| x.to_string()))
-            .collect::<Vec<_>>()
-            .join(", ");
-
-        log::debug!("Started redirect server at {addr_repr}",);
-
-        server_setup_complete.notify_one();
-
-        tokio::select! {
-            code = rx.recv() => {
-                match code {
-                    Some(code) => { return Ok(code); },
-                    None => {
-                        log::error!("communication channel closed");
-                        anyhow::bail!("error with the communication channel");
-                    },
+        for addr in &bind_addrs {
+            builder = match builder.bind(addr) {
+                Ok(builder) => builder,
+                Err(err) => {
+                    // this error is already unrecoverable, there is no sense in
+                    // handling an additional error in send.
+                    let _ =
+                        server_setup_complete.send(RedirectServerState::Failure(format!("{err}")));
+                    anyhow::bail!(err);
                 }
-            },
-            Err(err) = server => {
-                // error creating the server, retry; possibly we should stop
-                // here after a while
-                log::error!("Error serving connection: {:?}", err);
-                anyhow::ensure!(retry_count < RETRY_THRESHOLD, "failed to setup web server: {}", err);
+            }
+        }
 
-                retry_count += 1;
-            },
-        };
+        builder = builder.disable_signals(); // actix is not the main application so it must not handle signals
+
+        builder
+    };
+
+    let server = server_builder.run();
+
+    let addr_repr = &bind_addrs
+        .iter()
+        .flat_map(|addrs| addrs.to_socket_addrs().unwrap().map(|x| x.to_string()))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    log::debug!("Started redirect server at {addr_repr}",);
+
+    if server_setup_complete
+        .send(RedirectServerState::Running)
+        .is_err()
+    {
+        anyhow::bail!("could not send server up message.")
+    }
+
+    tokio::select! {
+        code = rx.recv() => {
+            match code {
+                Some(code) => { Ok(code) },
+                None => {
+                    log::error!("communication channel closed");
+                    anyhow::bail!("error with the communication channel");
+                },
+            }
+        },
+        Err(err) = server => {
+            anyhow::bail!("error serving connection: {:?}", err);
+        },
     }
 }
 
@@ -131,10 +141,8 @@ fn store_refresh_token_in_key_ring(auth_info: &AuthInfo, refresh_token: String) 
         log::warn!("Failed to store token into key ring: {}", err);
     }
 }
-
 type Token =
     oauth2::StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>;
-
 async fn request_access_token(auth_info: &AuthInfo) -> Result<Token> {
     let client = BasicClient::new(
         ClientId::new(auth_info.client_id.clone()),
@@ -152,19 +160,29 @@ async fn request_access_token(auth_info: &AuthInfo) -> Result<Token> {
         .url();
 
     // start the redirect server so that clients may connect to them.
-    let server_setup_complete = Arc::new(Notify::new());
+    let (server_setup_complete_tx, server_setup_complete_rx) = oneshot::channel();
     let server_task = tokio::spawn(redirect_server(
         auth_info.bind_addrs.clone(),
-        server_setup_complete.clone(),
+        server_setup_complete_tx,
     ));
-    server_setup_complete.notified().await;
+
+    match server_setup_complete_rx.await {
+        Err(e) => {
+            anyhow::bail!("failed to setup redirect server: {e}");
+        }
+        Ok(RedirectServerState::Failure(error)) => {
+            anyhow::bail!("failed to setup redirect server: {error}");
+        }
+        Ok(_) => {}
+    }
 
     log::info!("Redirecting to authentication provider.");
     log::info!(
         "Note: if the browser does not open automatically, use this link to complete login: {}",
         auth_url.to_string()
     );
-    let _ = open::that(auth_url.to_string());
+
+    // let _ = open::that(auth_url.to_string());
 
     let auth_code = server_task.await??;
 
@@ -214,6 +232,8 @@ where
         log::debug!("Could not refresh access token, use authorization code flow instead.");
         request_access_token(&auth_info).await?
     };
+
+    println!("token: {:#?}", token.access_token().secret());
 
     if let Some(refresh_token) = token.refresh_token() {
         store_refresh_token_in_key_ring(&auth_info, refresh_token.secret().to_string());
