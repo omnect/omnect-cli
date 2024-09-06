@@ -27,13 +27,10 @@ async fn index(
     log::debug!("Received callback from OAuth2 service");
 
     match tx.send(query.code.clone()).await {
-        Ok(_) => {
-            println!("query.code: {}", query.code);
-            Ok(
-                "Got authorization token. You can close this tab and go back to omnect-cli."
-                    .to_string(),
-            )
-        }
+        Ok(_) => Ok(
+            "Got authorization token. You can close this tab and go back to omnect-cli."
+                .to_string(),
+        ),
         Err(err) => {
             log::error!("channel closed upon sending code: {:?}", err);
             Err(error::ErrorBadRequest(err))
@@ -182,8 +179,6 @@ async fn request_access_token(auth_info: &AuthInfo) -> Result<Token> {
         auth_url.to_string()
     );
 
-    // let _ = open::that(auth_url.to_string());
-
     let auth_code = server_task.await??;
 
     Ok(client
@@ -232,8 +227,6 @@ where
         log::debug!("Could not refresh access token, use authorization code flow instead.");
         request_access_token(&auth_info).await?
     };
-
-    println!("token: {:#?}", token.access_token().secret());
 
     if let Some(refresh_token) = token.refresh_token() {
         store_refresh_token_in_key_ring(&auth_info, refresh_token.secret().to_string());
