@@ -2585,7 +2585,7 @@ dependencies = [
 
 [[package]]
 name = "omnect-cli"
-version = "0.24.8"
+version = "0.24.9"
 dependencies = [
  "actix-web",
  "anyhow",

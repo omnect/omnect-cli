@@ -36,11 +36,31 @@ struct IdentityCert {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
-struct Attestation {
+struct AttestationWithEst {
     method: String,
     registration_id: Option<String>,
     trust_bundle_cert: Option<String>,
     identity_cert: Option<IdentityCert>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct AttestationNoEst {
+    method: String,
+    registration_id: Option<String>,
+    trust_bundle_cert: Option<String>,
+    identity_cert: String,
+    identity_pk: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(untagged)]
+#[allow(dead_code)]
+enum Attestation {
+    NoEst(AttestationNoEst),
+    WithEst(AttestationWithEst),
 }
 
 #[derive(Debug, Deserialize)]
@@ -214,7 +234,7 @@ pub fn validate_identity(
                     None => {
                         out.push(WARN_MISSING_ATTESTATION);
                     }
-                    Some(a) => match a.method.as_str() {
+                    Some(Attestation::WithEst(a)) => match a.method.as_str() {
                         "x509" => {
                             if Some(false)
                                 == a.identity_cert
@@ -226,6 +246,13 @@ pub fn validate_identity(
                         "tpm" | "symmetric_key" => {}
                         _ => out.push(WARN_ATTESTATION_VALID_METHOD_EXPECTED),
                     },
+                    Some(Attestation::NoEst(a)) => {
+                        if a.identity_cert != "file:///mnt/cert/priv/device_id_cert.pem"
+                            || a.identity_pk != "file:///mnt/cert/priv/device_id_cert_key.pem"
+                        {
+                            out.push(WARN_UNEXPECTED_PATH)
+                        }
+                    }
                 }
                 if p.payload.is_some() {
                     if p.payload.unwrap().uri.ne(PAYLOAD_FILEPATH) {
@@ -464,6 +491,18 @@ mod tests {
         let result = validate_identity(
             IdentityType::Standalone,
             Path::new("testfiles/identity_config_dps_x509_est.toml"),
+            &None,
+        )
+        .unwrap();
+        assert_eq!(0, result.len());
+    }
+
+    #[test]
+    fn identity_config_dps_x509_no_est() {
+        lazy_static::initialize(&LOG);
+        let result = validate_identity(
+            IdentityType::Standalone,
+            Path::new("testfiles/identity_config_dps_x509_no_est.toml"),
             &None,
         )
         .unwrap();

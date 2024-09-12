@@ -469,6 +469,67 @@ fn check_set_device_cert() {
 }
 
 #[test]
+fn check_set_device_cert_no_est() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let device_crt_path = tr.to_pathbuf("testfiles/test-int-ca_fullchain.pem");
+    let device_crt_key_path = tr.to_pathbuf("testfiles/test-int-ca.key");
+
+    let mut set_device_certificate_no_est = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = set_device_certificate_no_est
+        .arg("identity")
+        .arg("set-device-certificate-no-est")
+        .arg("-c")
+        .arg(&device_crt_path)
+        .arg("-k")
+        .arg(&device_crt_key_path)
+        .arg("-i")
+        .arg(&image_path)
+        .assert();
+    assert.success();
+
+    let mut device_cert_out_path = tr.pathbuf();
+    device_cert_out_path.push("dir1");
+    create_dir_all(device_cert_out_path.clone()).unwrap();
+
+    let mut device_cert_key_out_path = device_cert_out_path.clone();
+
+
+    device_cert_out_path.push("device_id_cert_out_path");
+    let device_cert_out_path = device_cert_out_path.to_str().unwrap();
+
+    device_cert_key_out_path.push("device_id_cert_key_out_path");
+    let device_cert_key_out_path = device_cert_key_out_path.to_str().unwrap();
+
+    let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = copy_from_img
+        .arg("file")
+        .arg("copy-from-image")
+        .arg("-f")
+        .arg(format!(
+            "cert:/priv/device_id_cert.pem,{device_cert_out_path}"
+        ))
+        .arg("-f")
+        .arg(format!(
+            "cert:/priv/device_id_cert_key.pem,{device_cert_key_out_path}"
+        ))
+        .arg("-i")
+        .arg(&image_path)
+        .assert();
+    assert.success();
+
+    assert!(file_diff::diff(
+        device_crt_path.to_str().unwrap(),
+        device_cert_out_path
+    ));
+
+    assert!(file_diff::diff(
+        device_crt_key_path.to_str().unwrap(),
+        device_cert_key_out_path
+    ));
+}
+
+#[test]
 fn check_set_iot_hub_device_update_template() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 

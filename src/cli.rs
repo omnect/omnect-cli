@@ -153,6 +153,24 @@ pub enum IdentityConfig {
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
+    /// set certificates in order to support X.509 based DPS provisioning WITHOUT certificate renewal via EST
+    SetDeviceCertificateNoEst {
+        /// path to device certificate pem file
+        #[arg(short = 'c', long = "device-cert")]
+        device_cert: PathBuf,
+        /// path to device key pem file
+        #[arg(short = 'k', long = "device-key")]
+        device_key: PathBuf,
+        /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
+        #[arg(short = 'i', long = "image")]
+        image: PathBuf,
+        /// optional: generate bmap file (currently not working in docker image)
+        #[arg(short = 'b', long = "generate-bmap-file")]
+        generate_bmap: bool,
+        /// optional: pack image [xz, bzip2, gzip]
+        #[arg(short = 'p', long = "pack-image", value_enum)]
+        compress_image: Option<Compression>,
+    },
 }
 
 #[derive(Parser, Debug)]

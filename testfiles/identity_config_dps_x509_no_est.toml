@@ -1,0 +1,13 @@
+hostname = "test-omnect-no-est"
+
+[provisioning]
+source = "dps"
+global_endpoint = "https://global.azure-devices-provisioning.net/"
+id_scope = "my-scope-id"
+
+[provisioning.attestation]
+method = "x509"
+registration_id = "test-omnect-est"
+
+identity_cert = "file:///mnt/cert/priv/device_id_cert.pem"
+identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"

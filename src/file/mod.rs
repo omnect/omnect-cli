@@ -116,44 +116,32 @@ pub fn set_identity_config(
 }
 
 pub fn set_device_cert(
-    intermediate_full_chain_cert_path: &Path,
-    device_full_chain_cert: &Vec<u8>,
-    device_key: &Vec<u8>,
+    intermediate_full_chain_cert_path: Option<&Path>,
+    device_cert_path: &Path,
+    device_key_path: &Path,
     image_file: &Path,
 ) -> Result<()> {
-    let parent = image_file.parent();
-    let device_cert_path = get_file_path(parent, "device_cert_path.pem")?;
-    let device_key_path = get_file_path(parent, "device_key_path.key.pem")?;
+    let mut copy_params = vec![
+        FileCopyToParams::new(
+            device_cert_path,
+            Partition::cert,
+            Path::new("/priv/device_id_cert.pem"),
+        ),
+        FileCopyToParams::new(
+            device_key_path,
+            Partition::cert,
+            Path::new("/priv/device_id_cert_key.pem"),
+        ),
+    ];
 
-    fs::write(&device_cert_path, device_full_chain_cert)
-        .context("set_device_cert: write device_cert_path")?;
-    fs::write(&device_key_path, device_key).context("set_device_cert: write device_key_path")?;
+    if let Some(p) = intermediate_full_chain_cert_path {
+        copy_params.append(&mut vec![
+            FileCopyToParams::new(p, Partition::cert, Path::new("/priv/ca.crt.pem")),
+            FileCopyToParams::new(p, Partition::cert, Path::new("/ca/ca.crt")),
+        ])
+    }
 
-    copy_to_image(
-        &vec![
-            FileCopyToParams::new(
-                &device_cert_path,
-                Partition::cert,
-                Path::new("/priv/device_id_cert.pem"),
-            ),
-            FileCopyToParams::new(
-                &device_key_path,
-                Partition::cert,
-                Path::new("/priv/device_id_cert_key.pem"),
-            ),
-            FileCopyToParams::new(
-                intermediate_full_chain_cert_path,
-                Partition::cert,
-                Path::new("/priv/ca.crt.pem"),
-            ),
-            FileCopyToParams::new(
-                intermediate_full_chain_cert_path,
-                Partition::cert,
-                Path::new("/ca/ca.crt"),
-            ),
-        ],
-        image_file,
-    )
+    copy_to_image(&copy_params, image_file)
 }
 
 pub fn set_iot_hub_device_update_config(du_config_file: &Path, image_file: &Path) -> Result<()> {
@@ -232,7 +220,7 @@ fn configure_hostname(
     ])
 }
 
-fn get_file_path(parent: Option<&Path>, file_name: &str) -> Result<PathBuf> {
+pub(crate) fn get_file_path(parent: Option<&Path>, file_name: &str) -> Result<PathBuf> {
     let mut file_path = parent
         .context("get_file_path: cannot get parent directory")?
         .to_path_buf();

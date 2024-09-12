@@ -15,7 +15,8 @@ use cli::{
     Docker::Inject,
     File::{CopyFromImage, CopyToImage},
     IdentityConfig::{
-        SetConfig, SetDeviceCertificate, SetIotLeafSasConfig, SetIotedgeGatewayConfig,
+        SetConfig, SetDeviceCertificate, SetDeviceCertificateNoEst, SetIotLeafSasConfig,
+        SetIotedgeGatewayConfig,
     },
     IotHubDeviceUpdate::{self, SetDeviceConfig as IotHubDeviceUpdateSet},
     SshConfig::{SetCertificate, SetConnection},
@@ -173,15 +174,33 @@ pub fn run() -> Result<()> {
                 .create_cert_and_key(&device_id, &None, days)
                 .context("couldn't create device cert and key")?;
 
+            let parent = image.parent();
+            let device_cert_path = file::get_file_path(parent, "device_cert_path.pem")?;
+            let device_key_path = file::get_file_path(parent, "device_key_path.key.pem")?;
+
+            fs::write(&device_cert_path, device_cert_pem)
+                .context("set_device_cert: write device_cert_path")?;
+            fs::write(&device_key_path, device_key_pem)
+                .context("set_device_cert: write device_key_path")?;
+
             run_image_command(image, generate_bmap, compress_image, |img| {
                 file::set_device_cert(
-                    &intermediate_full_chain_cert,
-                    &device_cert_pem,
-                    &device_key_pem,
+                    Some(&intermediate_full_chain_cert),
+                    &device_cert_path,
+                    &device_key_path,
                     img,
                 )
             })?
         }
+        Command::Identity(SetDeviceCertificateNoEst {
+            device_cert: device_cert_pem,
+            device_key: device_key_pem,
+            image,
+            generate_bmap,
+            compress_image,
+        }) => run_image_command(image, generate_bmap, compress_image, |img| {
+            file::set_device_cert(None, &device_cert_pem, &device_key_pem, img)
+        })?,
         Command::Identity(SetIotedgeGatewayConfig {
             config,
             image,
