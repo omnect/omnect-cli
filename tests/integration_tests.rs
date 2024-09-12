@@ -398,7 +398,7 @@ fn check_set_identity_config_tpm_template() {
 }
 
 #[test]
-fn check_set_device_cert() {
+fn check_set_device_cert_est() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let intermediate_full_chain_crt_path = tr.to_pathbuf("testfiles/test-int-ca_fullchain.pem");
