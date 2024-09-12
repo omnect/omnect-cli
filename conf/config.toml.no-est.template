@@ -1,5 +1,5 @@
 ## Hostname
-hostname = "test-omnect-est"
+hostname = "test-omnect-no-est"
 
 ## DPS provisioning with X.509 certificate
 [provisioning]
@@ -9,6 +9,6 @@ id_scope = "0neXXXXXXXX"
 
 [provisioning.attestation]
 method = "x509"
-registration_id = "test-omnect-est"
+registration_id = "test-omnect-no-est"
 identity_cert = "file:///mnt/cert/priv/device_id_cert.pem"
 identity_pk = "file:///mnt/cert/priv/device_id_cert_key.pem"
