@@ -36,7 +36,7 @@ struct IdentityCert {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
-struct AttestationWithEst {
+struct AttestationEst {
     method: String,
     registration_id: Option<String>,
     trust_bundle_cert: Option<String>,
@@ -60,7 +60,7 @@ struct AttestationNoEst {
 #[allow(dead_code)]
 enum Attestation {
     NoEst(AttestationNoEst),
-    WithEst(AttestationWithEst),
+    Est(AttestationEst),
 }
 
 #[derive(Debug, Deserialize)]
@@ -234,7 +234,7 @@ pub fn validate_identity(
                     None => {
                         out.push(WARN_MISSING_ATTESTATION);
                     }
-                    Some(Attestation::WithEst(a)) => match a.method.as_str() {
+                    Some(Attestation::Est(a)) => match a.method.as_str() {
                         "x509" => {
                             if Some(false)
                                 == a.identity_cert
