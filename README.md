@@ -6,7 +6,7 @@ omnect-cli is a command-line tool to manage omnect-os empowered devices. It prov
 
 - Identity configuration:
   - Inject general identity configuration for AIS (Azure Identity Service)
-  - Inject a device certificate with corresponding key from a given intermediate full-chain-certificate and corresponding key
+  - Inject a device certificate and key
 - Device Update for IoT Hub:
   - manage updates (create, import, remove) (https://learn.microsoft.com/en-us/azure/iot-hub-device-update/import-concepts)
   - inject configuration file `du-config.json` (https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
@@ -66,7 +66,9 @@ omnect-cli identity set-config --help
 **Note1**: For `omnect-iotedge-devices` adapt [config.toml.est.template](conf/config.toml.est.template) or [config.toml.tpm.template](conf/config.toml.tpm.template) to your needs.<br>
 **Note2**: For further information on using dps payloads read the following [link](https://learn.microsoft.com/de-de/azure/iot-dps/concepts-custom-allocation).
 
-### Inject device certificate and key for x509 based DPS provisioning
+### Inject device certificate and key for x509 based DPS provisioning and EST renewal
+
+> **_NOTE: Use this command if your certificates are managed with [EST](https://learn.microsoft.com/en-us/azure/iot-edge/how-to-manage-device-certificates?view=iotedge-1.5&tabs=ubuntu#automatic-certificate-management-with-est-server) protocol._**
 
 This command:
  1. generates device specific credentials from a given intermediate certificate and key
@@ -84,6 +86,21 @@ Please get into contact with us in case you want to use our existing cloud servi
 
 #### Generate your own full-chain intermediate certificate and key
 In case you intend to use your own certificates (e.g. because you want to use your own `PKI` and/or `EST service`), you can find some information about generating certificate and key here: https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11.
+
+### Inject device certificate and key for x509 based DPS provisioning without EST management
+
+> **_NOTE: Use this command if your certificates are NOT managed with [EST](https://learn.microsoft.com/en-us/azure/iot-edge/how-to-manage-device-certificates?view=iotedge-1.5&tabs=ubuntu#example-use-device-identity-certificate-files-from-pki-provider) protocol._**
+
+This command:
+ 1. injects given device certificate pem file into a firmware image
+ 2. injects given device key pem file into a firmware image
+
+Detailed description:
+```sh
+omnect-cli identity set-device-certificate-no-est --help
+```
+**Note1**: "device_id" has to match the `registration_id` respectively the `device_id` configured in `config.toml`.<br>
+**Note2**: see [`config.toml.no-est.template`](conf/config.toml.no-est.template) as a corresponding `config.toml` in case of using `EST service`.
 
 ## Device Update for IoT Hub
 ### Create import manifest
