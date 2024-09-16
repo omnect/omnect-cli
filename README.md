@@ -89,7 +89,7 @@ In case you intend to use your own certificates (e.g. because you want to use yo
 
 ### Inject device certificate and key for x509 based DPS provisioning without EST management
 
-> **_NOTE: Use this command if your certificates are NOT managed with [EST](https://learn.microsoft.com/en-us/azure/iot-edge/how-to-manage-device-certificates?view=iotedge-1.5&tabs=ubuntu#automatic-certificate-management-with-est-server) protocol._**
+> **_NOTE: Use this command if your certificates are NOT managed with [EST](https://learn.microsoft.com/en-us/azure/iot-edge/how-to-manage-device-certificates?view=iotedge-1.5&tabs=ubuntu#example-use-device-identity-certificate-files-from-pki-provider) protocol._**
 
 This command:
  1. injects given device certificate pem file into a firmware image
