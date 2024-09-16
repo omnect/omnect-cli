@@ -169,8 +169,8 @@ fn configure_hostname(
     identity_config_file: &Path,
     image_file: &Path,
 ) -> Result<Vec<FileCopyToParams>> {
-    let hostname_file = get_file_path(image_file.parent(), "hostname")?;
-    let hosts_file = get_file_path(image_file.parent(), "hosts")?;
+    let hostname_file = get_file_path(image_file, "hostname")?;
+    let hosts_file = get_file_path(image_file, "hosts")?;
 
     // get hostname from identity_config_file
     let identity: IdentityConfig = serde_path_to_error::deserialize(toml::Deserializer::new(
@@ -220,9 +220,10 @@ fn configure_hostname(
     ])
 }
 
-pub(crate) fn get_file_path(parent: Option<&Path>, file_name: &str) -> Result<PathBuf> {
-    let mut file_path = parent
-        .context("get_file_path: cannot get parent directory")?
+pub(crate) fn get_file_path(image_path: &Path, file_name: &str) -> Result<PathBuf> {
+    let mut file_path = image_path
+        .parent()
+        .context("cannot get image directory")?
         .to_path_buf();
     file_path.push(file_name);
     Ok(file_path)

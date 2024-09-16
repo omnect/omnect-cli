@@ -174,9 +174,8 @@ pub fn run() -> Result<()> {
                 .create_cert_and_key(&device_id, &None, days)
                 .context("couldn't create device cert and key")?;
 
-            let parent = image.parent();
-            let device_cert_path = file::get_file_path(parent, "device_cert_path.pem")?;
-            let device_key_path = file::get_file_path(parent, "device_key_path.key.pem")?;
+            let device_cert_path = file::get_file_path(&image, "device_cert_path.pem")?;
+            let device_key_path = file::get_file_path(&image, "device_key_path.key.pem")?;
 
             fs::write(&device_cert_path, device_cert_pem)
                 .context("set_device_cert: write device_cert_path")?;
