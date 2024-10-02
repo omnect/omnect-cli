@@ -494,7 +494,6 @@ fn check_set_device_cert_no_est() {
 
     let mut device_cert_key_out_path = device_cert_out_path.clone();
 
-
     device_cert_out_path.push("device_id_cert_out_path");
     let device_cert_out_path = device_cert_out_path.to_str().unwrap();
 
