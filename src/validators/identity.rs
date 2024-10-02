@@ -161,7 +161,7 @@ struct CertIssuance {
 #[allow(dead_code)]
 pub struct IdentityConfig {
     #[validate(regex(
-        path = "RE_HOSTNAME",
+        path = *RE_HOSTNAME,
         code = "hostname validation",
         message = "hostname is not compliant with rfc1035"
     ))]
