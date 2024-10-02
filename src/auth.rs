@@ -178,6 +178,7 @@ async fn request_access_token(auth_info: &AuthInfo) -> Result<Token> {
         "Note: if the browser does not open automatically, use this link to complete login: {}",
         auth_url.to_string()
     );
+    let _ = open::that(auth_url.to_string());
 
     let auth_code = server_task.await??;
 
