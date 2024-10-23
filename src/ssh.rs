@@ -224,9 +224,11 @@ async fn request_ssh_tunnel(
         .await
         .map_err(|err| anyhow::anyhow!("Failed to perform ssh tunnel request: {err}"))?;
 
-    if !response.status().is_success() {
+    let status = response.status();
+
+    if !status.is_success() {
         let error_msg = into_error_message(response).await;
-        anyhow::bail!("Something went wrong while creating the ssh tunnel: {error_msg}");
+        anyhow::bail!("Something went wrong while creating the ssh tunnel. status: {status}, message: {error_msg}");
     }
 
     Ok(response.json().await?)
