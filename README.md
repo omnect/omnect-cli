@@ -46,7 +46,8 @@ docker run --rm -it \
   ```
 
   **Note1**: `-b` option to create bmap file is not supported by docker image.<br>
-  **Note2**: The ssh tunnel option requires some additional settings. See [here](Usage-with-docker) for more details.
+  **Note2**: The ssh tunnel option requires some additional settings. See [here](Usage-with-docker) for more details.<br>
+  **Note3**: The docker inject command is not supported by docker image.<br>.
 
 # Build from sources
 
@@ -263,6 +264,8 @@ If you want to use a custom backend configuration, you additionally have to
 bind mount the config file, as well, i.e., `-v host/path/to/config.toml:/config.toml`,
 and then tell omnect-cli to use this path.
 
+
+
 ## docker
 
 ### Inject docker images into firmware images
@@ -273,6 +276,8 @@ Detailed description:
 ```sh
 omnect-cli docker inject --help
 ```
+
+**Note:** currently not supported via omnect-cli docker image
 
 # Troubleshooting
 
