@@ -11,8 +11,9 @@ const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 // ToDo: command completion
 #[derive(Parser, Debug)]
 #[command(after_help = COPYRIGHT)]
-/// inject and manage docker containers in a firmware image
+/// manage docker containers in a firmware image
 pub enum Docker {
+    /// pull and inject a docker image (not supported via omnect-ui container)
     Inject {
         /// full qualified name of the docker image
         #[clap(short = 'd', long = "docker-image", required(true))]
@@ -29,7 +30,7 @@ pub enum Docker {
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image [xz, bzip2, gzip]
+        /// optional: pack image [xz, bzip2, gzip] (for xz default level '9' is used, which can be overwritten by setting 'XZ_COMPRESSION_LEVEL=')
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -50,7 +51,7 @@ pub enum File {
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image [xz, bzip2, gzip]
+        /// optional: pack image [xz, bzip2, gzip] (for xz default level '9' is used, which can be overwritten by setting 'XZ_COMPRESSION_LEVEL=')
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -83,7 +84,7 @@ pub enum IdentityConfig {
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image [xz, bzip2, gzip]
+        /// optional: pack image [xz, bzip2, gzip] (for xz default level '9' is used, which can be overwritten by setting 'XZ_COMPRESSION_LEVEL=')
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -107,7 +108,7 @@ pub enum IdentityConfig {
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image [xz, bzip2, gzip]
+        /// optional: pack image [xz, bzip2, gzip] (for xz default level '9' is used, which can be overwritten by setting 'XZ_COMPRESSION_LEVEL=')
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -125,7 +126,7 @@ pub enum IdentityConfig {
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image [xz, bzip2, gzip]
+        /// optional: pack image [xz, bzip2, gzip] (for xz default level '9' is used, which can be overwritten by setting 'XZ_COMPRESSION_LEVEL=')
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -149,7 +150,7 @@ pub enum IdentityConfig {
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image [xz, bzip2, gzip]
+        /// optional: pack image [xz, bzip2, gzip] (for xz default level '9' is used, which can be overwritten by setting 'XZ_COMPRESSION_LEVEL=')
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -167,7 +168,7 @@ pub enum IdentityConfig {
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image [xz, bzip2, gzip]
+        /// optional: pack image [xz, bzip2, gzip] (for xz default level '9' is used, which can be overwritten by setting 'XZ_COMPRESSION_LEVEL=')
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -188,7 +189,7 @@ pub enum IotHubDeviceUpdate {
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image [xz, bzip2, gzip]
+        /// optional: pack image [xz, bzip2, gzip] (for xz default level '9' is used, which can be overwritten by setting 'XZ_COMPRESSION_LEVEL=')
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
@@ -307,7 +308,7 @@ pub enum SshConfig {
         /// optional: generate bmap file (currently not working in docker image)
         #[arg(short = 'b', long = "generate-bmap-file")]
         generate_bmap: bool,
-        /// optional: pack image [xz, bzip2, gzip]
+        /// optional: pack image [xz, bzip2, gzip] (for xz default level '9' is used, which can be overwritten by setting 'XZ_COMPRESSION_LEVEL=')
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
