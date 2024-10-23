@@ -39,7 +39,7 @@ where
     if let Ok("true") | Ok("1") = std::env::var("CONTAINERIZED").as_deref() {
         anyhow::ensure!(
             !generate_bmap,
-            "run_image_command_ generating bmap file is not supported in containerized environments."
+            "run_image_command: generating bmap file is not supported in containerized environments."
         );
     }
 
