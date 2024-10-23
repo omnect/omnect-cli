@@ -45,9 +45,9 @@ docker run --rm -it \
   omnect/omnect-cli:latest file copy-to-image --files /source/my-source-file,boot:/my-dest-file -i /source/my-image.wic
   ```
 
-  **Note1**: `-b` option to create bmap file is not supported by docker image.<br>
+  **Note1**: `-b` option to create bmap file is not supported by omnect-cli docker image.<br>
   **Note2**: The ssh tunnel option requires some additional settings. See [here](Usage-with-docker) for more details.<br>
-  **Note3**: The docker inject command is not supported by docker image.<br>.
+  **Note3**: The docker inject command is not supported by omnect-cli docker image.<br>.
 
 # Build from sources
 
