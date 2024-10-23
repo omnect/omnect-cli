@@ -264,8 +264,6 @@ If you want to use a custom backend configuration, you additionally have to
 bind mount the config file, as well, i.e., `-v host/path/to/config.toml:/config.toml`,
 and then tell omnect-cli to use this path.
 
-
-
 ## docker
 
 ### Inject docker images into firmware images
