@@ -36,6 +36,13 @@ fn run_image_command<F>(
 where
     F: FnOnce(&PathBuf) -> Result<()>,
 {
+    if let Ok("true") | Ok("1") = std::env::var("CONTAINERIZED").as_deref() {
+        anyhow::ensure!(
+            !generate_bmap,
+            "run_image_command_ generating bmap file is not supported in containerized environments."
+        );
+    }
+
     anyhow::ensure!(
         image_file.try_exists().is_ok_and(|exists| exists),
         "run_image_command: image doesn't exist {}",

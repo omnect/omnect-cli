@@ -18,6 +18,10 @@ impl From<Architecture> for &str {
 }
 
 pub fn pull_image(name: impl AsRef<str>, arch: Architecture) -> Result<PathBuf> {
+    if let Ok("true") | Ok("1") = std::env::var("CONTAINERIZED").as_deref() {
+        anyhow::bail!("pull_docker_image: not supported in containerized environments.");
+    }
+
     let cmd_out = Command::new("docker")
         .args(["pull"])
         .args(["--platform", arch.into()])
