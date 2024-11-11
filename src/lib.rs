@@ -22,10 +22,32 @@ use cli::{
     SshConfig::{SetCertificate, SetConnection},
 };
 use file::{compression::Compression, functions::FileCopyToParams};
+use log::error;
 use std::{fs, path::PathBuf};
+use tokio::fs::remove_dir_all;
 use uuid::Uuid;
 
 use crate::file::compression;
+
+struct TempDirGuard(PathBuf);
+
+impl Drop for TempDirGuard {
+    fn drop(&mut self) {
+        let Ok(rt) = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+        else {
+            error!("cannot create tokio runtime");
+            return;
+        };
+
+        rt.block_on(async {
+            if let Err(e) = remove_dir_all(self.0.clone()).await {
+                error!("cannot remove tmp dir: {e}")
+            }
+        })
+    }
+}
 
 fn run_image_command<F>(
     image_file: PathBuf,
@@ -46,19 +68,25 @@ where
     anyhow::ensure!(
         image_file.try_exists().is_ok_and(|exists| exists),
         "run_image_command: image doesn't exist {}",
-        image_file.to_str().unwrap()
+        image_file.to_str().context("cannot get image file path")?
     );
 
     let mut dest_image_file = image_file.clone();
 
     // create /tmp/{uuid}/ and copy image into
-    let mut tmp_image_file = PathBuf::from(format!("/tmp/{}", Uuid::new_v4()));
-    fs::create_dir_all(&tmp_image_file).context(format!(
+    let tmp_dir = PathBuf::from(format!("/tmp/{}", Uuid::new_v4()));
+    fs::create_dir_all(tmp_dir.clone()).context(format!(
         "run_image_command: couldn't create destination path {}",
-        tmp_image_file.to_str().unwrap()
+        tmp_dir.to_str().context("cannot get tmp dir name")?
     ))?;
 
-    tmp_image_file.push(image_file.file_name().unwrap());
+    let _guard = TempDirGuard(tmp_dir.clone());
+
+    let mut tmp_image_file = tmp_dir.join(
+        image_file
+            .file_name()
+            .context("cannot get image file name")?,
+    );
 
     // if applicable decompress image to *.wic
     if let Some(source_compression) = Compression::from_file(&image_file)? {
@@ -78,10 +106,22 @@ where
 
     // create and copy back bmap file if one was created
     if generate_bmap {
-        let mut target_bmap = image_file.parent().unwrap().to_path_buf();
-        let tmp_bmap = PathBuf::from(format!("{}.bmap", tmp_image_file.to_str().unwrap()));
-        file::functions::generate_bmap_file(tmp_image_file.to_str().unwrap())?;
-        target_bmap.push(tmp_bmap.file_name().unwrap());
+        let mut target_bmap = image_file
+            .parent()
+            .context("cannot get parent dir of image path")?
+            .to_path_buf();
+        let tmp_bmap = PathBuf::from(format!(
+            "{}.bmap",
+            tmp_image_file
+                .to_str()
+                .context("cannot get image file path")?
+        ));
+        file::functions::generate_bmap_file(
+            tmp_image_file
+                .to_str()
+                .context("cannot get image file path")?,
+        )?;
+        target_bmap.push(tmp_bmap.file_name().context("cannot get bmap file name")?);
         std::fs::copy(&tmp_bmap, &target_bmap).context(format!(
             "error: std::fs::copy({:?}, {:?})",
             tmp_bmap, target_bmap
@@ -91,7 +131,11 @@ where
     // if applicable compress image
     if let Some(c) = target_compression {
         tmp_image_file = compression::compress(&tmp_image_file, &c)?;
-        dest_image_file.set_file_name(tmp_image_file.file_name().unwrap());
+        dest_image_file.set_file_name(
+            tmp_image_file
+                .file_name()
+                .context("cannot get image file name")?,
+        );
         std::fs::copy(&tmp_image_file, &dest_image_file).context(format!(
             "error: std::fs::copy({:?}, {:?})",
             tmp_image_file, dest_image_file
