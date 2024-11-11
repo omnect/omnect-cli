@@ -33,10 +33,14 @@ struct TempDirGuard(PathBuf);
 
 impl Drop for TempDirGuard {
     fn drop(&mut self) {
-        let rt = tokio::runtime::Builder::new_current_thread()
+        let Ok(rt) = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .unwrap();
+        else {
+            error!("cannot create tokio runtime");
+            return;
+        };
+
         rt.block_on(async {
             if let Err(e) = remove_dir_all(self.0.clone()).await {
                 error!("cannot remove tmp dir: {e}")
