@@ -22,10 +22,28 @@ use cli::{
     SshConfig::{SetCertificate, SetConnection},
 };
 use file::{compression::Compression, functions::FileCopyToParams};
+use log::error;
 use std::{fs, path::PathBuf};
+use tokio::fs::remove_dir_all;
 use uuid::Uuid;
 
 use crate::file::compression;
+
+struct TempDirGuard(PathBuf);
+
+impl Drop for TempDirGuard {
+    fn drop(&mut self) {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async {
+            if let Err(e) = remove_dir_all(self.0.clone()).await {
+                error!("cannot remove tmp dir: {e}")
+            }
+        })
+    }
+}
 
 fn run_image_command<F>(
     image_file: PathBuf,
@@ -52,13 +70,15 @@ where
     let mut dest_image_file = image_file.clone();
 
     // create /tmp/{uuid}/ and copy image into
-    let mut tmp_image_file = PathBuf::from(format!("/tmp/{}", Uuid::new_v4()));
-    fs::create_dir_all(&tmp_image_file).context(format!(
+    let tmp_dir = PathBuf::from(format!("/tmp/{}", Uuid::new_v4()));
+    fs::create_dir_all(tmp_dir.clone()).context(format!(
         "run_image_command: couldn't create destination path {}",
-        tmp_image_file.to_str().unwrap()
+        tmp_dir.to_str().unwrap()
     ))?;
 
-    tmp_image_file.push(image_file.file_name().unwrap());
+    let _guard = TempDirGuard(tmp_dir.clone());
+
+    let mut tmp_image_file = tmp_dir.join(image_file.file_name().unwrap());
 
     // if applicable decompress image to *.wic
     if let Some(source_compression) = Compression::from_file(&image_file)? {
