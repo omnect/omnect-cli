@@ -77,7 +77,7 @@ where
     let tmp_dir = PathBuf::from(format!("/tmp/{}", Uuid::new_v4()));
     fs::create_dir_all(tmp_dir.clone()).context(format!(
         "run_image_command: couldn't create destination path {}",
-        tmp_dir.to_str().context("cannot tmp dir name")?
+        tmp_dir.to_str().context("cannot get tmp dir name")?
     ))?;
 
     let _guard = TempDirGuard(tmp_dir.clone());
@@ -108,7 +108,7 @@ where
     if generate_bmap {
         let mut target_bmap = image_file
             .parent()
-            .context("cannot get image path parent")?
+            .context("cannot get parent dir of image path")?
             .to_path_buf();
         let tmp_bmap = PathBuf::from(format!(
             "{}.bmap",
