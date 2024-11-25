@@ -393,7 +393,7 @@ fn get_partition_info(image_file: &str, partition: &Partition) -> Result<Partiti
         Partition::boot => 1,
         Partition::rootA => 2,
         p @ (Partition::factory | Partition::cert) => {
-            let re = Regex::new(r"Disklabel type: (\D{3})").unwrap();
+            let re = Regex::new(r": (dos|gpt)").unwrap();
 
             let matches = re
                 .captures(&fdisk_out)
