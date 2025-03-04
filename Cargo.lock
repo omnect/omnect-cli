@@ -1303,9 +1303,9 @@ checksum = "31a7a908b8f32538a2143e59a6e4e2508988832d5d4d6f7c156b3cbc762643a5"
 
 [[package]]
 name = "filemagic"
-version = "0.12.4"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb78369ed53338584b1f503659d433dd60675fa45862400efe33c007f9676cd5"
+checksum = "0d75f995ee1753ae127a7de5f71005db660616d76ab281ba4a77a2cc0c79055a"
 dependencies = [
  "bitflags 2.9.0",
  "libc",

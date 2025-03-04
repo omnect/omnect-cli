@@ -31,7 +31,7 @@ bzip2 = "0.5"
 clap = { version = "4.5", features = ["derive"] }
 directories = "6.0"
 env_logger = "0.11"
-filemagic = "0.12"
+filemagic = "0.13"
 flate2 = "1.0"
 omnect-crypto = { git = "https://github.com/omnect/omnect-crypto.git", tag = "0.4.0" }
 keyring = "3.6"
