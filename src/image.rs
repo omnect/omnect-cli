@@ -4,6 +4,7 @@ use crate::file::functions::read_file_from_image;
 use crate::file::functions::Partition;
 use anyhow::{Context, Result};
 use regex::Regex;
+use std::sync::LazyLock;
 
 // NOTE (2024-05-29 Tobias Langer): /etc/os-release is a symlink in our yocto
 // builds. The e2tools-suite cannot handle symlinks so we use its target
@@ -11,11 +12,8 @@ use regex::Regex;
 const OS_RELEASE_PATH: &str = "/usr/lib/os-release";
 const OS_RELEASE_PARTITION: Partition = Partition::rootA;
 
-lazy_static::lazy_static! {
-    pub static ref ARCH_REGEX: Regex = {
-        Regex::new(r#"OMNECT_TARGET_ARCH="(?<arch>.*)""#).unwrap()
-    };
-}
+static ARCH_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"OMNECT_TARGET_ARCH="(?<arch>.*)""#).unwrap());
 
 #[allow(non_camel_case_types)]
 pub enum Architecture {
