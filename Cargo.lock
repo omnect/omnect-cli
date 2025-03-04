@@ -2225,16 +2225,16 @@ checksum = "875b3680cb2f8f71bdcf9a30f38d48282f5d3c95cbf9b3fa57269bb5d5c06828"
 
 [[package]]
 name = "libfs"
-version = "0.5.2"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f23b12a59df3a41e61ba6a8eb10a33e5302f91574a78bbedd019d19bcea3f1f2"
+checksum = "bc32bb146426ff8d679bb519a4f150773f9855db1f14d2c03eb97e87745e2dee"
 dependencies = [
  "cfg-if",
  "libc",
  "linux-raw-sys 0.6.5",
  "log",
  "rustix",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "xattr",
 ]
 

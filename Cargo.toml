@@ -35,7 +35,7 @@ filemagic = "0.13"
 flate2 = "1.1"
 omnect-crypto = { git = "https://github.com/omnect/omnect-crypto.git", tag = "0.4.0" }
 keyring = "3.6"
-libfs = "0.5"
+libfs = "0.8"
 log = "0.4"
 num_cpus = "1.13"
 oauth2 = "4.4"
