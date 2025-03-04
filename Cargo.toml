@@ -72,7 +72,7 @@ data-encoding = "2.8"
 file_diff = "1.0"
 httpmock = "0.7"
 ring = "0.17"
-tar = "0.4.41"
+tar = "0.4"
 
 # metadata for building with cargo-deb (https://crates.io/crates/cargo-deb)
 [package.metadata.deb]
