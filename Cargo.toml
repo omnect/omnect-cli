@@ -10,7 +10,7 @@ repository = "https://github.com/omnect/omnect-cli"
 version = "0.24.13"
 
 [dependencies]
-actix-web = "4.4"
+actix-web = "4.9"
 anyhow = "1"
 # switch back to https://github.com/Azure/azure-sdk-for-rust.git as soon as
 # https://github.com/Azure/azure-sdk-for-rust/pull/1636
