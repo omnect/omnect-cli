@@ -37,7 +37,7 @@ omnect-crypto = { git = "https://github.com/omnect/omnect-crypto.git", tag = "0.
 keyring = "3.6"
 libfs = "0.8"
 log = "0.4"
-num_cpus = "1.13"
+num_cpus = "1.16"
 oauth2 = "4.4"
 open = "5.3"
 regex = "1.5.5"
