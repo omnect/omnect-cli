@@ -4,16 +4,16 @@ use regex::Regex;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::sync::LazyLock;
 use validator::Validate;
 
-lazy_static! {
-    //
-    static ref RE_HOSTNAME: Regex = Regex::new(
+static RE_HOSTNAME: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
         // hostname validation against https://www.rfc-editor.org/rfc/rfc1035 in order to pass "iotedge check"
-        r"^[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$"
+        r"^[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$",
     )
-    .unwrap();
-}
+    .unwrap()
+});
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -327,15 +327,13 @@ pub fn validate_identity(
 mod tests {
     use super::*;
 
-    lazy_static! {
-        static ref LOG: () =
-            env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
-                .init();
-    }
+    static LOG: LazyLock<()> = LazyLock::new(|| {
+        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
+    });
 
     #[test]
     fn identity_config_hostname_empty() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         assert_ne!(
             None,
             validate_identity(
@@ -351,7 +349,7 @@ mod tests {
 
     #[test]
     fn identity_config_hostname_invalid() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         assert_ne!(
             None,
             validate_identity(
@@ -367,7 +365,7 @@ mod tests {
 
     #[test]
     fn identity_config_hostname_valid() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         assert!(validate_identity(
             IdentityType::Standalone,
             Path::new("testfiles/identity_config_hostname_valid.toml"),
@@ -378,7 +376,7 @@ mod tests {
 
     #[test]
     fn identity_config_standalone_empty() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         assert_ne!(
             None,
             validate_identity(
@@ -394,7 +392,7 @@ mod tests {
 
     #[test]
     fn identity_config_standalone_minimal() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             Path::new("testfiles/identity_config_minimal.toml"),
@@ -410,7 +408,7 @@ mod tests {
 
     #[test]
     fn identity_config_standalone_dps() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             Path::new("testfiles/identity_config_dps.toml"),
@@ -426,7 +424,7 @@ mod tests {
 
     #[test]
     fn identity_config_standalone_manual() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             Path::new("testfiles/identity_config_manual.toml"),
@@ -446,7 +444,7 @@ mod tests {
 
     #[test]
     fn identity_config_standalone_manual_con_str() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             Path::new("testfiles/identity_config_manual_connection_string.toml"),
@@ -459,7 +457,7 @@ mod tests {
 
     #[test]
     fn identity_config_standalone_dps_tpm() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             Path::new("testfiles/identity_config_dps_tpm.toml"),
@@ -471,7 +469,7 @@ mod tests {
 
     #[test]
     fn identity_config_standalone_dps_sas() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             Path::new("testfiles/identity_config_dps_sas.toml"),
@@ -487,7 +485,7 @@ mod tests {
 
     #[test]
     fn identity_config_dps_x509_est() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             Path::new("testfiles/identity_config_dps_x509_est.toml"),
@@ -499,7 +497,7 @@ mod tests {
 
     #[test]
     fn identity_config_dps_x509_no_est() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             Path::new("testfiles/identity_config_dps_x509_no_est.toml"),
@@ -511,7 +509,7 @@ mod tests {
 
     #[test]
     fn identity_config_dps_payload() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Standalone,
             Path::new("testfiles/identity_config_dps_payload.toml"),
@@ -523,7 +521,7 @@ mod tests {
 
     #[test]
     fn identity_config_leaf_empty() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         assert_ne!(
             None,
             validate_identity(
@@ -539,7 +537,7 @@ mod tests {
 
     #[test]
     fn identity_config_leaf_minimal() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
             Path::new("testfiles/identity_config_minimal.toml"),
@@ -555,7 +553,7 @@ mod tests {
 
     #[test]
     fn identity_config_leaf_dps() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
             Path::new("testfiles/identity_config_dps.toml"),
@@ -571,7 +569,7 @@ mod tests {
 
     #[test]
     fn identity_config_leaf_manual() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
             Path::new("testfiles/identity_config_manual.toml"),
@@ -590,7 +588,7 @@ mod tests {
 
     #[test]
     fn identity_config_leaf_manual_sas() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
             Path::new("testfiles/identity_config_manual_sas.toml"),
@@ -602,7 +600,7 @@ mod tests {
 
     #[test]
     fn identity_config_leaf_manual_tpm() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Leaf,
             Path::new("testfiles/identity_config_manual_tpm.toml"),
@@ -615,7 +613,7 @@ mod tests {
 
     #[test]
     fn identity_config_gateway_empty() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         assert_ne!(
             None,
             validate_identity(
@@ -631,7 +629,7 @@ mod tests {
 
     #[test]
     fn identity_config_gateway_minimal() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
             Path::new("testfiles/identity_config_minimal.toml"),
@@ -647,7 +645,7 @@ mod tests {
 
     #[test]
     fn identity_config_gateway_dps() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
             Path::new("testfiles/identity_config_dps.toml"),
@@ -663,7 +661,7 @@ mod tests {
 
     #[test]
     fn identity_config_gateway_manual() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
             Path::new("testfiles/identity_config_manual.toml"),
@@ -682,7 +680,7 @@ mod tests {
 
     #[test]
     fn identity_config_gateway_dps_tpm() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
             Path::new("testfiles/identity_config_dps_tpm.toml"),
@@ -694,7 +692,7 @@ mod tests {
 
     #[test]
     fn identity_config_gateway_dps_sas() {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let result = validate_identity(
             IdentityType::Gateway,
             Path::new("testfiles/identity_config_dps_sas.toml"),

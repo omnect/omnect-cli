@@ -6,16 +6,17 @@ use std::fs::File;
 use std::fs::{create_dir_all, remove_dir_all};
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
+use std::sync::LazyLock;
 
 const TMPDIR_FORMAT_STR: &str = "/tmp/omnect-cli-integration-tests/";
 
-lazy_static! {
-    static ref LOG: () = if cfg!(debug_assertions) {
+static LOG: LazyLock<()> = LazyLock::new(|| {
+    if cfg!(debug_assertions) {
         Builder::from_env(Env::default().default_filter_or("debug")).init()
     } else {
         Builder::from_env(Env::default().default_filter_or("info")).init()
-    };
-}
+    }
+});
 
 pub struct Testrunner {
     dirpath: std::string::String,
@@ -23,7 +24,7 @@ pub struct Testrunner {
 
 impl Testrunner {
     pub fn new(prefix: &str) -> Testrunner {
-        lazy_static::initialize(&LOG);
+        LazyLock::force(&LOG);
         let dirpath = format!("{}{}", TMPDIR_FORMAT_STR, prefix);
         create_dir_all(&dirpath).unwrap();
         Testrunner { dirpath }

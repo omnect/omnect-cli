@@ -8,7 +8,6 @@ use actix_web::{error, get, web, App, HttpServer};
 use serde::Deserialize;
 
 use oauth2::basic::BasicClient;
-use oauth2::reqwest::async_http_client;
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge, RedirectUrl, TokenResponse,
     TokenUrl,
@@ -141,13 +140,10 @@ fn store_refresh_token_in_key_ring(auth_info: &AuthInfo, refresh_token: String) 
 type Token =
     oauth2::StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>;
 async fn request_access_token(auth_info: &AuthInfo) -> Result<Token> {
-    let client = BasicClient::new(
-        ClientId::new(auth_info.client_id.clone()),
-        None,
-        AuthUrl::new(auth_info.auth_url.clone()).unwrap(),
-        Some(TokenUrl::new(auth_info.token_url.clone()).unwrap()),
-    )
-    .set_redirect_uri(RedirectUrl::new(auth_info.redirect_addr.to_string()).unwrap());
+    let client = BasicClient::new(ClientId::new(auth_info.client_id.clone()))
+        .set_auth_uri(AuthUrl::new(auth_info.auth_url.clone()).unwrap())
+        .set_token_uri(TokenUrl::new(auth_info.token_url.clone()).unwrap())
+        .set_redirect_uri(RedirectUrl::new(auth_info.redirect_addr.to_string()).unwrap());
 
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
@@ -180,12 +176,17 @@ async fn request_access_token(auth_info: &AuthInfo) -> Result<Token> {
     );
     let _ = open::that(auth_url.to_string());
 
+    let async_http_client = oauth2::reqwest::ClientBuilder::new()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("Failed to request access token: could not create client.");
+
     let auth_code = server_task.await??;
 
     Ok(client
         .exchange_code(AuthorizationCode::new(auth_code))
         .set_pkce_verifier(pkce_verifier)
-        .request_async(async_http_client)
+        .request_async(&async_http_client)
         .await?)
 }
 
@@ -193,16 +194,18 @@ async fn refresh_access_token(auth_info: &AuthInfo) -> Option<Token> {
     let refresh_token = get_refresh_token_from_key_ring(auth_info)?;
     log::debug!("Found refresh token in key ring.");
 
-    let client = BasicClient::new(
-        ClientId::new(auth_info.client_id.clone()),
-        None,
-        AuthUrl::new(auth_info.auth_url.clone()).unwrap(),
-        Some(TokenUrl::new(auth_info.token_url.clone()).unwrap()),
-    );
+    let client = BasicClient::new(ClientId::new(auth_info.client_id.clone()))
+        .set_auth_uri(AuthUrl::new(auth_info.auth_url.clone()).unwrap())
+        .set_token_uri(TokenUrl::new(auth_info.token_url.clone()).unwrap());
+
+    let async_http_client = oauth2::reqwest::ClientBuilder::new()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("Failed to refresh access token: could not create client.");
 
     let access_token = client
         .exchange_refresh_token(&oauth2::RefreshToken::new(refresh_token))
-        .request_async(async_http_client)
+        .request_async(&async_http_client)
         .await;
 
     access_token.ok()

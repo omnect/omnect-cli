@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use std::sync::LazyLock;
 
 use crate::auth::AuthInfo;
 
@@ -48,21 +49,18 @@ pub struct BackendConfig {
     pub auth: AuthProvider,
 }
 
-lazy_static::lazy_static! {
-    pub static ref AUTH_INFO_PROD: AuthProvider = {
-        let provider = "https://keycloak.omnect.conplement.cloud".to_string();
-        let realm = "cp-prod".to_string();
-        let client_id = "cp-cli".to_string();
-        let bind_addrs = vec!["127.0.0.1:4000".to_string(), "[::1]:4000".to_string()];
-        let redirect = url::Url::parse("http://localhost:4000").unwrap();
+pub static AUTH_INFO_PROD: LazyLock<AuthProvider> = LazyLock::new(|| {
+    let provider = "https://keycloak.omnect.conplement.cloud".to_string();
+    let realm = "cp-prod".to_string();
+    let client_id = "cp-cli".to_string();
+    let bind_addrs = vec!["127.0.0.1:4000".to_string(), "[::1]:4000".to_string()];
+    let redirect = url::Url::parse("http://localhost:4000").unwrap();
 
-        AuthProvider::Keycloak(
-            KeycloakInfo {
-            provider,
-            realm,
-            client_id,
-            bind_addrs,
-            redirect,
-        })
-    };
-}
+    AuthProvider::Keycloak(KeycloakInfo {
+        provider,
+        realm,
+        client_id,
+        bind_addrs,
+        redirect,
+    })
+});

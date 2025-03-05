@@ -7,9 +7,6 @@ use omnect_cli::ssh;
 use std::{fs::create_dir_all, path::PathBuf};
 use stdext::function_name;
 
-#[macro_use]
-extern crate lazy_static;
-
 #[test]
 fn check_set_identity_gateway_config() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());

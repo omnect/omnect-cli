@@ -3,6 +3,7 @@ use azure_identity::{ClientSecretCredential, TokenCredentialOptions};
 use azure_iot_deviceupdate::DeviceUpdateClient;
 use azure_storage::{shared_access_signature::service_sas::BlobSasPermissions, StorageCredentials};
 use azure_storage_blobs::prelude::{BlobServiceClient, ContainerClient};
+use base64::prelude::*;
 use log::{debug, info};
 use serde::Serialize;
 use sha2::Digest;
@@ -214,10 +215,9 @@ pub async fn import_update(
                 .context("import manifest pah invalid")?
         ))?
         .len();
-    let manifest_sha256 = base64::encode_config(
-        sha2::Sha256::digest(std::fs::read(import_manifest_path).unwrap()),
-        base64::STANDARD,
-    );
+    let manifest_sha256 = BASE64_STANDARD.encode(sha2::Sha256::digest(
+        std::fs::read(import_manifest_path).unwrap(),
+    ));
 
     let manifest: serde_json::Value = serde_json::from_reader(
         OpenOptions::new()
@@ -324,10 +324,9 @@ fn get_file_attributes(file: &Path) -> Result<File> {
 
     let hashes = HashMap::from([(
         "sha256",
-        base64::encode_config(
-            sha2::Sha256::digest(std::fs::read(file).context(format!("cannot read {}", file))?),
-            base64::STANDARD,
-        ),
+        BASE64_STANDARD.encode(sha2::Sha256::digest(
+            std::fs::read(file).context(format!("cannot read {}", file))?,
+        )),
     )]);
 
     Ok(File {

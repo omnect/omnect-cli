@@ -7,10 +7,10 @@ license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.24.13"
+version = "0.24.14"
 
 [dependencies]
-actix-web = "4.4"
+actix-web = "4.9"
 anyhow = "1"
 # switch back to https://github.com/Azure/azure-sdk-for-rust.git as soon as
 # https://github.com/Azure/azure-sdk-for-rust/pull/1636
@@ -26,31 +26,30 @@ azure_identity = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
 azure_storage = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
 azure_storage_blobs = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
 
-base64 = "0.13"
-bzip2 = "0.4"
-clap = { version = "4.0", features = ["derive"] }
-directories = "5.0"
+base64 = "0.22"
+bzip2 = "0.5"
+clap = { version = "4.5", features = ["derive"] }
+directories = "6.0"
 env_logger = "0.11"
-filemagic = "0.12"
-flate2 = "1.0"
+filemagic = "0.13"
+flate2 = "1.1"
 omnect-crypto = { git = "https://github.com/omnect/omnect-crypto.git", tag = "0.4.0" }
-keyring = "2.0"
-lazy_static = "1.4"
-libfs = "0.5"
+keyring = "3.6"
+libfs = "0.8"
 log = "0.4"
-num_cpus = "1.13"
-oauth2 = "4.4"
-open = "4.1"
-regex = "1.5.5"
-reqwest = { version = "0.11", features = ["json"] }
+num_cpus = "1.16"
+oauth2 = { version = "5.0", features = ["reqwest"] }
+open = "5.3"
+regex = "1.11"
+reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_path_to_error = "0.1"
 sha2 = "0.10"
 stdext = "0.3"
-strum = "0.25"
-strum_macros = "0.25"
-tempfile = "3.10.1"
+strum = "0.27"
+strum_macros = "0.27"
+tempfile = "3.17"
 time = { version = "0.3", features = ["formatting", "serde"] }
 tokio = { version = "1", features = [
     "macros",
@@ -61,19 +60,19 @@ tokio = { version = "1", features = [
     "rt-multi-thread",
 ] }
 toml = "0.8"
-uuid = { version = "0.8", default-features = false, features = ["v4"] }
-url = { version = "2.4" }
-validator = { version = "0.18.1", features = ["derive"] }
+uuid = { version = "1.15", default-features = false, features = ["v4"] }
+url = { version = "2.5" }
+validator = { version = "0.20", features = ["derive"] }
 xz2 = "0.1"
 
 [dev-dependencies]
 assert_cmd = "2.0"
 assert-json-diff = "2.0"
-data-encoding = "2.5"
+data-encoding = "2.8"
 file_diff = "1.0"
-httpmock = "0.6"
+httpmock = "0.7"
 ring = "0.17"
-tar = "0.4.41"
+tar = "0.4"
 
 # metadata for building with cargo-deb (https://crates.io/crates/cargo-deb)
 [package.metadata.deb]
