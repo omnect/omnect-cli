@@ -6,9 +6,11 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::str;
 
+use anyhow::anyhow;
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use oauth2::AccessToken;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -176,21 +178,25 @@ struct SshTunnelInfo {
     bastion_username: String,
 }
 
-async fn into_error_message(response: reqwest::Response) -> String {
-    #[derive(Deserialize)]
-    struct ErrorMessage {
-        #[serde(rename = "internalMsg")]
-        internal_message: String,
-    }
-
+async fn unpack_response<T: DeserializeOwned>(response: reqwest::Response) -> Result<T> {
     let status = response.status();
+    let body = response
+        .text()
+        .await
+        .map_err(|err| anyhow!("could not read response body: {err}"))?;
 
-    match response.json().await {
-        Ok(ErrorMessage { internal_message }) => internal_message,
-        Err(_) => format!(
-            "Something went wrong while creating the ssh tunnel: {}",
-            status.canonical_reason().unwrap() // safe
-        ),
+    if !status.is_success() {
+        #[derive(Deserialize)]
+        struct ErrorMessage {
+            #[serde(rename = "internalMsg")]
+            internal_message: String,
+        }
+
+        anyhow::bail!(serde_json::from_str::<ErrorMessage>(&body)
+            .map(|err| err.internal_message)
+            .unwrap_or_else(|_| "unknown error type".to_string()))
+    } else {
+        serde_json::from_str(&body).map_err(|_| anyhow!("unsupported reply."))
     }
 }
 
@@ -224,14 +230,9 @@ async fn request_ssh_tunnel(
         .await
         .map_err(|err| anyhow::anyhow!("Failed to perform ssh tunnel request: {err}"))?;
 
-    let status = response.status();
-
-    if !status.is_success() {
-        let error_msg = into_error_message(response).await;
-        anyhow::bail!("Something went wrong while creating the ssh tunnel. status: {status}, message: {error_msg}");
-    }
-
-    Ok(response.json().await?)
+    unpack_response(response)
+        .await
+        .map_err(|err| anyhow::anyhow!("Something went wrong creating the ssh tunnel: {err}"))
 }
 
 fn store_certs(
