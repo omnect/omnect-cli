@@ -192,16 +192,9 @@ async fn unpack_response<T: DeserializeOwned>(response: reqwest::Response) -> Re
             internal_message: String,
         }
 
-        let err = if let Ok(ErrorMessage {
-            internal_message: message,
-        }) = serde_json::from_str(&body)
-        {
-            anyhow!(message)
-        } else {
-            anyhow!("unknown error type.")
-        };
-
-        Err(err)
+        anyhow::bail!(serde_json::from_str::<ErrorMessage>(&body)
+            .map(|err| err.internal_message)
+            .unwrap_or_else(|_| "unknown error type".to_string()))
     } else {
         serde_json::from_str(&body).map_err(|_| anyhow!("unsupported reply."))
     }
