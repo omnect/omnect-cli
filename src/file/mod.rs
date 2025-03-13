@@ -115,33 +115,89 @@ pub fn set_identity_config(
     copy_to_image(&file_copies, image_file)
 }
 
+struct IntermediateFullChainCertDescr<'a> {
+    src: &'a Path,
+    name: &'a str,
+}
+
+struct CopyDescr<'a> {
+    src: &'a Path,
+    dest: &'a Path,
+}
+
+fn set_cert(
+    intermediate_full_chain_cert: Option<IntermediateFullChainCertDescr>,
+    cert: CopyDescr,
+    key: CopyDescr,
+    image_file: &Path,
+) -> Result<()> {
+    let mut copy_params = vec![
+        FileCopyToParams::new(cert.src, Partition::cert, cert.dest),
+        FileCopyToParams::new(key.src, Partition::cert, key.dest),
+    ];
+
+    if let Some(p) = intermediate_full_chain_cert {
+        copy_params.append(&mut vec![
+            FileCopyToParams::new(
+                p.src,
+                Partition::cert,
+                Path::new(&format!("/priv/{}.crt.pem", p.name)),
+            ),
+            FileCopyToParams::new(
+                p.src,
+                Partition::cert,
+                Path::new(&format!("/ca/{}.crt", p.name)),
+            ),
+        ])
+    }
+
+    copy_to_image(&copy_params, image_file)
+}
+
 pub fn set_device_cert(
     intermediate_full_chain_cert_path: Option<&Path>,
     device_cert_path: &Path,
     device_key_path: &Path,
     image_file: &Path,
 ) -> Result<()> {
-    let mut copy_params = vec![
-        FileCopyToParams::new(
-            device_cert_path,
-            Partition::cert,
-            Path::new("/priv/device_id_cert.pem"),
-        ),
-        FileCopyToParams::new(
-            device_key_path,
-            Partition::cert,
-            Path::new("/priv/device_id_cert_key.pem"),
-        ),
-    ];
+    let full_chain_descr = intermediate_full_chain_cert_path
+        .map(|p| IntermediateFullChainCertDescr { src: p, name: "ca" });
 
-    if let Some(p) = intermediate_full_chain_cert_path {
-        copy_params.append(&mut vec![
-            FileCopyToParams::new(p, Partition::cert, Path::new("/priv/ca.crt.pem")),
-            FileCopyToParams::new(p, Partition::cert, Path::new("/ca/ca.crt")),
-        ])
-    }
+    set_cert(
+        full_chain_descr,
+        CopyDescr {
+            src: device_cert_path,
+            dest: Path::new("/priv/device_id_cert.pem"),
+        },
+        CopyDescr {
+            src: device_key_path,
+            dest: Path::new("/priv/device_id_cert_key.pem"),
+        },
+        image_file,
+    )
+}
 
-    copy_to_image(&copy_params, image_file)
+pub fn set_edge_ca_cert(
+    intermediate_full_chain_cert_path: Option<&Path>,
+    device_cert_path: &Path,
+    device_key_path: &Path,
+    image_file: &Path,
+) -> Result<()> {
+    let full_chain_descr = intermediate_full_chain_cert_path
+        .map(|p| IntermediateFullChainCertDescr { src: p, name: "ca" });
+
+    set_cert(
+        full_chain_descr,
+        CopyDescr {
+            src: device_cert_path,
+            dest: Path::new("/priv/edge_ca_cert.pem"),
+        },
+        CopyDescr {
+            src: device_key_path,
+            dest: Path::new("/priv/edge_ca_cert_key.pem"),
+        },
+        image_file,
+    )
 }
 
 pub fn set_iot_hub_device_update_config(du_config_file: &Path, image_file: &Path) -> Result<()> {

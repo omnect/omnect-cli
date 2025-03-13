@@ -14,15 +14,15 @@ use cli::{
     Docker::Inject,
     File::{CopyFromImage, CopyToImage},
     IdentityConfig::{
-        SetConfig, SetDeviceCertificate, SetDeviceCertificateNoEst, SetIotLeafSasConfig,
-        SetIotedgeGatewayConfig,
+        SetConfig, SetDeviceCertificate, SetDeviceCertificateNoEst, SetEdgeCaCertificate,
+        SetIotLeafSasConfig, SetIotedgeGatewayConfig,
     },
     IotHubDeviceUpdate::{self, SetDeviceConfig as IotHubDeviceUpdateSet},
     SshConfig::{SetCertificate, SetConnection},
 };
 use file::{compression::Compression, functions::FileCopyToParams};
 use log::error;
-use std::{fs, path::PathBuf};
+use std::{fs, path::Path, path::PathBuf};
 use tokio::fs::remove_dir_all;
 use uuid::Uuid;
 
@@ -150,6 +150,46 @@ where
     Ok(())
 }
 
+struct CertInfo {
+    cert_path: PathBuf,
+    key_path: PathBuf,
+}
+
+struct CertificateOptions<'a> {
+    intermediate_full_chain_cert: &'a Path,
+    intermediate_key: &'a Path,
+    target_cert: &'a str,
+    target_key: &'a str,
+    subject: &'a str,
+    validity_days: u32,
+}
+
+fn create_image_cert(image: &Path, cert_opts: CertificateOptions) -> Result<CertInfo> {
+    let intermediate_full_chain_cert_str =
+        std::fs::read_to_string(cert_opts.intermediate_full_chain_cert)
+            .context("create_and_set_image_cert: couldn't read intermediate fullchain cert")?;
+    let intermediate_key_str = std::fs::read_to_string(cert_opts.intermediate_key)
+        .context("create_and_set_image_cert: couldn't read intermediate key")?;
+    let crypto = omnect_crypto::Crypto::new(
+        intermediate_key_str.as_bytes(),
+        intermediate_full_chain_cert_str.as_bytes(),
+    )?;
+    let (cert_pem, key_pem) = crypto
+        .create_cert_and_key(cert_opts.subject, &None, cert_opts.validity_days)
+        .context("create_and_set_image_cert: couldn't create device cert and key")?;
+
+    let cert_path = file::get_file_path(image, cert_opts.target_cert)?;
+    let key_path = file::get_file_path(image, cert_opts.target_key)?;
+
+    fs::write(&cert_path, cert_pem).context("create_and_set_image_cert: write device_cert_path")?;
+    fs::write(&key_path, key_pem).context("create_and_set_image_cert: write device_key_path")?;
+
+    Ok(CertInfo {
+        cert_path: cert_path.to_path_buf(),
+        key_path: key_path.to_path_buf(),
+    })
+}
+
 pub fn run() -> Result<()> {
     match cli::from_args() {
         Command::Docker(Inject {
@@ -211,32 +251,55 @@ pub fn run() -> Result<()> {
             generate_bmap,
             compress_image,
         }) => {
-            let intermediate_full_chain_cert_str =
-                std::fs::read_to_string(&intermediate_full_chain_cert)
-                    .context("couldn't read intermediate fullchain cert")?;
-            let intermediate_key_str = std::fs::read_to_string(intermediate_key)
-                .context("couldn't read intermediate key")?;
-            let crypto = omnect_crypto::Crypto::new(
-                intermediate_key_str.as_bytes(),
-                intermediate_full_chain_cert_str.as_bytes(),
-            )?;
-            let (device_cert_pem, device_key_pem) = crypto
-                .create_cert_and_key(&device_id, &None, days)
-                .context("couldn't create device cert and key")?;
-
-            let device_cert_path = file::get_file_path(&image, "device_cert_path.pem")?;
-            let device_key_path = file::get_file_path(&image, "device_key_path.key.pem")?;
-
-            fs::write(&device_cert_path, device_cert_pem)
-                .context("set_device_cert: write device_cert_path")?;
-            fs::write(&device_key_path, device_key_pem)
-                .context("set_device_cert: write device_key_path")?;
+            let cert_info = create_image_cert(
+                &image,
+                CertificateOptions {
+                    intermediate_full_chain_cert: &intermediate_full_chain_cert,
+                    intermediate_key: &intermediate_key,
+                    target_cert: "device_cert_path.pem",
+                    target_key: "device_key_path.key.pem",
+                    subject: &device_id,
+                    validity_days: days,
+                },
+            )
+            .context("set_edge_ca_certificate: could not create certificate")?;
 
             run_image_command(image, generate_bmap, compress_image, |img| {
                 file::set_device_cert(
                     Some(&intermediate_full_chain_cert),
-                    &device_cert_path,
-                    &device_key_path,
+                    &cert_info.cert_path,
+                    &cert_info.key_path,
+                    img,
+                )
+            })?
+        }
+        Command::Identity(SetEdgeCaCertificate {
+            intermediate_full_chain_cert,
+            intermediate_key,
+            image,
+            subject,
+            days,
+            generate_bmap,
+            compress_image,
+        }) => {
+            let cert_info = create_image_cert(
+                &image,
+                CertificateOptions {
+                    intermediate_full_chain_cert: &intermediate_full_chain_cert,
+                    intermediate_key: &intermediate_key,
+                    target_cert: "edge_ca_cert_path.pem",
+                    target_key: "edge_ca_path.key.pem",
+                    subject: &subject,
+                    validity_days: days,
+                },
+            )
+            .context("set_edge_ca_certificate: could not create certificate")?;
+
+            run_image_command(image, generate_bmap, compress_image, |img| {
+                file::set_edge_ca_cert(
+                    Some(&intermediate_full_chain_cert),
+                    &cert_info.cert_path,
+                    &cert_info.key_path,
                     img,
                 )
             })?

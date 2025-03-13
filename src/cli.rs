@@ -179,6 +179,30 @@ pub enum IdentityConfig {
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
+    /// set edge-ca certificates in order to support X.509 based DPS provisioning and certificate renewal via EST for web services provided by the device
+    SetEdgeCaCertificate {
+        /// path to intermediate full-chain-certificate pem file
+        #[arg(short = 'c', long = "intermediate-full-chain-cert")]
+        intermediate_full_chain_cert: PathBuf,
+        /// path to intermediate key pem file
+        #[arg(short = 'k', long = "intermediate-key")]
+        intermediate_key: PathBuf,
+        /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
+        #[arg(short = 'i', long = "image")]
+        image: PathBuf,
+        /// subject name for the edge ca
+        #[arg(short = 's', long = "subject")]
+        subject: String,
+        /// period of validity in days
+        #[arg(short = 'D', long = "days")]
+        days: u32,
+        /// optional: generate bmap file (currently not working in docker image)
+        #[arg(short = 'b', long = "generate-bmap-file")]
+        generate_bmap: bool,
+        /// optional: pack image [xz, bzip2, gzip] (for xz default level '9' is used, which can be overwritten by setting 'XZ_COMPRESSION_LEVEL=')
+        #[arg(short = 'p', long = "pack-image", value_enum)]
+        compress_image: Option<Compression>,
+    },
 }
 
 #[derive(Parser, Debug)]
