@@ -36,7 +36,7 @@ impl Testrunner {
 
     pub fn to_pathbuf(&self, file: &str) -> PathBuf {
         let destfile = String::from(file);
-        let destfile = destfile.split('/').last().unwrap();
+        let destfile = destfile.split('/').next_back().unwrap();
         let path = PathBuf::from(format!("{}/{}", self.dirpath, destfile));
 
         copy(file, &path).unwrap();
