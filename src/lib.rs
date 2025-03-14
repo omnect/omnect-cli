@@ -288,7 +288,7 @@ pub fn run() -> Result<()> {
                     intermediate_full_chain_cert: &intermediate_full_chain_cert,
                     intermediate_key: &intermediate_key,
                     target_cert: "edge_ca_cert_path.pem",
-                    target_key: "edge_ca_path.key.pem",
+                    target_key: "edge_ca_key_path.key.pem",
                     subject: &device_id,
                     validity_days: days,
                 },
