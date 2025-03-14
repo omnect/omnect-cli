@@ -13,7 +13,14 @@ const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 #[command(after_help = COPYRIGHT)]
 /// manage docker containers in a firmware image
 pub enum Docker {
-    /// pull and inject a docker image (not supported via omnect-ui container)
+    /// pull and inject a docker image into the factory partition.
+    ///
+    /// Notes:
+    /// As the this command is injected into the factory partition, the injected
+    /// image will remain there even after factory resets.
+    ///
+    /// This command is currently only supported for native omnect-cli, i.e., it
+    /// will not work for the omnect-cli docker image.
     Inject {
         /// full qualified name of the docker image
         #[clap(short = 'd', long = "docker-image", required(true))]
