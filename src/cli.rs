@@ -179,7 +179,7 @@ pub enum IdentityConfig {
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
-    /// set edge-ca certificates in order to support X.509 based DPS provisioning and certificate renewal via EST for web services provided by the device
+    /// set edge-ca certificate that will be used for edge module device/server certificate generation.
     SetEdgeCaCertificate {
         /// path to intermediate full-chain-certificate pem file
         #[arg(short = 'c', long = "intermediate-full-chain-cert")]
