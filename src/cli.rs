@@ -313,7 +313,9 @@ pub enum SshConfig {
         compress_image: Option<Compression>,
     },
 
-    /// set ssh connection parameters (currently not working in docker image)
+    /// set ssh connection parameters (see
+    /// https://github.com/omnect/omnect-cli?tab=readme-ov-file#usage-with-docker
+    /// for details on how to use this command with the docker image)
     SetConnection {
         /// username for the login on the device.
         #[arg(short = 'u', long = "user", default_value = "omnect")]
