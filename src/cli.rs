@@ -190,9 +190,9 @@ pub enum IdentityConfig {
         /// path to wic image file (optionally compressed with xz, bzip2 or gzip)
         #[arg(short = 'i', long = "image")]
         image: PathBuf,
-        /// subject name for the edge ca
-        #[arg(short = 's', long = "subject")]
-        subject: String,
+        /// device id
+        #[arg(short = 'd', long = "device-id")]
+        device_id: String,
         /// period of validity in days
         #[arg(short = 'D', long = "days")]
         days: u32,

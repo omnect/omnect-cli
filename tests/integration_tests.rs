@@ -542,7 +542,7 @@ fn check_set_edge_ca_cert() {
         .arg(&intermediate_full_chain_crt_key_path)
         .arg("-i")
         .arg(&image_path)
-        .arg("-s")
+        .arg("-d")
         .arg("edge-ca")
         .arg("-D")
         .arg("1")
