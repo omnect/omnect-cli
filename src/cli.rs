@@ -15,12 +15,12 @@ const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 pub enum Docker {
     /// pull and inject a docker image into the factory partition.
     ///
-    /// Notes:
-    /// As the this command is injected into the factory partition, the injected
-    /// image will remain there even after factory resets.
+    /// Note: This command injects the docker image into the factory partition.
+    /// Therefore, the injected image will remain there even after factory
+    /// resets.
     ///
-    /// This command is currently only supported for native omnect-cli, i.e., it
-    /// will not work for the omnect-cli docker image.
+    /// Furthermore, the command is currently only supported for native
+    /// omnect-cli, i.e., it will not work for the omnect-cli docker image.
     Inject {
         /// full qualified name of the docker image
         #[clap(short = 'd', long = "docker-image", required(true))]
