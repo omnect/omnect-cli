@@ -13,7 +13,14 @@ const COPYRIGHT: &str = "Copyright © 2021 by conplement AG";
 #[command(after_help = COPYRIGHT)]
 /// manage docker containers in a firmware image
 pub enum Docker {
-    /// pull and inject a docker image (not supported via omnect-ui container)
+    /// pull and inject a docker image into the factory partition.
+    ///
+    /// Note: This command injects the docker image into the factory partition.
+    /// Therefore, the injected image will remain there even after factory
+    /// resets.
+    ///
+    /// Furthermore, the command is currently only supported for native
+    /// omnect-cli, i.e., it will not work for the omnect-cli docker image.
     Inject {
         /// full qualified name of the docker image
         #[clap(short = 'd', long = "docker-image", required(true))]
@@ -313,7 +320,9 @@ pub enum SshConfig {
         compress_image: Option<Compression>,
     },
 
-    /// set ssh connection parameters (currently not working in docker image)
+    /// set ssh connection parameters (see
+    /// https://github.com/omnect/omnect-cli?tab=readme-ov-file#usage-with-docker
+    /// for details on how to use this command with the docker image)
     SetConnection {
         /// username for the login on the device.
         #[arg(short = 'u', long = "user", default_value = "omnect")]
