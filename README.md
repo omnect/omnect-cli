@@ -7,7 +7,7 @@ omnect-cli is a command-line tool to manage omnect-os empowered devices. It prov
 - Identity configuration:
   - Inject general identity configuration for AIS (Azure Identity Service)
   - Inject a device certificate and key
-  - Inject edge CA certificate for device/server certificate creation
+  - Inject bootstrap certificate for edge CA issuance/renewal
 - Device Update for IoT Hub:
   - manage updates (create, import, remove) (https://learn.microsoft.com/en-us/azure/iot-hub-device-update/import-concepts)
   - inject configuration file `du-config.json` (https://docs.microsoft.com/en-us/azure/iot-hub-device-update/device-update-configuration-file)
@@ -104,10 +104,10 @@ omnect-cli identity set-device-certificate-no-est --help
 **Note1**: "device_id" has to match the `registration_id` respectively the `device_id` configured in `config.toml`.<br>
 **Note2**: see [`config.toml.no-est.template`](conf/config.toml.no-est.template) as a corresponding `config.toml` in case of using `EST service`.
 
-### Inject edge CA certificate for module device/server certificate generation
+### Inject bootstrap certificate for edge CA issuance/renewal
 
-Generate and set edge CA certificate for the generation of device and server
-certificates. Technically, this command functions similarly `set-device-identity`:
+Generates a bootstrap certificate for edge CA issuance and renewal for production over EST. Technically, this command functions similarly
+`set-device-identity`:
 
  1. generates device specific credentials from a given intermediate certificate and key
  2. injects credentials into a firmware image

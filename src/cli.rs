@@ -179,7 +179,7 @@ pub enum IdentityConfig {
         #[arg(short = 'p', long = "pack-image", value_enum)]
         compress_image: Option<Compression>,
     },
-    /// set edge-ca certificate that will be used for edge module device/server certificate generation.
+    /// generate and set bootstrap certificate for edge ca issuance/renewal.
     SetEdgeCaCertificate {
         /// path to intermediate full-chain-certificate pem file
         #[arg(short = 'c', long = "intermediate-full-chain-cert")]
