@@ -526,6 +526,77 @@ fn check_set_device_cert_no_est() {
 }
 
 #[test]
+fn check_set_edge_ca_cert() {
+    let tr = Testrunner::new(function_name!().split("::").last().unwrap());
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let intermediate_full_chain_crt_path = tr.to_pathbuf("testfiles/test-int-ca_fullchain.pem");
+    let intermediate_full_chain_crt_key_path = tr.to_pathbuf("testfiles/test-int-ca.key");
+
+    let mut set_device_certificate = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = set_device_certificate
+        .arg("identity")
+        .arg("set-edge-ca-certificate")
+        .arg("-c")
+        .arg(&intermediate_full_chain_crt_path)
+        .arg("-k")
+        .arg(&intermediate_full_chain_crt_key_path)
+        .arg("-i")
+        .arg(&image_path)
+        .arg("-d")
+        .arg("edge-ca")
+        .arg("-D")
+        .arg("1")
+        .assert();
+    assert.success();
+
+    let mut edge_ca_cert_out_path = tr.pathbuf();
+    edge_ca_cert_out_path.push("dir1");
+    create_dir_all(edge_ca_cert_out_path.clone()).unwrap();
+
+    let mut edge_ca_cert_key_out_path = edge_ca_cert_out_path.clone();
+    let mut ca_crt_pem_out_path = edge_ca_cert_out_path.clone();
+    let mut ca_pem_out_path = edge_ca_cert_out_path.clone();
+
+    edge_ca_cert_out_path.push("edge_ca_cert_out_path");
+    let edge_ca_cert_out_path = edge_ca_cert_out_path.to_str().unwrap();
+
+    edge_ca_cert_key_out_path.push("edge_ca_cert_key_out_path");
+    let edge_ca_cert_key_out_path = edge_ca_cert_key_out_path.to_str().unwrap();
+
+    ca_crt_pem_out_path.push("ca_crt_pem_out_path");
+    let ca_crt_pem_out_path = ca_crt_pem_out_path.to_str().unwrap();
+
+    ca_pem_out_path.push("ca_pem_out_path");
+    let ca_pem_out_path = ca_pem_out_path.to_str().unwrap();
+
+    let mut copy_from_img = Command::cargo_bin("omnect-cli").unwrap();
+    let assert = copy_from_img
+        .arg("file")
+        .arg("copy-from-image")
+        .arg("-f")
+        .arg(format!(
+            "cert:/priv/edge_ca_cert.pem,{edge_ca_cert_out_path}"
+        ))
+        .arg("-f")
+        .arg(format!(
+            "cert:/priv/edge_ca_cert_key.pem,{edge_ca_cert_key_out_path}"
+        ))
+        .arg("-f")
+        .arg(format!("cert:/priv/ca.crt.pem,{ca_crt_pem_out_path}"))
+        .arg("-f")
+        .arg(format!("cert:/ca/ca.crt,{ca_pem_out_path}"))
+        .arg("-i")
+        .arg(&image_path)
+        .assert();
+    assert.success();
+
+    assert!(file_diff::diff(
+        intermediate_full_chain_crt_path.to_str().unwrap(),
+        ca_crt_pem_out_path
+    ));
+}
+
+#[test]
 fn check_set_iot_hub_device_update_template() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
 
