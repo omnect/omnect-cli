@@ -172,7 +172,7 @@ async fn request_access_token(auth_info: &AuthInfo) -> Result<Token> {
     log::info!("Redirecting to authentication provider.");
     log::info!(
         "Note: if the browser does not open automatically, use this link to complete login: {}",
-        auth_url.to_string()
+        auth_url
     );
     let _ = open::that(auth_url.to_string());
 
