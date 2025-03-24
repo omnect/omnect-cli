@@ -183,8 +183,11 @@ pub fn set_edge_ca_cert(
     device_key_path: &Path,
     image_file: &Path,
 ) -> Result<()> {
-    let full_chain_descr = intermediate_full_chain_cert_path
-        .map(|p| IntermediateFullChainCertDescr { src: p, name: "ca" });
+    let full_chain_descr =
+        intermediate_full_chain_cert_path.map(|p| IntermediateFullChainCertDescr {
+            src: p,
+            name: "edge_ca",
+        });
 
     set_cert(
         full_chain_descr,
