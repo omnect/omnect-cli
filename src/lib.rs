@@ -262,7 +262,7 @@ pub fn run() -> Result<()> {
                     validity_days: days,
                 },
             )
-            .context("set_edge_ca_certificate: could not create certificate")?;
+            .context("set_device_certificate: could not create certificate")?;
 
             run_image_command(image, generate_bmap, compress_image, |img| {
                 file::set_device_cert(
