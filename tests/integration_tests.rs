@@ -582,9 +582,9 @@ fn check_set_edge_ca_cert() {
             "cert:/priv/edge_ca_cert_key.pem,{edge_ca_cert_key_out_path}"
         ))
         .arg("-f")
-        .arg(format!("cert:/priv/ca.crt.pem,{ca_crt_pem_out_path}"))
+        .arg(format!("cert:/priv/edge_ca.crt.pem,{ca_crt_pem_out_path}"))
         .arg("-f")
-        .arg(format!("cert:/ca/ca.crt,{ca_pem_out_path}"))
+        .arg(format!("cert:/ca/edge_ca.crt,{ca_pem_out_path}"))
         .arg("-i")
         .arg(&image_path)
         .assert();
