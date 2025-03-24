@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.25.0"
+version = "0.25.1"
 
 [dependencies]
 actix-web = "4.9"
