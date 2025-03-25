@@ -7,3 +7,20 @@ id_scope = "my-scope-id"
 
 [provisioning.attestation]
 method = "tpm"
+
+[cert_issuance.est]
+trusted_certs = [
+     "file:///mnt/cert/ca/edge_ca.crt",
+]
+
+[edge_ca]
+method = "est"
+common_name = "test"
+url = "my-est-url"
+bootstrap_identity_cert = "file:///mnt/cert/priv/edge_ca_cert.pem"
+bootstrap_identity_pk = "file:///mnt/cert/priv/edge_ca_cert_key.pem"
+
+[edge_ca.auto_renew]
+rotate_key = true
+threshold = "80%"
+retry = "4%"
