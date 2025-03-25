@@ -121,6 +121,8 @@ struct Tpm {
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
 struct EdgeCA {
+    cert: Option<String>,
+    pk: Option<String>,
     method: String,
     common_name: String,
     url: String,
