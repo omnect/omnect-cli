@@ -387,11 +387,11 @@ fn check_set_identity_config_tpm_template() {
 
     assert!(std::fs::read_to_string(hosts_file_out_path)
         .unwrap()
-        .contains("127.0.1.1 my-omnect-iot-tpm-device"));
+        .contains("127.0.1.1 test-omnect-tpm"));
 
     assert!(std::fs::read_to_string(hostname_file_out_path)
         .unwrap()
-        .contains("my-omnect-iot-tpm-device"));
+        .contains("test-omnect-tpm"));
 }
 
 #[test]

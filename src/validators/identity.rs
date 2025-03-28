@@ -123,8 +123,8 @@ struct Tpm {
 struct EdgeCA {
     cert: Option<String>,
     pk: Option<String>,
-    method: String,
-    common_name: String,
+    method: Option<String>,
+    common_name: Option<String>,
     url: Option<String>,
     bootstrap_identity_cert: Option<String>,
     bootstrap_identity_pk: Option<String>,
