@@ -125,9 +125,9 @@ struct EdgeCA {
     pk: Option<String>,
     method: String,
     common_name: String,
-    url: String,
-    bootstrap_identity_cert: String,
-    bootstrap_identity_pk: String,
+    url: Option<String>,
+    bootstrap_identity_cert: Option<String>,
+    bootstrap_identity_pk: Option<String>,
     auto_renew: Option<CertAutoRenew>,
 }
 
@@ -150,8 +150,8 @@ struct Urls {
 #[serde(deny_unknown_fields)]
 #[allow(dead_code, clippy::upper_case_acronyms)]
 struct EST {
-    auth: Option<Auth>,
-    urls: Option<Urls>,
+    auth: Auth,
+    urls: Urls,
     trusted_certs: Vec<String>,
 }
 
@@ -313,9 +313,17 @@ pub fn validate_identity(
             .as_ref()
             .and_then(|ci| ci.est.as_ref())
             .map(|est| {
-                est.trusted_certs.iter().any(|e| {
-                    e == "file:///mnt/cert/ca/ca.crt" || e == "file:///mnt/cert/ca/edge_ca.crt"
-                })
+                (est.auth.bootstrap_identity_cert.as_str()
+                    == "file:///mnt/cert/priv/device_id_cert.pem"
+                    || est.auth.bootstrap_identity_cert.as_str()
+                        == "file:///mnt/cert/priv/edge_ca_cert.pem")
+                    && (est.auth.bootstrap_identity_pk.as_str()
+                        == "file:///mnt/cert/priv/device_id_cert_key.pem"
+                        || est.auth.bootstrap_identity_pk.as_str()
+                            == "file:///mnt/cert/priv/edge_ca_cert_key.pem")
+                    && est.trusted_certs.iter().any(|e| {
+                        e == "file:///mnt/cert/ca/ca.crt" || e == "file:///mnt/cert/ca/edge_ca.crt"
+                    })
             })
     {
         out.push(WARN_UNEXPECTED_PATH)

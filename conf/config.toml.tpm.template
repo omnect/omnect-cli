@@ -1,5 +1,5 @@
 ## Hostname
-hostname = "my-omnect-iot-tpm-device"
+hostname = "test-omnect-tpm"
 
 ## DPS provisioning with tpm
 [provisioning]
@@ -9,19 +9,23 @@ id_scope = "my-scope-id"
 
 [provisioning.attestation]
 method = "tpm"
-registration_id = "my-omnect-iot-tpm-device"
+registration_id = "test-omnect-tpm"
 
 [cert_issuance.est]
 trusted_certs = [
      "file:///mnt/cert/ca/edge_ca.crt",
 ]
 
-[edge_ca]
-method = "est"
-common_name = "my-omnect-iot-tpm-device"
-url = "https://omnect-est.url:8080/.well-known/est"
+[cert_issuance.est.auth]
 bootstrap_identity_cert = "file:///mnt/cert/priv/edge_ca_cert.pem"
 bootstrap_identity_pk = "file:///mnt/cert/priv/edge_ca_cert_key.pem"
+
+[cert_issuance.est.urls]
+default = "https://omnect-est.url:8080/.well-known/est"
+
+[edge_ca]
+method = "est"
+common_name = "test-omnect-tpm"
 
 [edge_ca.auto_renew]
 rotate_key = true
