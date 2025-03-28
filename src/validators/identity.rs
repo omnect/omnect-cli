@@ -121,8 +121,14 @@ struct Tpm {
 #[serde(deny_unknown_fields)]
 #[allow(dead_code)]
 struct EdgeCA {
-    cert: String,
-    pk: String,
+    cert: Option<String>,
+    pk: Option<String>,
+    method: String,
+    common_name: String,
+    url: Option<String>,
+    bootstrap_identity_cert: Option<String>,
+    bootstrap_identity_pk: Option<String>,
+    auto_renew: Option<CertAutoRenew>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -307,14 +313,17 @@ pub fn validate_identity(
             .as_ref()
             .and_then(|ci| ci.est.as_ref())
             .map(|est| {
-                est.auth.bootstrap_identity_cert.as_str()
+                (est.auth.bootstrap_identity_cert.as_str()
                     == "file:///mnt/cert/priv/device_id_cert.pem"
-                    && est.auth.bootstrap_identity_cert.as_str()
-                        == "file:///mnt/cert/priv/device_id_cert.pem"
-                    && est
-                        .trusted_certs
-                        .iter()
-                        .any(|e| e == "file:///mnt/cert/ca/ca.crt")
+                    || est.auth.bootstrap_identity_cert.as_str()
+                        == "file:///mnt/cert/priv/edge_ca_cert.pem")
+                    && (est.auth.bootstrap_identity_pk.as_str()
+                        == "file:///mnt/cert/priv/device_id_cert_key.pem"
+                        || est.auth.bootstrap_identity_pk.as_str()
+                            == "file:///mnt/cert/priv/edge_ca_cert_key.pem")
+                    && est.trusted_certs.iter().any(|e| {
+                        e == "file:///mnt/cert/ca/ca.crt" || e == "file:///mnt/cert/ca/edge_ca.crt"
+                    })
             })
     {
         out.push(WARN_UNEXPECTED_PATH)
