@@ -300,7 +300,7 @@ pub async fn remove_update(
     let remove_update_response = client
         .delete_update(instance_id, provider, name, version)
         .await?;
-    info!("Result of remove update: {remove_update_response}");
+    info!("Result of remove update: {:?}", &remove_update_response);
 
     Ok(())
 }
