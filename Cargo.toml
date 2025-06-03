@@ -1,16 +1,16 @@
 [package]
 authors = ["omnect@conplement.de>"]
 description = "This tool provides a command-line interface to configure omnect-os images and to communicate with omnect-os empowered devices."
-edition = "2021"
+edition = "2024"
 homepage = "https://www.omnect.io/home"
 license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.26.1"
+version = "0.26.2"
 
 [dependencies]
-actix-web = "4.9"
+actix-web = "4.11"
 anyhow = "1"
 # switch back to https://github.com/Azure/azure-sdk-for-rust.git as soon as
 # https://github.com/Azure/azure-sdk-for-rust/pull/1636
@@ -20,55 +20,60 @@ anyhow = "1"
 #azure_identity = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2024-??-??" }
 #azure_storage = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2024-??-??" }
 #azure_storage_blobs = { git = "https://github.com/Azure/azure-sdk-for-rust.git", tag = "v2024-??-??" }
-azure_core = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
-azure_iot_deviceupdate = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
-azure_identity = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
-azure_storage = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
-azure_storage_blobs = { git = "https://github.com/omnect/azure-sdk-for-rust.git" }
-
-base64 = "0.22"
-bzip2 = "0.5"
-clap = { version = "4.5", features = ["derive"] }
-directories = "6.0"
-env_logger = "0.11"
-filemagic = "0.13"
-flate2 = "1.1"
+azure_core = { git = "https://github.com/omnect/azure-sdk-for-rust.git", default-features = false }
+azure_iot_deviceupdate = { git = "https://github.com/omnect/azure-sdk-for-rust.git", default-features = false }
+azure_identity = { git = "https://github.com/omnect/azure-sdk-for-rust.git", default-features = false }
+azure_storage = { git = "https://github.com/omnect/azure-sdk-for-rust.git", default-features = false }
+azure_storage_blobs = { git = "https://github.com/omnect/azure-sdk-for-rust.git", default-features = false }
+base64 = { version = "0.22", default-features = false }
+bzip2 = { version = "0.5", default-features = false, features = [
+    "libbz2-rs-sys",
+] }
+clap = { version = "4.5", default-features = false, features = [
+    "derive",
+    "std",
+] }
+directories = { version = "6.0", default-features = false }
+env_logger = { version = "0.11", default-features = false }
+filemagic = { version = "0.13", default-features = false, features = [
+    "pkg-config",
+] }
+flate2 = { version = "1.1", default-features = false }
 omnect-crypto = { git = "https://github.com/omnect/omnect-crypto.git", tag = "0.4.0" }
-keyring = "3.6"
-libfs = "0.8"
-log = "0.4"
-num_cpus = "1.16"
-oauth2 = { version = "5.0", features = ["reqwest"] }
-open = "5.3"
-regex = "1.11"
-reqwest = { version = "0.12", features = ["json"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_path_to_error = "0.1"
-sha2 = "0.10"
-stdext = "0.3"
-strum = "0.27"
-strum_macros = "0.27"
-tempfile = "3.17"
-time = { version = "0.3", features = ["formatting", "serde"] }
-tokio = { version = "1", features = [
+keyring = { version = "3.6", default-features = false }
+libfs = { version = "0.8", default-features = false }
+log = { version = "0.4", default-features = false }
+num_cpus = { version = "1.17", default-features = false }
+oauth2 = { version = "5.0", default-features = false, features = ["reqwest"] }
+open = { version = "5.3", default-features = false }
+regex = { version = "1.11", default-features = false }
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", default-features = false }
+serde_path_to_error = { version = "0.1", default-features = false }
+sha2 = { version = "0.10", default-features = false }
+stdext = { version = "0.3", default-features = false }
+strum = { version = "0.27", default-features = false }
+strum_macros = { version = "0.27", default-features = false }
+tempfile = { version = "3.20", default-features = false }
+time = { version = "0.3", default-features = false }
+tokio = { version = "1", default-features = false, features = [
     "macros",
-    "io-std",
-    "io-util",
     "fs",
-    "net",
     "rt-multi-thread",
 ] }
-toml = "0.8"
-uuid = { version = "1.15", default-features = false, features = ["v4"] }
-url = { version = "2.5" }
-validator = { version = "0.20", features = ["derive"] }
-xz2 = "0.1"
+toml = { version = "0.8", default-features = false, features = ["parse"] }
+uuid = { version = "1.17", default-features = false, features = ["v4"] }
+url = { version = "2.5", default-features = false }
+validator = { version = "0.20", default-features = false, features = [
+    "derive",
+] }
+xz2 = { version = "0.1", default-features = false }
 
 [dev-dependencies]
 assert_cmd = "2.0"
 assert-json-diff = "2.0"
-data-encoding = "2.8"
+data-encoding = "2.9"
 file_diff = "1.0"
 httpmock = "0.7"
 ring = "0.17"
