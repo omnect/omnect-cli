@@ -4,13 +4,12 @@ use tokio::sync::{mpsc, oneshot};
 
 use anyhow::Result;
 
-use actix_web::{error, get, web, App, HttpServer};
+use actix_web::{App, HttpServer, error, get, web};
 use serde::Deserialize;
 
-use oauth2::basic::BasicClient;
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge, RedirectUrl, TokenResponse,
-    TokenUrl,
+    TokenUrl, basic::BasicClient,
 };
 
 #[derive(Deserialize)]

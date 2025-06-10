@@ -108,17 +108,23 @@ fn check_set_identity_gateway_config() {
         edge_device_identity_key_file_path.to_str().unwrap(),
         edge_device_identity_key_file_out_path
     ));
-    assert!(std::path::Path::new(hosts_file_out_path)
-        .try_exists()
-        .is_ok_and(|exists| exists));
+    assert!(
+        std::path::Path::new(hosts_file_out_path)
+            .try_exists()
+            .is_ok_and(|exists| exists)
+    );
 
-    assert!(std::fs::read_to_string(hosts_file_out_path)
-        .unwrap()
-        .contains("127.0.1.1 my-omnect-iotedge-gateway-device"));
+    assert!(
+        std::fs::read_to_string(hosts_file_out_path)
+            .unwrap()
+            .contains("127.0.1.1 my-omnect-iotedge-gateway-device")
+    );
 
-    assert!(std::fs::read_to_string(hostname_file_out_path)
-        .unwrap()
-        .contains("my-omnect-iotedge-gateway-device"));
+    assert!(
+        std::fs::read_to_string(hostname_file_out_path)
+            .unwrap()
+            .contains("my-omnect-iotedge-gateway-device")
+    );
 }
 
 #[test]
@@ -185,13 +191,17 @@ fn check_set_identity_leaf_config() {
         root_ca_file_out_path
     ));
 
-    assert!(std::fs::read_to_string(hosts_file_out_path)
-        .unwrap()
-        .contains("127.0.1.1 my-omnect-iot-leaf-device"));
+    assert!(
+        std::fs::read_to_string(hosts_file_out_path)
+            .unwrap()
+            .contains("127.0.1.1 my-omnect-iot-leaf-device")
+    );
 
-    assert!(std::fs::read_to_string(hostname_file_out_path)
-        .unwrap()
-        .contains("my-omnect-iot-leaf-device"));
+    assert!(
+        std::fs::read_to_string(hostname_file_out_path)
+            .unwrap()
+            .contains("my-omnect-iot-leaf-device")
+    );
 }
 
 #[test]
@@ -247,13 +257,17 @@ fn check_set_identity_config_est_template() {
         config_file_out_path
     ));
 
-    assert!(std::fs::read_to_string(hosts_file_out_path)
-        .unwrap()
-        .contains("127.0.1.1 test-omnect-est"));
+    assert!(
+        std::fs::read_to_string(hosts_file_out_path)
+            .unwrap()
+            .contains("127.0.1.1 test-omnect-est")
+    );
 
-    assert!(std::fs::read_to_string(hostname_file_out_path)
-        .unwrap()
-        .contains("test-omnect-est"));
+    assert!(
+        std::fs::read_to_string(hostname_file_out_path)
+            .unwrap()
+            .contains("test-omnect-est")
+    );
 }
 
 #[test]
@@ -323,13 +337,17 @@ fn check_set_identity_config_payload_template() {
         payload_out_path
     ));
 
-    assert!(std::fs::read_to_string(hosts_file_out_path)
-        .unwrap()
-        .contains("127.0.1.1 test-omnect-est-with-payload"));
+    assert!(
+        std::fs::read_to_string(hosts_file_out_path)
+            .unwrap()
+            .contains("127.0.1.1 test-omnect-est-with-payload")
+    );
 
-    assert!(std::fs::read_to_string(hostname_file_out_path)
-        .unwrap()
-        .contains("test-omnect-est-with-payload"));
+    assert!(
+        std::fs::read_to_string(hostname_file_out_path)
+            .unwrap()
+            .contains("test-omnect-est-with-payload")
+    );
 }
 
 #[test]
@@ -385,13 +403,17 @@ fn check_set_identity_config_tpm_template() {
         config_file_out_path
     ));
 
-    assert!(std::fs::read_to_string(hosts_file_out_path)
-        .unwrap()
-        .contains("127.0.1.1 test-omnect-tpm"));
+    assert!(
+        std::fs::read_to_string(hosts_file_out_path)
+            .unwrap()
+            .contains("127.0.1.1 test-omnect-tpm")
+    );
 
-    assert!(std::fs::read_to_string(hostname_file_out_path)
-        .unwrap()
-        .contains("test-omnect-tpm"));
+    assert!(
+        std::fs::read_to_string(hostname_file_out_path)
+            .unwrap()
+            .contains("test-omnect-tpm")
+    );
 }
 
 #[test]
@@ -1009,31 +1031,36 @@ async fn check_ssh_tunnel_setup() {
         .await
         .unwrap();
 
-    assert!(tr
-        .pathbuf()
-        .join("config")
-        .try_exists()
-        .is_ok_and(|exists| exists));
-    assert!(tr
-        .pathbuf()
-        .join("id_ed25519")
-        .try_exists()
-        .is_ok_and(|exists| exists));
-    assert!(tr
-        .pathbuf()
-        .join("id_ed25519.pub")
-        .try_exists()
-        .is_ok_and(|exists| exists));
-    assert!(tr
-        .pathbuf()
-        .join("bastion-cert.pub")
-        .try_exists()
-        .is_ok_and(|exists| exists));
-    assert!(tr
-        .pathbuf()
-        .join("device-cert.pub")
-        .try_exists()
-        .is_ok_and(|exists| exists));
+    assert!(
+        tr.pathbuf()
+            .join("config")
+            .try_exists()
+            .is_ok_and(|exists| exists)
+    );
+    assert!(
+        tr.pathbuf()
+            .join("id_ed25519")
+            .try_exists()
+            .is_ok_and(|exists| exists)
+    );
+    assert!(
+        tr.pathbuf()
+            .join("id_ed25519.pub")
+            .try_exists()
+            .is_ok_and(|exists| exists)
+    );
+    assert!(
+        tr.pathbuf()
+            .join("bastion-cert.pub")
+            .try_exists()
+            .is_ok_and(|exists| exists)
+    );
+    assert!(
+        tr.pathbuf()
+            .join("device-cert.pub")
+            .try_exists()
+            .is_ok_and(|exists| exists)
+    );
 
     let ssh_config = std::fs::read_to_string(tr.pathbuf().join("config")).unwrap();
     let expected_config = format!(

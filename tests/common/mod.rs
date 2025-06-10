@@ -1,9 +1,7 @@
 use data_encoding::HEXUPPER;
 use env_logger::{Builder, Env};
 use ring::digest::{Context, SHA256};
-use std::fs::copy;
-use std::fs::File;
-use std::fs::{create_dir_all, remove_dir_all};
+use std::fs::{File, copy, create_dir_all, remove_dir_all};
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use std::sync::LazyLock;

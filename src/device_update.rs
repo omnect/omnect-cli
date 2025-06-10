@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use azure_identity::{ClientSecretCredential, TokenCredentialOptions};
 use azure_iot_deviceupdate::DeviceUpdateClient;
-use azure_storage::{shared_access_signature::service_sas::BlobSasPermissions, StorageCredentials};
+use azure_storage::{StorageCredentials, shared_access_signature::service_sas::BlobSasPermissions};
 use azure_storage_blobs::prelude::{BlobServiceClient, ContainerClient};
 use base64::prelude::*;
 use log::{debug, info};
