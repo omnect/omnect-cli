@@ -1003,7 +1003,94 @@ async fn check_ssh_tunnel_setup() {
 
     let mock_access_token = oauth2::AccessToken::new("test_token_mock".to_string());
 
-    let mut config = ssh::Config::new("test-backend", Some(tr.pathbuf()), None, None).unwrap();
+    let server = MockServer::start();
+
+    let request_reply = r#"{
+	"clientBastionCert": "-----BEGIN CERTIFICATE-----\nMIIFrjCCA5agAwIBAgIBATANBgkqhkiG...",
+	"clientDeviceCert": "-----BEGIN CERTIFICATE-----\nMIIFrjCCA5agAwIBAgIBATANBgkqhkiG...",
+	"host": "132.23.0.1",
+	"port": 22,
+	"bastionUser": "bastion_user"
+}
+"#;
+
+    let _ = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/devices/prepareSSHConnection")
+            .header("authorization", "Bearer test_token_mock");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(request_reply);
+    });
+
+    let config = ssh::Config::new(server.base_url(), Some(tr.pathbuf()), None, None).unwrap();
+
+    ssh::ssh_create_tunnel("test_device", "test_user", config, mock_access_token)
+        .await
+        .unwrap();
+
+    assert!(
+        tr.pathbuf()
+            .join("test_device_config")
+            .try_exists()
+            .is_ok_and(|exists| exists)
+    );
+    assert!(
+        tr.pathbuf()
+            .join("test_device_id_ed25519")
+            .try_exists()
+            .is_ok_and(|exists| exists)
+    );
+    assert!(
+        tr.pathbuf()
+            .join("test_device_id_ed25519.pub")
+            .try_exists()
+            .is_ok_and(|exists| exists)
+    );
+    assert!(
+        tr.pathbuf()
+            .join("test_device_bastion-cert.pub")
+            .try_exists()
+            .is_ok_and(|exists| exists)
+    );
+    assert!(
+        tr.pathbuf()
+            .join("test_device_device-cert.pub")
+            .try_exists()
+            .is_ok_and(|exists| exists)
+    );
+
+    let ssh_config = std::fs::read_to_string(tr.pathbuf().join("test_device_config")).unwrap();
+    let expected_config = format!(
+        r#"Host bastion
+	User bastion_user
+	Hostname 132.23.0.1
+	Port 22
+	IdentityFile {}/test_device_id_ed25519
+	CertificateFile {}/test_device_bastion-cert.pub
+	ProxyCommand none
+
+Host test_device
+	User test_user
+	IdentityFile {}/test_device_id_ed25519
+	CertificateFile {}/test_device_device-cert.pub
+	ProxyCommand ssh -F {}/test_device_config bastion
+"#,
+        tr.pathbuf().to_string_lossy(),
+        tr.pathbuf().to_string_lossy(),
+        tr.pathbuf().to_string_lossy(),
+        tr.pathbuf().to_string_lossy(),
+        tr.pathbuf().to_string_lossy()
+    );
+
+    assert_eq!(ssh_config, expected_config);
+}
+
+#[tokio::test]
+async fn check_multi_ssh_tunnel_setup() {
+    let tr = Testrunner::new("check_multi_ssh_tunnel_setup");
+
+    let mock_access_token = oauth2::AccessToken::new("test_token_mock".to_string());
 
     let server = MockServer::start();
 
@@ -1025,67 +1112,82 @@ async fn check_ssh_tunnel_setup() {
             .body(request_reply);
     });
 
-    config.set_backend(url::Url::parse(&server.base_url()).unwrap());
+    ssh::ssh_create_tunnel(
+        "test_device_a",
+        "test_user",
+        ssh::Config::new(server.base_url(), Some(tr.pathbuf()), None, None).unwrap(),
+        mock_access_token.clone(),
+    )
+    .await
+    .unwrap();
 
-    ssh::ssh_create_tunnel("test_device", "test_user", config, mock_access_token)
-        .await
-        .unwrap();
+    ssh::ssh_create_tunnel(
+        "test_device_b",
+        "test_user",
+        ssh::Config::new(server.base_url(), Some(tr.pathbuf()), None, None).unwrap(),
+        mock_access_token,
+    )
+    .await
+    .unwrap();
 
-    assert!(
-        tr.pathbuf()
-            .join("config")
-            .try_exists()
-            .is_ok_and(|exists| exists)
-    );
-    assert!(
-        tr.pathbuf()
-            .join("id_ed25519")
-            .try_exists()
-            .is_ok_and(|exists| exists)
-    );
-    assert!(
-        tr.pathbuf()
-            .join("id_ed25519.pub")
-            .try_exists()
-            .is_ok_and(|exists| exists)
-    );
-    assert!(
-        tr.pathbuf()
-            .join("bastion-cert.pub")
-            .try_exists()
-            .is_ok_and(|exists| exists)
-    );
-    assert!(
-        tr.pathbuf()
-            .join("device-cert.pub")
-            .try_exists()
-            .is_ok_and(|exists| exists)
-    );
+    for device in ["test_device_a", "test_device_b"] {
+        assert!(
+            tr.pathbuf()
+                .join(format!("{device}_config"))
+                .try_exists()
+                .is_ok_and(|exists| exists)
+        );
+        assert!(
+            tr.pathbuf()
+                .join(format!("{device}_id_ed25519"))
+                .try_exists()
+                .is_ok_and(|exists| exists)
+        );
+        assert!(
+            tr.pathbuf()
+                .join(format!("{device}_id_ed25519.pub"))
+                .try_exists()
+                .is_ok_and(|exists| exists)
+        );
+        assert!(
+            tr.pathbuf()
+                .join(format!("{device}_bastion-cert.pub"))
+                .try_exists()
+                .is_ok_and(|exists| exists)
+        );
+        assert!(
+            tr.pathbuf()
+                .join(format!("{device}_device-cert.pub"))
+                .try_exists()
+                .is_ok_and(|exists| exists)
+        );
 
-    let ssh_config = std::fs::read_to_string(tr.pathbuf().join("config")).unwrap();
-    let expected_config = format!(
-        r#"Host bastion
+        let ssh_config =
+            std::fs::read_to_string(tr.pathbuf().join(format!("{device}_config"))).unwrap();
+        let expected_config = format!(
+            r#"Host bastion
 	User bastion_user
 	Hostname 132.23.0.1
 	Port 22
-	IdentityFile {}/id_ed25519
-	CertificateFile {}/bastion-cert.pub
+	IdentityFile {}/{device}_id_ed25519
+	CertificateFile {}/{device}_bastion-cert.pub
 	ProxyCommand none
 
-Host test_device
+Host {device}
 	User test_user
-	IdentityFile {}/id_ed25519
-	CertificateFile {}/device-cert.pub
-	ProxyCommand ssh -F {}/config bastion
+	IdentityFile {}/{device}_id_ed25519
+	CertificateFile {}/{device}_device-cert.pub
+	ProxyCommand ssh -F {}/{device}_config bastion
 "#,
-        tr.pathbuf().to_string_lossy(),
-        tr.pathbuf().to_string_lossy(),
-        tr.pathbuf().to_string_lossy(),
-        tr.pathbuf().to_string_lossy(),
-        tr.pathbuf().to_string_lossy()
-    );
+            tr.pathbuf().to_string_lossy(),
+            tr.pathbuf().to_string_lossy(),
+            tr.pathbuf().to_string_lossy(),
+            tr.pathbuf().to_string_lossy(),
+            tr.pathbuf().to_string_lossy()
+        );
 
-    assert_eq!(ssh_config, expected_config);
+        assert_eq!(ssh_config, expected_config);
+    }
 }
 
 // currently disabled as we have no way to test this in our pipeline were we
