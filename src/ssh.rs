@@ -16,13 +16,9 @@ static SSH_KEY_FORMAT: &str = "ed25519";
 
 static BASTION_CERT_NAME: &str = "bastion-cert.pub";
 static DEVICE_CERT_NAME: &str = "device-cert.pub";
-static SSH_CONFIG_NAME: &str = "config";
 
-pub struct Config {
-    backend: Url,
-    dir: PathBuf,
-    priv_key_path: Option<PathBuf>,
-    config_path: PathBuf,
+fn ssh_config_path(config_dir: &Path, device: &str) -> PathBuf {
+    config_dir.join(format!("{device}_config"))
 }
 
 fn query_yes_no<R, W>(query: impl AsRef<str>, mut reader: R, mut writer: W) -> Result<bool>
@@ -47,6 +43,13 @@ where
             }
         }
     }
+}
+
+pub struct Config {
+    backend: Url,
+    dir: PathBuf,
+    priv_key_path: Option<PathBuf>,
+    config_path: Option<PathBuf>,
 }
 
 impl Config {
@@ -130,12 +133,15 @@ impl Config {
             backend,
             dir: dir.clone(),
             priv_key_path,
-            config_path: config_path.unwrap_or_else(|| dir.join(SSH_CONFIG_NAME)),
+            config_path,
         })
     }
 
-    pub fn set_backend(&mut self, backend: Url) {
-        self.backend = backend;
+    pub fn config_path(&self, device: &str) -> PathBuf {
+        match &self.config_path {
+            Some(config_path) => config_path.clone(),
+            None => ssh_config_path(&self.dir, device),
+        }
     }
 }
 
@@ -235,12 +241,13 @@ async fn request_ssh_tunnel(
 }
 
 fn store_certs(
+    device: &str,
     cert_dir: &Path,
     bastion_cert: String,
     device_cert: String,
 ) -> Result<(PathBuf, PathBuf)> {
-    let mut bastion_cert_path = cert_dir.join(BASTION_CERT_NAME);
-    let mut device_cert_path = cert_dir.join(DEVICE_CERT_NAME);
+    let mut bastion_cert_path = cert_dir.join(format!("{device}_{BASTION_CERT_NAME}"));
+    let mut device_cert_path = cert_dir.join(format!("{device}_{DEVICE_CERT_NAME}"));
 
     fs::write(&mut bastion_cert_path, bastion_cert)
         .map_err(|err| anyhow::anyhow!("Failed to store bastion certificate: {err}"))?;
@@ -280,30 +287,12 @@ fn create_ssh_config(
         .create(true)
         .truncate(true)
         .open(config_path.to_str().unwrap())
-        .map_err(|err| match err.kind() {
-            std::io::ErrorKind::AlreadyExists => {
-                eprintln!(
-                    r#"ssh config file "{}" already exists and would be overwritten.
-Please remove config file first."#,
-                    config_path.to_string_lossy(),
-                );
-
-                anyhow::anyhow!(
-                    r#"config file "{}" already exists and would be overwritten."#,
-                    config_path.to_string_lossy(),
-                )
-            }
-            _ => {
-                eprintln!(
-                    r#"Failed to create ssh config file "{}": {err}"#,
-                    config_path.to_string_lossy()
-                );
-
-                anyhow::anyhow!(
-                    r#"Failed to create ssh config file "{}": {err}"#,
-                    config_path.to_string_lossy()
-                )
-            }
+        .map_err(|err| {
+            anyhow::anyhow!(
+                r#"Failed to create ssh config file "{}": {}"#,
+                config_path.to_string_lossy(),
+                err.kind()
+            )
         })?;
 
     let mut writer = BufWriter::new(config_file);
@@ -405,11 +394,12 @@ pub async fn ssh_create_tunnel(
     config: Config,
     access_token: oauth2::AccessToken,
 ) -> Result<()> {
+    let device_config_path = config.config_path(device);
+
     // setup place to store the certificates and configuration
     fs::create_dir_all(&config.dir)?;
     fs::create_dir_all(
-        config
-            .config_path
+        device_config_path
             .parent()
             .ok_or_else(|| anyhow::anyhow!("Invalid config path"))?,
     )?;
@@ -417,7 +407,7 @@ pub async fn ssh_create_tunnel(
     // create ssh key pair, if necessary
     let (priv_key_path, pub_key_path) = match &config.priv_key_path {
         None => {
-            let priv_key_path = config.dir.join(format!("id_{}", SSH_KEY_FORMAT));
+            let priv_key_path = config.dir.join(format!("{}_id_{}", device, SSH_KEY_FORMAT));
             let pub_key_path = priv_key_path.with_extension("pub");
 
             create_ssh_key_pair(&priv_key_path, &pub_key_path)
@@ -451,6 +441,7 @@ pub async fn ssh_create_tunnel(
     .await?;
 
     let (bastion_cert, device_cert) = store_certs(
+        device,
         &config.dir,
         ssh_tunnel_info.bastion_cert,
         ssh_tunnel_info.device_cert,
@@ -470,9 +461,9 @@ pub async fn ssh_create_tunnel(
         cert: device_cert,
     };
 
-    create_ssh_config(&config.config_path, bastion_details, device_details)?;
+    create_ssh_config(&device_config_path, bastion_details, device_details)?;
 
-    print_ssh_tunnel_info(&config.dir, &config.config_path, device);
+    print_ssh_tunnel_info(&config.dir, &device_config_path, device);
 
     Ok(())
 }
