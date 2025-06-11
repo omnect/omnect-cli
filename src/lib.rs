@@ -251,17 +251,14 @@ pub fn run() -> Result<()> {
             generate_bmap,
             compress_image,
         }) => {
-            let cert_info = create_image_cert(
-                &image,
-                CertificateOptions {
-                    intermediate_full_chain_cert: &intermediate_full_chain_cert,
-                    intermediate_key: &intermediate_key,
-                    target_cert: "device_cert_path.pem",
-                    target_key: "device_key_path.key.pem",
-                    subject: &device_id,
-                    validity_days: days,
-                },
-            )
+            let cert_info = create_image_cert(&image, CertificateOptions {
+                intermediate_full_chain_cert: &intermediate_full_chain_cert,
+                intermediate_key: &intermediate_key,
+                target_cert: "device_cert_path.pem",
+                target_key: "device_key_path.key.pem",
+                subject: &device_id,
+                validity_days: days,
+            })
             .context("set_device_certificate: could not create certificate")?;
 
             run_image_command(image, generate_bmap, compress_image, |img| {
@@ -282,17 +279,14 @@ pub fn run() -> Result<()> {
             generate_bmap,
             compress_image,
         }) => {
-            let cert_info = create_image_cert(
-                &image,
-                CertificateOptions {
-                    intermediate_full_chain_cert: &intermediate_full_chain_cert,
-                    intermediate_key: &intermediate_key,
-                    target_cert: "edge_ca_cert_path.pem",
-                    target_key: "edge_ca_key_path.key.pem",
-                    subject: &device_id,
-                    validity_days: days,
-                },
-            )
+            let cert_info = create_image_cert(&image, CertificateOptions {
+                intermediate_full_chain_cert: &intermediate_full_chain_cert,
+                intermediate_key: &intermediate_key,
+                target_cert: "edge_ca_cert_path.pem",
+                target_key: "edge_ca_key_path.key.pem",
+                subject: &device_id,
+                validity_days: days,
+            })
             .context("set_edge_ca_certificate: could not create certificate")?;
 
             run_image_command(image, generate_bmap, compress_image, |img| {

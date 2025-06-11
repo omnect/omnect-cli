@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use log::debug;
 use regex::Regex;
 use serde::Deserialize;
@@ -189,19 +189,15 @@ const PAYLOAD_FILEPATH: &str = "file:///etc/omnect/dps-payload.json";
 const WARN_MISSING_PROVISIONING: &str = "A provisioning section should be specified.";
 const WARN_MISSING_DPS_PARAMS: &str =
     "For provisioning source dps, global_endpoint and id_scope should be specified.";
-const WARN_MISSING_MANUAL_PARAMS: &str =
-    "For provisioning source manual, either connection_string or iothub_hostname and device_id are required.";
-const WARN_MISSING_AUTHENTICATION: &str =
-    "For provisioning source manual, an authentication section should be present in the provisioning section.";
-const WARN_MISSING_ATTESTATION: &str =
-    "For provisioning source dps an attestation section should be present in the provisioning section.";
+const WARN_MISSING_MANUAL_PARAMS: &str = "For provisioning source manual, either connection_string or iothub_hostname and device_id are required.";
+const WARN_MISSING_AUTHENTICATION: &str = "For provisioning source manual, an authentication section should be present in the provisioning section.";
+const WARN_MISSING_ATTESTATION: &str = "For provisioning source dps an attestation section should be present in the provisioning section.";
 const WARN_ATTESTATION_VALID_METHOD_EXPECTED: &str =
     "The attestation method should be tpm, x509 or symmetric_key.";
 const WARN_INVALID_SOURCE: &str = "The provisioning source should be dps or manual.";
 const WARN_AUTHENTICATION_VALID_METHOD_EXPECTED: &str = "The authentication method should be sas.";
 const WARN_UNEXPECTED_PATH: &str = "Unexpected path found.";
-const WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID: &str =
-    "provisioning.attestation.registration_id is not equal to provisioning.attestation.identity_cert.common_name";
+const WARN_UNEQUAL_COMMON_NAME_AND_REGISTRATION_ID: &str = "provisioning.attestation.registration_id is not equal to provisioning.attestation.identity_cert.common_name";
 const WARN_PAYLOAD_FILEPATH_MISSING: &str = "Payload file is configred but file is missing.";
 const WARN_PAYLOAD_CONFIG_MISSING: &str = "Payload file is passed but not configred.";
 
@@ -375,12 +371,14 @@ mod tests {
     #[test]
     fn identity_config_hostname_valid() {
         LazyLock::force(&LOG);
-        assert!(validate_identity(
-            IdentityType::Standalone,
-            Path::new("testfiles/identity_config_hostname_valid.toml"),
-            &None,
-        )
-        .is_ok());
+        assert!(
+            validate_identity(
+                IdentityType::Standalone,
+                Path::new("testfiles/identity_config_hostname_valid.toml"),
+                &None,
+            )
+            .is_ok()
+        );
     }
 
     #[test]

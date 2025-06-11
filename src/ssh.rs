@@ -1,17 +1,14 @@
 use std::convert::AsRef;
 use std::fs;
-use std::io::prelude::*;
-use std::io::BufWriter;
+use std::io::{BufWriter, prelude::*};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::str;
 
-use anyhow::anyhow;
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use directories::ProjectDirs;
 use oauth2::AccessToken;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use url::Url;
 
 static BACKEND_API_ENDPOINT: &str = "/api/devices/prepareSSHConnection";
@@ -192,9 +189,11 @@ async fn unpack_response<T: DeserializeOwned>(response: reqwest::Response) -> Re
             internal_message: String,
         }
 
-        anyhow::bail!(serde_json::from_str::<ErrorMessage>(&body)
-            .map(|err| err.internal_message)
-            .unwrap_or_else(|_| "unknown error type".to_string()))
+        anyhow::bail!(
+            serde_json::from_str::<ErrorMessage>(&body)
+                .map(|err| err.internal_message)
+                .unwrap_or_else(|_| "unknown error type".to_string())
+        )
     } else {
         serde_json::from_str(&body).map_err(|_| anyhow!("unsupported reply."))
     }

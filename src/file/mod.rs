@@ -2,15 +2,17 @@ pub mod compression;
 pub mod functions;
 use super::validators::{
     device_update,
-    identity::{validate_identity, IdentityConfig, IdentityType},
+    identity::{IdentityConfig, IdentityType, validate_identity},
     ssh::validate_ssh_pub_key,
 };
 use crate::file::functions::{FileCopyFromParams, FileCopyToParams, Partition};
 use anyhow::{Context, Result};
 use log::warn;
 use regex::Regex;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 pub fn set_iotedge_gateway_config(
     config_file: &Path,

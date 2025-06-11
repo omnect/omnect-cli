@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use crate::file::functions::read_file_from_image;
 use crate::file::functions::Partition;
+use crate::file::functions::read_file_from_image;
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::sync::LazyLock;
