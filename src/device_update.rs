@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
+use azure_core::credentials::Secret;
 use azure_identity::{ClientSecretCredential, TokenCredentialOptions};
 use azure_iot_deviceupdate::DeviceUpdateClient;
-use azure_storage::{StorageCredentials, shared_access_signature::service_sas::BlobSasPermissions};
-use azure_storage_blobs::prelude::{BlobServiceClient, ContainerClient};
+use azure_storage_blob::{BlobContainerClient, BlobServiceClient};
 use base64::prelude::*;
 use log::{debug, info};
 use serde::Serialize;
@@ -200,11 +200,10 @@ pub async fn import_update(
     blob_storage_key: &str,
 ) -> Result<()> {
     let creds = std::sync::Arc::new(ClientSecretCredential::new(
-        azure_core::new_http_client(),
-        TokenCredentialOptions::default().authority_host()?,
-        tenant_id.to_string(),
+        tenant_id,
         client_id.to_string(),
-        client_secret.to_string(),
+        azure_core::credentials::Secret::new(client_secret),
+        None,
     ));
     let client = DeviceUpdateClient::new(device_update_endpoint_url.as_str(), creds)?;
     let manifest_file_size = std::fs::metadata(import_manifest_path)
@@ -239,8 +238,9 @@ pub async fn import_update(
 
     let storage_credentials =
         StorageCredentials::access_key(blob_storage_account, blob_storage_key.to_string());
-    let storage_account_client = BlobServiceClient::new(blob_storage_account, storage_credentials);
-    let container_client = storage_account_client.container_client(container_name);
+    let storage_account_client =
+        BlobServiceClient::new(blob_storage_account, storage_credentials, None)?;
+    let container_client = storage_account_client.blob_container_client(container_name.to_string());
     let import_manifest_path = import_manifest_path.file_name().unwrap().to_str().unwrap();
     let manifest_url = generate_sas_url(&container_client, import_manifest_path).await?;
     let file_url1 = generate_sas_url(&container_client, file_name1.clone()).await?;
@@ -286,13 +286,12 @@ pub async fn remove_update(
     name: &str,
     version: &str,
 ) -> Result<()> {
-    let creds = std::sync::Arc::new(ClientSecretCredential::new(
-        azure_core::new_http_client(),
-        TokenCredentialOptions::default().authority_host()?,
-        tenant_id.to_string(),
+    let creds = ClientSecretCredential::new(
+        tenant_id,
         client_id.to_string(),
-        client_secret.to_string(),
-    ));
+        Secret::new(client_secret.to_string()),
+        None,
+    )?;
     let client = DeviceUpdateClient::new(device_update_endpoint_url.as_str(), creds)?;
 
     debug!("remove update");
@@ -337,10 +336,10 @@ fn get_file_attributes(file: &Path) -> Result<File> {
 }
 
 pub async fn generate_sas_url(
-    container_client: &ContainerClient,
+    container_client: &BlobContainerClient,
     blob_name: impl Into<String>,
 ) -> Result<url::Url> {
-    let blob_client = container_client.blob_client(blob_name);
+    let blob_client = container_client.blob_client(blob_name.into());
 
     let token = blob_client
         .shared_access_signature(
