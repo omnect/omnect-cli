@@ -305,7 +305,7 @@ pub async fn remove_update(
     Ok(())
 }
 
-fn get_file_attributes(file: &Path) -> Result<File> {
+fn get_file_attributes(file: &Path) -> Result<File<'_>> {
     debug!("get file attributes for {file:#?}");
 
     let filename = file.file_name().unwrap().to_string_lossy();

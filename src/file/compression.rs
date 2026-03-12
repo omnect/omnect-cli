@@ -129,10 +129,11 @@ impl Compression {
 pub fn decompress(image_file_name: &PathBuf, compression: &Compression) -> Result<PathBuf> {
     let mut new_image_file = PathBuf::from(image_file_name);
 
-    if let Some(extension) = new_image_file.extension() {
-        if extension == compression.extension() {
-            new_image_file.set_extension("");
-        }
+    if new_image_file
+        .extension()
+        .is_some_and(|ext| ext == compression.extension())
+    {
+        new_image_file.set_extension("");
     }
 
     let mut destination = File::create(&new_image_file)?;

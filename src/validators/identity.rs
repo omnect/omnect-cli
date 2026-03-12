@@ -210,7 +210,8 @@ pub fn validate_identity(
     let file_content = std::fs::read_to_string(config_file_name)
         .context("validate_identity: cannot read identity file")?;
     debug!("validate identity for:\n{}", file_content);
-    let des = toml::Deserializer::new(&file_content);
+    let des = toml::Deserializer::parse(&file_content)
+        .context("validate_identity: cannot parse identity toml")?;
     let body: Result<IdentityConfig, _> = serde_path_to_error::deserialize(des);
     let body = match body {
         Err(e) => {
@@ -256,8 +257,8 @@ pub fn validate_identity(
                         }
                     }
                 }
-                if p.payload.is_some() {
-                    if p.payload.unwrap().uri.ne(PAYLOAD_FILEPATH) {
+                if let Some(p_payload) = p.payload {
+                    if p_payload.uri.ne(PAYLOAD_FILEPATH) {
                         out.push(WARN_UNEXPECTED_PATH);
                     } else if payload.is_none() {
                         out.push(WARN_PAYLOAD_FILEPATH_MISSING);
