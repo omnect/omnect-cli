@@ -176,7 +176,7 @@ async fn request_access_token(auth_info: &AuthInfo) -> Result<Token> {
     let _ = open::that(auth_url.to_string());
 
     let async_http_client = oauth2::reqwest::ClientBuilder::new()
-        .redirect(reqwest::redirect::Policy::none())
+        .redirect(oauth2::reqwest::redirect::Policy::none())
         .build()
         .expect("Failed to request access token: could not create client.");
 
@@ -198,7 +198,7 @@ async fn refresh_access_token(auth_info: &AuthInfo) -> Option<Token> {
         .set_token_uri(TokenUrl::new(auth_info.token_url.clone()).unwrap());
 
     let async_http_client = oauth2::reqwest::ClientBuilder::new()
-        .redirect(reqwest::redirect::Policy::none())
+        .redirect(oauth2::reqwest::redirect::Policy::none())
         .build()
         .expect("Failed to refresh access token: could not create client.");
 

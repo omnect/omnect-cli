@@ -95,37 +95,36 @@ impl Config {
         };
 
         // if user wants to use existing key pair, check that it exists
-        if let Some(key_path) = &priv_key_path {
-            if !key_path.try_exists().is_ok_and(|exists| exists)
+        if let Some(key_path) = &priv_key_path
+            && (!key_path.try_exists().is_ok_and(|exists| exists)
                 || !key_path
                     .with_extension("pub")
                     .try_exists()
-                    .is_ok_and(|exists| exists)
-            {
-                anyhow::bail!("Missing private/public ssh key.");
-            }
+                    .is_ok_and(|exists| exists))
+        {
+            anyhow::bail!("Missing private/public ssh key.");
         }
 
         // if user wants specific config file path, check whether an existing
         // config file would be overwritten. If so, query, whether this is
         // intended.
-        if let Some(ref config_path) = config_path {
-            if config_path.exists() {
-                if query_yes_no(
-                    format!(
-                        r#"Config file "{}" would be overwritten by operation. Continue? [y/N]"#,
-                        config_path.to_string_lossy(),
-                    ),
-                    std::io::BufReader::new(std::io::stdin()),
-                    std::io::stderr(),
-                )? {
-                    log::info!(
-                        "Overwriting existing config: {}",
-                        config_path.to_string_lossy()
-                    );
-                } else {
-                    anyhow::bail!("Not overwriting config.");
-                }
+        if let Some(ref config_path) = config_path
+            && config_path.exists()
+        {
+            if query_yes_no(
+                format!(
+                    r#"Config file "{}" would be overwritten by operation. Continue? [y/N]"#,
+                    config_path.to_string_lossy(),
+                ),
+                std::io::BufReader::new(std::io::stdin()),
+                std::io::stderr(),
+            )? {
+                log::info!(
+                    "Overwriting existing config: {}",
+                    config_path.to_string_lossy()
+                );
+            } else {
+                anyhow::bail!("Not overwriting config.");
             }
         }
 

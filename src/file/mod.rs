@@ -234,11 +234,14 @@ fn configure_hostname(
     let hosts_file = get_file_path(image_file, "hosts")?;
 
     // get hostname from identity_config_file
-    let identity: IdentityConfig = serde_path_to_error::deserialize(toml::Deserializer::new(
-        fs::read_to_string(identity_config_file.to_str().unwrap())
-            .context("configure_hostname: cannot read identity file")?
-            .as_str(),
-    ))
+    let identity: IdentityConfig = serde_path_to_error::deserialize(
+        toml::Deserializer::parse(
+            fs::read_to_string(identity_config_file.to_str().unwrap())
+                .context("configure_hostname: cannot read identity file")?
+                .as_str(),
+        )
+        .context("configure_hostname: couldn't parse identity toml")?,
+    )
     .context("configure_hostname: couldn't read identity")?;
 
     fs::write(&hostname_file, &identity.hostname)
