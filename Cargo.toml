@@ -1,5 +1,5 @@
 [package]
-authors = ["omnect@conplement.de>"]
+authors = ["omnect@conplement.de"]
 description = "This tool provides a command-line interface to configure omnect-os images and to communicate with omnect-os empowered devices."
 edition = "2024"
 homepage = "https://www.omnect.io/home"
