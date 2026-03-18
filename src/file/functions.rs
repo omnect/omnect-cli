@@ -183,23 +183,6 @@ macro_rules! try_exec_cmd {
     };
 }
 
-macro_rules! exec_cmd_with_output {
-    ($cmd:expr) => {{
-        let res = $cmd
-            .output()
-            .context(format!("{}: spawn {:?}", function_name!(), $cmd))?;
-
-        let output =
-            String::from_utf8(res.stdout).context(format!("{}: get output", function_name!()))?;
-
-        let output = output.trim();
-
-        debug!("{}: {:?}", function_name!(), $cmd);
-
-        output.to_string()
-    }};
-}
-
 pub fn copy_to_image(file_copy_params: &[FileCopyToParams], image_file: &Path) -> Result<()> {
     // we use the folder the image is located in
     // the caller is responsible to create a /tmp/ directory if needed
@@ -382,17 +365,25 @@ pub fn read_file_from_image(
 fn get_partition_info(image_file: &str, partition: &Partition) -> Result<PartitionInfo> {
     use crate::file::partition::{get_partition_data, is_gpt};
 
-    let gpt = is_gpt(image_file)
-        .context("get_partition_info: failed to detect partition table type")?;
+    let gpt =
+        is_gpt(image_file).context("get_partition_info: failed to detect partition table type")?;
 
     let partition_num: u32 = match partition {
         Partition::boot => 1,
         Partition::rootA => 2,
         Partition::factory => {
-            if gpt { 4 } else { 5 }
+            if gpt {
+                4
+            } else {
+                5
+            }
         }
         Partition::cert => {
-            if gpt { 5 } else { 6 }
+            if gpt {
+                5
+            } else {
+                6
+            }
         }
     };
 
