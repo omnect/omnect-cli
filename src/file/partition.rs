@@ -19,10 +19,19 @@ pub fn get_partition_data<P: AsRef<Path>>(path: P, partition_num: u32) -> Result
     if let Ok(gpt) = gptman::GPT::find_from(&mut file) {
         let entry = &gpt[partition_num];
         anyhow::ensure!(entry.is_used(), "GPT partition {partition_num} is not used");
+        anyhow::ensure!(
+            entry.ending_lba >= entry.starting_lba,
+            "GPT partition {partition_num} has invalid LBA range (ending_lba < starting_lba)"
+        );
+        let count = entry
+            .ending_lba
+            .checked_sub(entry.starting_lba)
+            .and_then(|v| v.checked_add(1))
+            .context("GPT partition {partition_num} has an LBA range that overflows u64")?;
         return Ok(PartitionData {
             num: partition_num,
             start: entry.starting_lba,
-            count: entry.ending_lba - entry.starting_lba + 1,
+            count,
         });
     }
 
