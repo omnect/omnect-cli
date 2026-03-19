@@ -44,7 +44,7 @@ pub fn get_partition_data<P: AsRef<Path>>(path: P, partition_num: u32) -> Result
     let mbr = mbrman::MBR::read_from(&mut file, 512)
         .with_context(|| format!("image is neither valid GPT nor MBR (GPT error: {gpt_err})"))?;
     for (i, p) in mbr.iter() {
-        if i == partition_num as usize && p.is_used() {
+        if u32::try_from(i).ok() == Some(partition_num) && p.is_used() {
             return Ok(PartitionData {
                 num: partition_num,
                 start: p.starting_lba as u64,
