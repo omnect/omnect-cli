@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use log::{debug, warn};
-use regex::Regex;
 use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::fs;
@@ -22,9 +21,9 @@ pub enum Partition {
 
 #[derive(Debug)]
 struct PartitionInfo {
-    num: String,
-    start: String,
-    end: String,
+    num: u32,
+    start: u64,
+    count: u64,
 }
 
 impl Display for Partition {
@@ -182,23 +181,6 @@ macro_rules! try_exec_cmd {
             warn!("{}: {:?}", function_name!(), $cmd)
         }
     };
-}
-
-macro_rules! exec_cmd_with_output {
-    ($cmd:expr) => {{
-        let res = $cmd
-            .output()
-            .context(format!("{}: spawn {:?}", function_name!(), $cmd))?;
-
-        let output =
-            String::from_utf8(res.stdout).context(format!("{}: get output", function_name!()))?;
-
-        let output = output.trim();
-
-        debug!("{}: {:?}", function_name!(), $cmd);
-
-        output.to_string()
-    }};
 }
 
 pub fn copy_to_image(file_copy_params: &[FileCopyToParams], image_file: &Path) -> Result<()> {
@@ -381,59 +363,39 @@ pub fn read_file_from_image(
 }
 
 fn get_partition_info(image_file: &str, partition: &Partition) -> Result<PartitionInfo> {
-    let mut fdisk = Command::new("fdisk");
-    fdisk
-        .arg("-l")
-        .arg("-o")
-        .arg("Device,Start,End")
-        .arg(image_file);
-    let fdisk_out = exec_cmd_with_output!(fdisk);
+    use crate::file::partition::{get_partition_data, is_gpt};
 
-    let partition_num = match partition {
+    let gpt =
+        is_gpt(image_file).context("get_partition_info: failed to detect partition table type")?;
+
+    let partition_num: u32 = match partition {
         Partition::boot => 1,
         Partition::rootA => 2,
-        p @ (Partition::factory | Partition::cert) => {
-            let re = Regex::new(r"Disklabel type: (\D{3})").unwrap();
-
-            let matches = re
-                .captures(&fdisk_out)
-                .context("get_partition_info: regex no matches found")?;
-            anyhow::ensure!(
-                matches.len() == 2,
-                "'get_partition_info: regex contains unexpected number of matches"
-            );
-
-            let partition_type = &matches[1];
-
-            debug!("partition type: {partition_type}");
-
-            match (p, partition_type) {
-                (Partition::factory, "gpt") => 4,
-                (Partition::factory, "dos") => 5,
-                (Partition::cert, "gpt") => 5,
-                (Partition::cert, "dos") => 6,
-                _ => anyhow::bail!("get_partition_info: unhandled partition type"),
+        Partition::factory => {
+            if gpt {
+                4
+            } else {
+                5
+            }
+        }
+        Partition::cert => {
+            if gpt {
+                5
+            } else {
+                6
             }
         }
     };
 
-    let re = Regex::new(format!(r"{image_file}{partition_num}\s+(\d+)\s+(\d+)").as_str())
-        .context("get_partition_info: failed to create regex")?;
+    debug!("get_partition_info: partition={partition}, num={partition_num}, gpt={gpt}");
 
-    let matches = re
-        .captures(&fdisk_out)
-        .context("get_partition_info: regex no matches found")?;
-    anyhow::ensure!(
-        matches.len() == 3,
-        "'get_partition_info: regex contains unexpected number of matches"
-    );
-
-    let partition_offset = (matches[1].to_string(), matches[2].to_string());
+    let data = get_partition_data(image_file, partition_num)
+        .with_context(|| format!("get_partition_info: failed to read partition {partition_num}"))?;
 
     let info = PartitionInfo {
-        num: partition_num.to_string(),
-        start: partition_offset.0,
-        end: partition_offset.1,
+        num: data.num,
+        start: data.start,
+        count: data.count,
     };
 
     debug!("get_partition_info: {:?}", info);
@@ -455,7 +417,7 @@ fn read_partition(
         .arg(format!("of={partition_file}"))
         .arg("bs=512")
         .arg(format!("skip={}", partition_info.start))
-        .arg(format!("count={}", partition_info.end))
+        .arg(format!("count={}", partition_info.count))
         .arg("conv=sparse")
         .arg("status=none");
     exec_cmd!(dd);
@@ -476,7 +438,7 @@ fn write_partition(
         .arg(format!("of={image_file}"))
         .arg("bs=512")
         .arg(format!("seek={}", partition_info.start))
-        .arg(format!("count={}", partition_info.end))
+        .arg(format!("count={}", partition_info.count))
         .arg("conv=notrunc,sparse")
         .arg("status=none");
     exec_cmd!(dd);

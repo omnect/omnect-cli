@@ -1,5 +1,6 @@
 pub mod compression;
 pub mod functions;
+mod partition;
 use super::validators::{
     device_update,
     identity::{IdentityConfig, IdentityType, validate_identity},
