@@ -3,7 +3,6 @@ use log::{error, info};
 use std::process;
 
 fn main() {
-    // storage_account_client logs cleartext credentials, the others are just unnecessarily verbose.
     if cfg!(debug_assertions) {
         Builder::from_env(
             Env::default()

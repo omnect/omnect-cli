@@ -23,7 +23,7 @@ pub(crate) fn generate_blob_sas_url(
     let expiry_str = format_sas_time(expiry);
     let canonicalized_resource = format!("/blob/{account}/{container}/{blob}");
 
-    // StringToSign for version 2020-12-06 and later (16 fields, 15 newlines):
+    // StringToSign for sv=2022-11-02 (16 fields, 15 newlines):
     //   signedPermissions, signedStart, signedExpiry, canonicalizedResource,
     //   signedIdentifier, signedIP, signedProtocol, signedVersion,
     //   signedResource, signedSnapshotTime, signedEncryptionScope,

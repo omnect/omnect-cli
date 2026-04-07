@@ -8,6 +8,8 @@ use crate::device_update::token::AzureTokenProvider;
 const API_VERSION: &str = "2022-10-01";
 const INITIAL_POLL_INTERVAL_SECS: u64 = 2;
 const MAX_POLL_INTERVAL_SECS: u64 = 30;
+const HTTP_REQUEST_TIMEOUT_SECS: u64 = 30;
+const POLL_TIMEOUT_SECS: u64 = 600; // 10 minutes
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -56,7 +58,10 @@ impl DeviceUpdateClient {
     ) -> Result<Self> {
         let endpoint = Url::parse(endpoint).context("invalid device update endpoint URL")?;
         let token_provider = AzureTokenProvider::new(tenant_id, client_id, client_secret)?;
-        let http_client = reqwest::Client::new();
+        let http_client = reqwest::ClientBuilder::new()
+            .timeout(std::time::Duration::from_secs(HTTP_REQUEST_TIMEOUT_SECS))
+            .build()
+            .context("failed to create HTTP client")?;
 
         Ok(Self {
             endpoint,
@@ -160,6 +165,14 @@ impl DeviceUpdateClient {
     }
 
     async fn poll_operation(&self, operation_url: &str) -> Result<UpdateOperation> {
+        let timeout = std::time::Duration::from_secs(POLL_TIMEOUT_SECS);
+
+        tokio::time::timeout(timeout, self.poll_operation_inner(operation_url))
+            .await
+            .context("operation polling timed out")?
+    }
+
+    async fn poll_operation_inner(&self, operation_url: &str) -> Result<UpdateOperation> {
         let poll_url = if operation_url.starts_with("http") {
             Url::parse(operation_url).context("invalid operation-location URL")?
         } else {

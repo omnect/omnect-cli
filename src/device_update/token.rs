@@ -8,6 +8,7 @@ const AZURE_AD_TOKEN_URL_SUFFIX: &str = "/oauth2/v2.0/token";
 const ADU_API_SCOPE: &str = "https://api.adu.microsoft.com/.default";
 // Refresh the token 60 seconds before actual expiry to avoid races
 const TOKEN_EXPIRY_MARGIN_SECS: u64 = 60;
+const TOKEN_REQUEST_TIMEOUT_SECS: u64 = 30;
 
 struct CachedToken {
     access_token: String,
@@ -30,6 +31,7 @@ impl AzureTokenProvider {
 
         let http_client = oauth2::reqwest::ClientBuilder::new()
             .redirect(oauth2::reqwest::redirect::Policy::none())
+            .timeout(std::time::Duration::from_secs(TOKEN_REQUEST_TIMEOUT_SECS))
             .build()
             .context("failed to create HTTP client for token provider")?;
 
