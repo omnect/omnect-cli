@@ -1,8 +1,8 @@
+mod blob_sas;
+mod client;
+mod token;
+
 use anyhow::{Context, Result};
-use azure_identity::{ClientSecretCredential, TokenCredentialOptions};
-use azure_iot_deviceupdate::DeviceUpdateClient;
-use azure_storage::{StorageCredentials, shared_access_signature::service_sas::BlobSasPermissions};
-use azure_storage_blobs::prelude::{BlobServiceClient, ContainerClient};
 use base64::prelude::*;
 use log::{debug, info};
 use serde::Serialize;
@@ -199,24 +199,23 @@ pub async fn import_update(
     blob_storage_account: &str,
     blob_storage_key: &str,
 ) -> Result<()> {
-    let creds = std::sync::Arc::new(ClientSecretCredential::new(
-        azure_core::new_http_client(),
-        TokenCredentialOptions::default().authority_host()?,
-        tenant_id.to_string(),
-        client_id.to_string(),
-        client_secret.to_string(),
-    ));
-    let client = DeviceUpdateClient::new(device_update_endpoint_url.as_str(), creds)?;
+    let adu_client = client::DeviceUpdateClient::new(
+        device_update_endpoint_url.as_str(),
+        tenant_id,
+        client_id,
+        client_secret,
+    )?;
+
     let manifest_file_size = std::fs::metadata(import_manifest_path)
         .context(format!(
             "cannot get file metadata of {}",
             import_manifest_path
                 .to_str()
-                .context("import manifest pah invalid")?
+                .context("import manifest path invalid")?
         ))?
         .len();
     let manifest_sha256 = BASE64_STANDARD.encode(sha2::Sha256::digest(
-        std::fs::read(import_manifest_path).unwrap(),
+        std::fs::read(import_manifest_path).context("cannot read import manifest")?,
     ));
 
     let manifest: serde_json::Value = serde_json::from_reader(
@@ -237,14 +236,38 @@ pub async fn import_update(
         .context("step2 file not found")?
         .to_string();
 
-    let storage_credentials =
-        StorageCredentials::access_key(blob_storage_account, blob_storage_key.to_string());
-    let storage_account_client = BlobServiceClient::new(blob_storage_account, storage_credentials);
-    let container_client = storage_account_client.container_client(container_name);
-    let import_manifest_path = import_manifest_path.file_name().unwrap().to_str().unwrap();
-    let manifest_url = generate_sas_url(&container_client, import_manifest_path).await?;
-    let file_url1 = generate_sas_url(&container_client, file_name1.clone()).await?;
-    let file_url2 = generate_sas_url(&container_client, file_name2.clone()).await?;
+    let sas_expiry = time::OffsetDateTime::now_utc() + time::Duration::hours(12);
+    let import_manifest_filename = import_manifest_path
+        .file_name()
+        .context("import manifest has no filename")?
+        .to_str()
+        .context("import manifest filename is not valid UTF-8")?;
+
+    let manifest_url = blob_sas::generate_blob_sas_url(
+        blob_storage_account,
+        blob_storage_key,
+        container_name,
+        import_manifest_filename,
+        "r",
+        sas_expiry,
+    )?;
+    let file_url1 = blob_sas::generate_blob_sas_url(
+        blob_storage_account,
+        blob_storage_key,
+        container_name,
+        &file_name1,
+        "r",
+        sas_expiry,
+    )?;
+    let file_url2 = blob_sas::generate_blob_sas_url(
+        blob_storage_account,
+        blob_storage_key,
+        container_name,
+        &file_name2,
+        "r",
+        sas_expiry,
+    )?;
+
     let import_update = vec![ImportUpdate {
         import_manifest: FileUrl {
             url: manifest_url,
@@ -264,11 +287,11 @@ pub async fn import_update(
     }];
 
     let import_update =
-        serde_json::to_string_pretty(&import_update).context("Cannot parse import_update")?;
+        serde_json::to_string_pretty(&import_update).context("cannot serialize import_update")?;
 
     debug!("import update: {import_update}");
 
-    let import_update_response = client.import_update(instance_id, import_update).await?;
+    let import_update_response = adu_client.import_update(instance_id, import_update).await?;
     info!("Result of import update: {:?}", &import_update_response);
 
     Ok(())
@@ -286,18 +309,16 @@ pub async fn remove_update(
     name: &str,
     version: &str,
 ) -> Result<()> {
-    let creds = std::sync::Arc::new(ClientSecretCredential::new(
-        azure_core::new_http_client(),
-        TokenCredentialOptions::default().authority_host()?,
-        tenant_id.to_string(),
-        client_id.to_string(),
-        client_secret.to_string(),
-    ));
-    let client = DeviceUpdateClient::new(device_update_endpoint_url.as_str(), creds)?;
+    let adu_client = client::DeviceUpdateClient::new(
+        device_update_endpoint_url.as_str(),
+        tenant_id,
+        client_id,
+        client_secret,
+    )?;
 
     debug!("remove update");
 
-    let remove_update_response = client
+    let remove_update_response = adu_client
         .delete_update(instance_id, provider, name, version)
         .await?;
     info!("Result of remove update: {:?}", &remove_update_response);
@@ -334,25 +355,4 @@ fn get_file_attributes(file: &Path) -> Result<File<'_>> {
         size_in_bytes,
         hashes,
     })
-}
-
-pub async fn generate_sas_url(
-    container_client: &ContainerClient,
-    blob_name: impl Into<String>,
-) -> Result<url::Url> {
-    let blob_client = container_client.blob_client(blob_name);
-
-    let token = blob_client
-        .shared_access_signature(
-            BlobSasPermissions {
-                read: true,
-                ..BlobSasPermissions::default()
-            },
-            time::OffsetDateTime::now_utc() + time::Duration::hours(12),
-        )
-        .await?;
-
-    blob_client
-        .generate_signed_blob_url(&token)
-        .map_err(|e| e.into())
 }

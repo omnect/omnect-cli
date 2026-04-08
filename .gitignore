@@ -4,5 +4,10 @@
 *.bmap
 *.wic*
 *.swu*
+*.xml
 .vscode/launch.json
 docker-run.sh
+setup-ai.sh
+.user-context.md
+CLAUDE.md
+GEMINI.md
