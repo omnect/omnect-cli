@@ -4,8 +4,68 @@ use assert_json_diff::assert_json_eq;
 use common::Testrunner;
 use httpmock::prelude::*;
 use omnect_cli::ssh;
+use predicates::prelude::*;
 use std::{fs::create_dir_all, path::PathBuf};
 use stdext::function_name;
+
+#[test]
+fn check_help_root_level() {
+    Command::cargo_bin("omnect-cli")
+        .expect("binary exists")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("docker"))
+        .stdout(predicate::str::contains("identity"))
+        .stdout(predicate::str::contains("ssh"));
+}
+
+#[test]
+fn check_help_subcommand_group() {
+    Command::cargo_bin("omnect-cli")
+        .expect("binary exists")
+        .arg("identity")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("set-config"))
+        .stdout(predicate::str::contains("set-device-certificate"));
+}
+
+#[test]
+fn check_help_leaf_command() {
+    Command::cargo_bin("omnect-cli")
+        .expect("binary exists")
+        .arg("identity")
+        .arg("set-config")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--config"))
+        .stdout(predicate::str::contains("--image"));
+}
+
+#[test]
+fn check_help_short_flag() {
+    Command::cargo_bin("omnect-cli")
+        .expect("binary exists")
+        .arg("identity")
+        .arg("set-config")
+        .arg("-h")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--config"));
+}
+
+#[test]
+fn check_version_flag() {
+    Command::cargo_bin("omnect-cli")
+        .expect("binary exists")
+        .arg("--version")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("omnect-cli"));
+}
 
 #[test]
 fn check_set_identity_gateway_config() {
