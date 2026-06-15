@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.28.1"
+version = "0.28.2"
 
 [dependencies]
 actix-web = "4.11"
@@ -26,11 +26,11 @@ filemagic = { version = "0.13", default-features = false, features = [
     "pkg-config",
 ] }
 flate2 = { version = "1.1", default-features = false }
-gptman = { version = "1.1", default-features = false }
-hmac = { version = "0.12", default-features = false }
-mbrman = { version = "0.5", default-features = false }
+gptman = { version = "3.1", default-features = false }
+hmac = { version = "0.13", default-features = false }
+mbrman = { version = "0.6", default-features = false }
 omnect-crypto = { git = "https://github.com/omnect/omnect-crypto.git", tag = "0.4.0" }
-keyring = { version = "3.6", default-features = false }
+keyring-core = { version = "1.0", default-features = false }
 libfs = { version = "0.9", default-features = false }
 log = { version = "0.4", default-features = false }
 num_cpus = { version = "1.17", default-features = false }
@@ -47,7 +47,7 @@ reqwest = { version = "0.13", default-features = false, features = [
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false }
 serde_path_to_error = { version = "0.1", default-features = false }
-sha2 = { version = "0.10", default-features = false }
+sha2 = { version = "0.11", default-features = false }
 stdext = { version = "0.3", default-features = false }
 strum = { version = "0.28", default-features = false }
 strum_macros = { version = "0.28", default-features = false }
