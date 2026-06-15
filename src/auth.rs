@@ -112,7 +112,7 @@ async fn redirect_server<A: ToSocketAddrs>(
 }
 
 fn get_refresh_token_from_key_ring(auth_info: &AuthInfo) -> Option<String> {
-    let entry = match keyring::Entry::new("omnect-cli", &auth_info.client_id) {
+    let entry = match keyring_core::Entry::new("omnect-cli", &auth_info.client_id) {
         Ok(entry) => entry,
         Err(err) => {
             log::warn!("Failed to get entry from key ring: {}", err);
@@ -124,7 +124,7 @@ fn get_refresh_token_from_key_ring(auth_info: &AuthInfo) -> Option<String> {
 }
 
 fn store_refresh_token_in_key_ring(auth_info: &AuthInfo, refresh_token: String) {
-    let entry = match keyring::Entry::new("omnect-cli", &auth_info.client_id) {
+    let entry = match keyring_core::Entry::new("omnect-cli", &auth_info.client_id) {
         Ok(entry) => entry,
         Err(err) => {
             log::warn!("Failed to store token into key ring: {}", err);
