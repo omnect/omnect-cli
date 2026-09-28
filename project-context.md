@@ -58,7 +58,7 @@
 
 ## 4. Repository-Specific Constraints
 
-- External tools `e2cp`, `e2mkdir`, `mcopy`, `mmd`, `dd`, `fallocate`, `ssh-keygen`, `fdisk` must be available at runtime (Dockerfile copies them explicitly).
+- External tools `e2cp`, `e2mkdir`, `mcopy`, `mmd`, `dd`, `ssh-keygen`, `fdisk` must be available at runtime (Dockerfile copies them explicitly).
 - Partition enum maps partition names to numbers differently for GPT vs MBR — see `file/functions.rs`.
 - OAuth2 callback binds to `127.0.0.1:4000` and `[::1]:4000`; container mode overrides to `0.0.0.0`.
 - `conf/` directory uses `.gitignore` to track only `*.template` files — actual configs are generated, never committed.
