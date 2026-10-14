@@ -7,10 +7,10 @@ license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.28.2"
+version = "0.28.3"
 
 [dependencies]
-actix-web = "4.11"
+actix-web = { version = "4.11", default-features = false, features = ["macros"] }
 anyhow = "1"
 base64 = { version = "0.22", default-features = false }
 bzip2 = { version = "0.6", default-features = true }
@@ -25,7 +25,7 @@ env_logger = { version = "0.11", default-features = false }
 filemagic = { version = "0.13", default-features = false, features = [
     "pkg-config",
 ] }
-flate2 = { version = "1.1", default-features = false }
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
 gptman = { version = "3.1", default-features = false }
 hmac = { version = "0.13", default-features = false }
 mbrman = { version = "0.6", default-features = false }
