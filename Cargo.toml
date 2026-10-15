@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.28.4"
+version = "0.28.5"
 
 [dependencies]
 actix-web = { version = "4.17", default-features = false, features = ["macros"] }
@@ -81,5 +81,5 @@ tar = "0.4"
 
 # metadata for building with cargo-deb (https://crates.io/crates/cargo-deb)
 [package.metadata.deb]
-depends = "bmap-tools, e2tools, keychain, libc6 (>= 2.34), libmagic1, libssl3 (>= 3.0.0), mtools"
+depends = "bmap-tools, e2tools, keychain, libc6 (>= 2.39), libmagic1, libssl3 (>= 3.0.0), mtools"
 revision = ""
