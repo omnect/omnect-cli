@@ -1,7 +1,7 @@
 ARG docker_namespace
 ARG version_rust_container
 
-ARG distroless_image=gcr.io/distroless/base-debian12:nonroot
+ARG distroless_image=gcr.io/distroless/base-debian13:nonroot
 FROM ${distroless_image} AS distroless
 
 FROM ${docker_namespace}/rust:${version_rust_container} AS builder
@@ -31,7 +31,7 @@ SHELL ["/bin/bash", "-c"]
 RUN <<EOT
     set -eu
 
-    mkdir -p /copy/status.d
+    mkdir -p /copy/status.d /copy/usr/lib
 
     executables=(
         /usr/bin/dd \
@@ -89,7 +89,6 @@ COPY --from=builder /usr/share/misc/magic.mgc /usr/share/misc/magic.mgc
 COPY --from=builder /copy/usr/bin/ /usr/bin/
 COPY --from=builder /copy/usr/sbin/ /usr/sbin/
 COPY --from=builder /copy/usr/lib/ /usr/lib/
-COPY --from=builder /copy/lib/ /lib/
 COPY --from=builder /copy/status.d /var/lib/dpkg/status.d
 
 ENV CONTAINERIZED="true"

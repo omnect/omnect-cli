@@ -175,7 +175,7 @@ fn create_image_cert(image: &Path, cert_opts: CertificateOptions) -> Result<Cert
         intermediate_full_chain_cert_str.as_bytes(),
     )?;
     let (cert_pem, key_pem) = crypto
-        .create_cert_and_key(cert_opts.subject, &None, cert_opts.validity_days)
+        .create_cert_and_key(cert_opts.subject, cert_opts.validity_days)
         .context("create_and_set_image_cert: couldn't create device cert and key")?;
 
     let cert_path = file::get_file_path(image, cert_opts.target_cert)?;

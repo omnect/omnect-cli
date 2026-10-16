@@ -25,6 +25,8 @@ Further omnect-cli supports device management features. Currently supported:
 # Installation
 ## Debian package
 
+The package needs glibc 2.39 or later, e.g. Ubuntu 24.04 or Debian 13. On older hosts use the docker image.
+
 Available debian packages can be listed as a xml document via this [link](https://omnectassetst.blob.core.windows.net/omnect-cli?restype=container&comp=list). Choose, download and install a version:
 ```sh
 wget https://omnectassetst.blob.core.windows.net/omnect-cli/omnect-cli_<version>_amd64.deb
