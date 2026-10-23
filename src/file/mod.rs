@@ -1,3 +1,4 @@
+pub mod bmap;
 pub mod compression;
 pub mod functions;
 mod partition;

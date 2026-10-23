@@ -1,13 +1,18 @@
+use crate::file::partition::SECTOR_SIZE;
 use anyhow::{Context, Result};
 use log::{debug, warn};
 use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::fs;
+use std::os::unix::fs::FileExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
 use stdext::function_name;
 use uuid::Uuid;
+
+const COMPARE_BLOCK_SIZE: usize = 4096;
+const COPY_CHUNK_SIZE: usize = 1024 * 1024;
 
 #[derive(clap::ValueEnum, Debug, Clone, Eq, Hash, PartialEq)]
 #[clap(rename_all = "verbatim")]
@@ -415,7 +420,7 @@ fn read_partition(
     let mut dd = Command::new("dd");
     dd.arg(format!("if={image_file}"))
         .arg(format!("of={partition_file}"))
-        .arg("bs=512")
+        .arg(format!("bs={SECTOR_SIZE}"))
         .arg(format!("skip={}", partition_info.start))
         .arg(format!("count={}", partition_info.count))
         .arg("conv=sparse")
@@ -433,34 +438,49 @@ fn write_partition(
     partition_file: &str,
     partition_info: &PartitionInfo,
 ) -> Result<()> {
-    let mut dd = Command::new("dd");
-    dd.arg(format!("if={partition_file}"))
-        .arg(format!("of={image_file}"))
-        .arg("bs=512")
-        .arg(format!("seek={}", partition_info.start))
-        .arg(format!("count={}", partition_info.count))
-        .arg("conv=notrunc,sparse")
-        .arg("status=none");
-    exec_cmd!(dd);
+    let partition = fs::File::open(partition_file)
+        .context(format!("write_partition: cannot open {partition_file}"))?;
+    let image = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(image_file)
+        .context(format!("write_partition: cannot open {image_file}"))?;
 
-    let mut fallocate = Command::new("fallocate");
-    fallocate.arg("-d").arg(image_file);
-    exec_cmd!(fallocate);
+    let image_offset = partition_info.start * SECTOR_SIZE;
+    let len = partition
+        .metadata()
+        .context("write_partition: cannot get partition file size")?
+        .len()
+        .min(partition_info.count * SECTOR_SIZE);
 
-    let mut sync = Command::new("sync");
-    exec_cmd!(sync);
+    // Only write blocks that differ: unchanged blocks keep their allocation, so a bmap
+    // created from the result still maps every block the source image mapped.
+    let mut src = vec![0u8; COPY_CHUNK_SIZE];
+    let mut dst = vec![0u8; COPY_CHUNK_SIZE];
+    let mut pos = 0;
+    while pos < len {
+        let n = usize::try_from((len - pos).min(COPY_CHUNK_SIZE as u64))?;
+        partition
+            .read_exact_at(&mut src[..n], pos)
+            .context("write_partition: cannot read partition file")?;
+        image
+            .read_exact_at(&mut dst[..n], image_offset + pos)
+            .context("write_partition: cannot read image")?;
 
-    Ok(())
-}
+        let blocks = src[..n]
+            .chunks(COMPARE_BLOCK_SIZE)
+            .zip(dst[..n].chunks(COMPARE_BLOCK_SIZE));
+        for (i, (s, d)) in blocks.enumerate() {
+            if s != d {
+                image
+                    .write_all_at(s, image_offset + pos + (i * COMPARE_BLOCK_SIZE) as u64)
+                    .context("write_partition: cannot write image")?;
+            }
+        }
+        pos += n as u64;
+    }
 
-pub fn generate_bmap_file(image_file: &str) -> Result<()> {
-    let mut bmaptool = Command::new("bmaptool");
-    bmaptool
-        .arg("create")
-        .arg("-o")
-        .arg(format!("{image_file}.bmap"))
-        .arg(image_file);
-    exec_cmd!(bmaptool);
-
-    Ok(())
+    image
+        .sync_all()
+        .context("write_partition: cannot sync image")
 }

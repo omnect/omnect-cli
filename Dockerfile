@@ -15,6 +15,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     bmap-tools \
     ca-certificates \
+    e2fsprogs \
     e2tools \
     fdisk \
     keychain \
@@ -37,7 +38,6 @@ RUN <<EOT
         /usr/bin/dd \
         /usr/bin/e2cp \
         /usr/bin/e2mkdir \
-        /usr/bin/fallocate \
         /usr/bin/mcopy \
         /usr/bin/omnect-cli \
         /usr/bin/ssh-keygen \

@@ -22,7 +22,7 @@ use cli::{
 };
 use file::{compression::Compression, functions::FileCopyToParams};
 use log::error;
-use std::{fs, path::Path, path::PathBuf};
+use std::{fs, io::Read, path::Path, path::PathBuf};
 use tokio::fs::remove_dir_all;
 use uuid::Uuid;
 
@@ -93,9 +93,8 @@ where
         tmp_image_file = compression::decompress(&tmp_image_file, &source_compression)?;
         dest_image_file.set_extension("");
     } else {
-        // copy sparse file (std::fs::copy isn't able)
-        libfs::copy_file(&image_file, &tmp_image_file).context(format!(
-            "error: libfs::copy_file({:?}, {:?})",
+        copy_image(&image_file, &tmp_image_file).context(format!(
+            "error: copy_image({:?}, {:?})",
             image_file, tmp_image_file
         ))?;
     }
@@ -115,7 +114,7 @@ where
                 .to_str()
                 .context("cannot get image file path")?
         ));
-        file::functions::generate_bmap_file(
+        file::bmap::generate_bmap_file(
             tmp_image_file
                 .to_str()
                 .context("cannot get image file path")?,
@@ -140,11 +139,39 @@ where
             tmp_image_file, dest_image_file
         ))?;
     } else {
-        // copy sparse file (std::fs::copy isn't able)
-        libfs::copy_file(&tmp_image_file, &dest_image_file).context(format!(
-            "error: libfs::copy_file({:?}, {:?})",
+        copy_image(&tmp_image_file, &dest_image_file).context(format!(
+            "error: copy_image({:?}, {:?})",
             tmp_image_file, dest_image_file
         ))?;
+    }
+
+    Ok(())
+}
+
+/// Copies `from` to `to` and keeps the holes of a sparse `from`.
+fn copy_image(from: &Path, to: &Path) -> Result<()> {
+    let src = fs::File::open(from).context("copy_image: cannot open source")?;
+    let len = src
+        .metadata()
+        .context("copy_image: cannot get source size")?
+        .len();
+    let dst = fs::File::create(to).context("copy_image: cannot create destination")?;
+    dst.set_len(len)
+        .context("copy_image: cannot set destination size")?;
+
+    // one copy_file_range call copies at most 2 GiB; io::copy repeats it until a segment is done
+    let sparse = libfs::probably_sparse(&src)?;
+    let mut pos = 0;
+    while pos < len {
+        let (data, hole) = if sparse {
+            libfs::next_sparse_segments(&src, &dst, pos)?
+        } else {
+            (pos, len)
+        };
+        let copied = std::io::copy(&mut (&src).take(hole - data), &mut &dst)
+            .context("copy_image: cannot copy data")?;
+        anyhow::ensure!(copied == hole - data, "copy_image: source ended early");
+        pos = hole;
     }
 
     Ok(())
