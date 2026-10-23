@@ -1,6 +1,6 @@
 # local build
 cli_version=$(toml get --raw Cargo.toml package.version)
-rust_version="1.76.0-bookworm"
+rust_version="trixie"
 
 docker build \
   --build-arg docker_namespace=omnectweucopsacr.azurecr.io \
