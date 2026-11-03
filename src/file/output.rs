@@ -1,9 +1,11 @@
-use crate::file::{bmap, compression::Compression};
+use crate::file::{bmap, compression::Compression, sparse};
 use anyhow::{Context, Result};
-use log::warn;
+use log::{info, warn};
+use rustix::fs::{AtFlags, CWD, StatxAttributes, StatxFlags};
 use std::{
     collections::BTreeSet,
-    fs::{self, File},
+    env,
+    fs::{self, File, OpenOptions},
     io::ErrorKind,
     iter,
     path::{Path, PathBuf},
@@ -94,7 +96,9 @@ pub fn check_conflicts(
 }
 
 /// A new file in the directory of its destination, which `commit` renames to the destination.
-/// Until then the destination stays unchanged.
+/// Until then the destination stays unchanged. A destination that is a mount point, e.g. an image
+/// file mounted into a container, cannot be renamed to, so its new file is staged in TMPDIR and
+/// copied into it.
 pub struct Staged {
     _tmp_dir: TempDir,
     file: PathBuf,
@@ -109,10 +113,18 @@ impl Staged {
         let dir = dest
             .parent()
             .context(format!("{} has no directory", dest.display()))?;
+        let tmp_parent = if is_mount_root(&dest) {
+            env::temp_dir()
+        } else {
+            dir.to_path_buf()
+        };
         let tmp_dir = tempfile::Builder::new()
             .prefix(TMP_DIR_PREFIX)
-            .tempdir_in(dir)
-            .context(format!("cannot create a temp dir in {}", dir.display()))?;
+            .tempdir_in(&tmp_parent)
+            .context(format!(
+                "cannot create a temp dir in {}",
+                tmp_parent.display()
+            ))?;
         let file = tmp_dir.path().join(
             dest.file_name()
                 .context(format!("{} has no file name", dest.display()))?,
@@ -139,12 +151,60 @@ impl Staged {
     }
 
     fn rename(&self) -> Result<()> {
-        fs::rename(&self.file, &self.dest).context(format!(
-            "cannot rename {} to {}",
-            self.file.display(),
-            self.dest.display()
-        ))
+        match fs::rename(&self.file, &self.dest) {
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    ErrorKind::ResourceBusy | ErrorKind::CrossesDevices
+                ) =>
+            {
+                info!(
+                    "cannot rename to {} ({e}), so copy into it",
+                    self.dest.display()
+                );
+                self.copy_into_dest()
+            }
+            result => result.context(format!(
+                "cannot rename {} to {}",
+                self.file.display(),
+                self.dest.display()
+            )),
+        }
     }
+
+    fn copy_into_dest(&self) -> Result<()> {
+        let src = File::open(&self.file).context(format!("cannot open {}", self.file.display()))?;
+        let len = src
+            .metadata()
+            .context(format!("cannot get the size of {}", self.file.display()))?
+            .len();
+        let dest = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&self.dest)
+            .context(format!("cannot open {}", self.dest.display()))?;
+
+        sparse::copy_to_empty_file(&src, 0, &dest, len)?;
+        dest.sync_all()
+            .context(format!("cannot sync {}", self.dest.display()))
+    }
+}
+
+/// `false` if the kernel cannot tell.
+fn is_mount_root(path: &Path) -> bool {
+    rustix::fs::statx(
+        CWD,
+        path,
+        AtFlags::SYMLINK_NOFOLLOW | AtFlags::NO_AUTOMOUNT,
+        StatxFlags::empty(),
+    )
+    .is_ok_and(|statx| {
+        statx
+            .stx_attributes_mask
+            .contains(StatxAttributes::MOUNT_ROOT)
+            && statx.stx_attributes.contains(StatxAttributes::MOUNT_ROOT)
+    })
 }
 
 /// Renames the staged `image` and its `bmap`, then syncs their directories, so the renames are
@@ -471,6 +531,29 @@ mod tests {
         assert!(commit(stage(&image, NEW_CONTENT), Some(staged_bmap)).is_err());
         assert_eq!(fs::read(&image).expect("read image"), NEW_CONTENT);
         assert!(!image_bmap.exists());
+    }
+
+    #[test]
+    fn copy_into_dest_replaces_the_content() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        fs::write(&image, b"old image with more bytes").expect("write image");
+
+        stage(&image, NEW_CONTENT)
+            .copy_into_dest()
+            .expect("copy into dest");
+
+        assert_eq!(fs::read(&image).expect("read image"), NEW_CONTENT);
+    }
+
+    #[test]
+    fn is_mount_root_detects_the_root_dir() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        touch(&image);
+
+        assert!(is_mount_root(Path::new("/")));
+        assert!(!is_mount_root(&image));
     }
 
     #[test]
