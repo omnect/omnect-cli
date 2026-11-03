@@ -13,6 +13,8 @@ const BMAP_EXTENSION: &str = "bmap";
 const SHA256_CHECKSUM_TYPE: &str = "sha256";
 const SHA256_HEX_LEN: usize = 64;
 const BMAP_VERSION: &str = "2.0";
+const BMAP_MAJOR_VERSION: u32 = 2;
+const BMAP_ROOT: &str = "bmap";
 
 /// The block ranges of an image that a bmap file maps.
 #[derive(Debug)]
@@ -31,6 +33,25 @@ impl Bmap {
         let doc = roxmltree::Document::parse(&text)
             .context(format!("Bmap::read: invalid xml in {}", path.display()))?;
         let root = doc.root_element();
+        anyhow::ensure!(
+            root.has_tag_name(BMAP_ROOT),
+            "Bmap::read: {} is not a bmap",
+            path.display()
+        );
+        let major_version = root
+            .attribute("version")
+            .and_then(|v| v.split('.').next()?.parse::<u32>().ok())
+            .context(format!(
+                "Bmap::read: no valid version in {}",
+                path.display()
+            ))?;
+        // like bmaptool, refuse a bmap of a newer major version
+        anyhow::ensure!(
+            major_version <= BMAP_MAJOR_VERSION,
+            "Bmap::read: {} has version {major_version}.x, only up to {BMAP_MAJOR_VERSION}.x is \
+             supported",
+            path.display()
+        );
         let child = |name: &str| {
             root.children()
                 .find(|n| n.has_tag_name(name))
@@ -384,6 +405,11 @@ mod tests {
             bmap_xml(BLOCK_SIZE, "<Range>7-5</Range>"),
             bmap_xml(BLOCK_SIZE, "<Range>x</Range>"),
             "<bmap>".to_string(),
+            bmap_xml(BLOCK_SIZE, "")
+                .replace("<bmap ", "<map ")
+                .replace("</bmap>", "</map>"),
+            bmap_xml(BLOCK_SIZE, "").replace("version=\"2.0\"", "version=\"3.0\""),
+            bmap_xml(BLOCK_SIZE, "").replace(" version=\"2.0\"", ""),
         ];
 
         for xml in invalid {
