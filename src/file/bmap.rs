@@ -3,6 +3,7 @@ use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use std::{
     fs,
+    io::Write,
     ops::{Range, RangeInclusive},
     os::unix::fs::FileExt,
     path::{Path, PathBuf},
@@ -153,11 +154,11 @@ pub fn verify_checksums(image_file: &Path, bmap: &Bmap) -> Result<()> {
     Ok(())
 }
 
-/// Writes a bmap of `image_file` to `bmap_file`. It maps the ranges of `input`, or the whole
+/// Writes a bmap of `image_file` to `out`. It maps the ranges of `input`, or the whole
 /// image without one, and every block that the image file stores as data. A range of `input`
 /// can be all zeros and a hole in the image, and a bmap flash still has to write it, else the
 /// device keeps what an earlier installation left there.
-pub fn write_bmap(image_file: &Path, input: Option<&Bmap>, bmap_file: &Path) -> Result<()> {
+pub fn write_bmap(image_file: &Path, input: Option<&Bmap>, out: &mut impl Write) -> Result<()> {
     let image = fs::File::open(image_file)
         .context(format!("write_bmap: cannot open {}", image_file.display()))?;
     let image_len = image
@@ -198,7 +199,8 @@ pub fn write_bmap(image_file: &Path, input: Option<&Bmap>, bmap_file: &Path) -> 
     );
     let xml = xml.replacen(&zeros, &hex(&Sha256::digest(xml.as_bytes())), 1);
 
-    fs::write(bmap_file, xml).context(format!("write_bmap: cannot write {}", bmap_file.display()))
+    out.write_all(xml.as_bytes())
+        .context("write_bmap: cannot write the bmap")
 }
 
 fn mapped_ranges(
@@ -317,7 +319,8 @@ mod tests {
 
     fn created_bmap(image: &Path, input: Option<&Bmap>) -> Bmap {
         let path = image.with_extension(BMAP_EXTENSION);
-        write_bmap(image, input, &path).expect("write bmap");
+        let mut file = fs::File::create(&path).expect("create bmap");
+        write_bmap(image, input, &mut file).expect("write bmap");
         Bmap::read(&path).expect("read bmap")
     }
 
@@ -544,7 +547,6 @@ mod tests {
     fn bmap_of_another_image_is_rejected() {
         let dir = tempfile::tempdir().expect("create temp dir");
         let image = sparse_image(dir.path());
-        let bmap_file = dir.path().join("out.bmap");
         let mut other_size = created_bmap(&image, None);
         other_size.image_size += BLOCK_SIZE;
         let outside = Bmap {
@@ -556,7 +558,7 @@ mod tests {
 
         for bmap in [&other_size, &outside] {
             assert!(verify_checksums(&image, bmap).is_err());
-            assert!(write_bmap(&image, Some(bmap), &bmap_file).is_err());
+            assert!(write_bmap(&image, Some(bmap), &mut Vec::new()).is_err());
         }
     }
 }

@@ -30,7 +30,7 @@ use file::{
 };
 use log::info;
 use std::{
-    fs, io,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -94,31 +94,22 @@ where
     // run command
     command(&tmp_image_file)?;
 
-    let tmp_bmap = bmap::bmap_path(&tmp_image_file);
-    if output_bmap {
-        match &input_bmap {
-            Some((path, _)) => info!("the bmap maps the ranges of {}", path.display()),
-            None => info!("no input bmap, so the bmap maps the whole image"),
-        }
-        bmap::write_bmap(
-            &tmp_image_file,
-            input_bmap.as_ref().map(|(_, bmap)| bmap),
-            &tmp_bmap,
-        )?;
-    }
-
     let image = Staged::write(&dest_image_file, |dest| match &target_compression {
         Some(c) => compression::compress(&tmp_image_file, c, dest),
         None => copy_image(&tmp_image_file, dest),
     })?;
     let bmap = output_bmap
         .then(|| {
+            match &input_bmap {
+                Some((path, _)) => info!("the bmap maps the ranges of {}", path.display()),
+                None => info!("no input bmap, so the bmap maps the whole image"),
+            }
             Staged::write(&bmap::bmap_path(&dest_image_file), |dest| {
-                let mut src = fs::File::open(&tmp_bmap)
-                    .context(format!("cannot open {}", tmp_bmap.display()))?;
-                io::copy(&mut src, dest)
-                    .map(drop)
-                    .context(format!("cannot copy {}", tmp_bmap.display()))
+                bmap::write_bmap(
+                    &tmp_image_file,
+                    input_bmap.as_ref().map(|(_, bmap)| bmap),
+                    dest,
+                )
             })
         })
         .transpose()?;
