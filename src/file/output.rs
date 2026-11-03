@@ -1,7 +1,10 @@
 use crate::file::{bmap, compression::Compression, sparse};
 use anyhow::{Context, Result};
 use log::{info, warn};
-use rustix::fs::{AtFlags, CWD, StatxAttributes, StatxFlags};
+use rustix::{
+    fs::{Access, AtFlags, CWD, StatxAttributes, StatxFlags},
+    io::Errno,
+};
 use std::{
     collections::BTreeSet,
     env,
@@ -64,6 +67,7 @@ pub fn check_conflicts(
     input_bmap: Option<&Path>,
 ) -> Result<()> {
     let in_place = same_file(input_image, output_image)?;
+    ensure_writable(output_image)?;
 
     anyhow::ensure!(
         explicit_output || in_place || !output_image.exists(),
@@ -72,6 +76,7 @@ pub fn check_conflicts(
     );
     if output_bmap {
         let target_bmap = bmap::bmap_path(output_image);
+        ensure_writable(&target_bmap)?;
         if !in_place {
             let found_bmap = bmap::find_input_bmap(input_image, None)?;
             for bmap in input_bmap.into_iter().chain(found_bmap.as_deref()) {
@@ -93,6 +98,19 @@ pub fn check_conflicts(
     }
 
     Ok(())
+}
+
+/// Fails if `path` exists and the user cannot write it. Replacing it by a rename would not need
+/// that.
+fn ensure_writable(path: &Path) -> Result<()> {
+    match rustix::fs::access(path, Access::WRITE_OK) {
+        Err(Errno::NOENT) => Ok(()),
+        result => result.context(format!(
+            "cannot write {}; make it writable or choose another output image with \
+             --output-image",
+            path.display()
+        )),
+    }
 }
 
 /// A new file in the directory of its destination, which `commit` renames to the destination.
@@ -276,6 +294,7 @@ mod tests {
     const OLD_CONTENT: &[u8] = b"old image";
     const NEW_CONTENT: &[u8] = b"new image";
     const IMAGE_MODE: u32 = 0o644;
+    const READ_ONLY_MODE: u32 = 0o444;
     const MODE_MASK: u32 = 0o777;
 
     fn touch(path: &Path) {
@@ -396,6 +415,27 @@ mod tests {
         touch(&image_bmap);
 
         check_conflicts(&image, &image, false, true, Some(&image_bmap)).expect("no conflict");
+    }
+
+    #[test]
+    fn check_conflicts_rejects_a_read_only_output() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        let image_bmap = bmap::bmap_path(&image);
+        touch(&image);
+        touch(&image_bmap);
+        let read_only = fs::Permissions::from_mode(READ_ONLY_MODE);
+        fs::set_permissions(&image_bmap, read_only.clone()).expect("set permissions");
+        // root can write a read-only file
+        if OpenOptions::new().write(true).open(&image_bmap).is_ok() {
+            return;
+        }
+
+        assert!(check_conflicts(&image, &image, false, true, Some(&image_bmap)).is_err());
+        fs::remove_file(&image_bmap).expect("remove bmap");
+        check_conflicts(&image, &image, false, false, None).expect("writable image");
+        fs::set_permissions(&image, read_only).expect("set permissions");
+        assert!(check_conflicts(&image, &image, false, false, None).is_err());
     }
 
     #[test]
