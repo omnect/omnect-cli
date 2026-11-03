@@ -189,6 +189,8 @@ A command that changes an image writes the result to the input image. For a comp
 
 The command fails instead of overwriting an existing file that is not the input image. To overwrite it, name it with `-o`. It also fails if the output image or its bmap exists and is not writable for the user. The output image is written to a new file in its directory and then renamed, so the directory needs write access and space for one more image. An output image that is a mount point, e.g. with `docker run -v "$(pwd)/my-image.wic":/source/my-image.wic`, cannot be renamed to, so the new image is copied into it. Mount the directory instead of the image if you use `-b`, because the bmap is written next to the image. The new file belongs to the user who runs `omnect-cli`. `copy-from-image` only reads the image and writes nothing.
 
+A command that changes an image, or reads a compressed one, works on a copy of the image in `TMPDIR` (default `/tmp`). It needs space there for the uncompressed image and for a copy of each partition the command reads or changes, and for an output image that is a mount point also for the new image. If `/tmp` is a small tmpfs, set `TMPDIR` to a directory with more space.
+
 ## bmap files
 
 Commands that change an image create a bmap file with `-b` (`--output-bmap`). It is written next to the output image as `<output image>.bmap`, e.g. `my-image.wic.bmap` for `my-image.wic` and `my-image.wic.xz.bmap` for `my-image.wic.xz`, and replaces a file with this name. `bmaptool` finds it there without `--bmap`. The command fails if this file is the bmap of an image that stays, e.g. `my-image.wic.bmap` when `-i my-image.wic.xz` writes `my-image.wic`, also with `--input-bmap` or `--no-input-bmap`. Choose another output with `-o` then.
