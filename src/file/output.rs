@@ -120,6 +120,7 @@ pub struct Staged {
     _tmp_dir: TempDir,
     file: PathBuf,
     dest: PathBuf,
+    mount_root: bool,
 }
 
 impl Staged {
@@ -130,7 +131,8 @@ impl Staged {
         let dir = dest
             .parent()
             .context(format!("{} has no directory", dest.display()))?;
-        let tmp_parent = if is_mount_root(&dest) {
+        let mount_root = is_mount_root(&dest);
+        let tmp_parent = if mount_root {
             env::temp_dir()
         } else {
             dir.to_path_buf()
@@ -164,10 +166,14 @@ impl Staged {
             _tmp_dir: tmp_dir,
             file,
             dest,
+            mount_root,
         })
     }
 
     fn rename(&self) -> Result<()> {
+        if self.mount_root {
+            return self.copy_into_dest();
+        }
         match fs::rename(&self.file, &self.dest) {
             Err(e)
                 if matches!(
@@ -228,8 +234,8 @@ fn is_mount_root(path: &Path) -> bool {
 /// not lost on a power loss. The old bmap is removed before the image is renamed, so if renaming
 /// the bmap fails, no bmap is left that does not match the new image.
 pub fn commit(image: Staged, bmap: Option<Staged>) -> Result<()> {
-    if let Some(bmap) = &bmap {
-        // a bmap that is a mount point cannot be removed, the copy into it replaces it
+    if let Some(bmap) = bmap.as_ref().filter(|bmap| !bmap.mount_root) {
+        // a mount point that was not detected cannot be removed, the copy into it replaces it
         match fs::remove_file(&bmap.dest) {
             Err(e) if !matches!(e.kind(), ErrorKind::NotFound | ErrorKind::ResourceBusy) => {
                 return Err(e).context(format!("cannot remove {}", bmap.dest.display()));
