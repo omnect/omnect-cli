@@ -117,9 +117,7 @@ pub fn find_input_bmap(image: &Path, explicit: Option<&Path>) -> Result<Option<P
 }
 
 pub fn bmap_path(image: &Path) -> PathBuf {
-    let mut path = image.as_os_str().to_owned();
-    path.push(format!(".{BMAP_EXTENSION}"));
-    PathBuf::from(path)
+    image.with_added_extension(BMAP_EXTENSION)
 }
 
 /// Fails if a range of `image_file` does not match its checksum in `bmap`, so the bmap of

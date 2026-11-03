@@ -119,9 +119,7 @@ impl Compression {
 
     /// `path` with the extension omnect-cli gives a compressed image appended.
     pub fn compressed_path(&self, path: &Path) -> PathBuf {
-        let mut compressed = path.as_os_str().to_owned();
-        compressed.push(format!(".{}", self.extension()));
-        PathBuf::from(compressed)
+        path.with_added_extension(self.extension())
     }
 
     pub fn matches_extension(&self, path: &Path) -> bool {
