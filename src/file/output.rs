@@ -100,8 +100,7 @@ pub fn check_conflicts(
     Ok(())
 }
 
-/// Fails if `path` exists and the user cannot write it. Replacing it by a rename would not need
-/// that.
+/// Fails if `path` exists and the user cannot write it, so a read-only file is not replaced.
 fn ensure_writable(path: &Path) -> Result<()> {
     match rustix::fs::access(path, Access::WRITE_OK) {
         Err(Errno::NOENT) => Ok(()),
@@ -114,9 +113,9 @@ fn ensure_writable(path: &Path) -> Result<()> {
 }
 
 /// A new file in the directory of its destination, which `commit` renames to the destination.
-/// Until then the destination stays unchanged. A destination that is a mount point, e.g. an image
-/// file mounted into a container, cannot be renamed to, so its new file is staged in TMPDIR and
-/// copied into it.
+/// Until then the destination stays unchanged. A rename cannot replace a mount point, e.g. an
+/// image file mounted into a container, so for such a destination the new file is staged in
+/// TMPDIR and copied into it.
 pub struct Staged {
     _tmp_dir: TempDir,
     file: PathBuf,
@@ -177,7 +176,7 @@ impl Staged {
                 ) =>
             {
                 info!(
-                    "cannot rename to {} ({e}), so copy into it",
+                    "cannot rename to {}: {e}; copying into it instead",
                     self.dest.display()
                 );
                 self.copy_into_dest()
@@ -230,8 +229,9 @@ fn is_mount_root(path: &Path) -> bool {
 /// the bmap fails, no bmap is left that does not match the new image.
 pub fn commit(image: Staged, bmap: Option<Staged>) -> Result<()> {
     if let Some(bmap) = &bmap {
+        // a bmap that is a mount point cannot be removed, the copy into it replaces it
         match fs::remove_file(&bmap.dest) {
-            Err(e) if e.kind() != ErrorKind::NotFound => {
+            Err(e) if !matches!(e.kind(), ErrorKind::NotFound | ErrorKind::ResourceBusy) => {
                 return Err(e).context(format!("cannot remove {}", bmap.dest.display()));
             }
             _ => {}
