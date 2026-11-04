@@ -1,4 +1,4 @@
-use crate::file::{bmap, compression::Compression, signal, sparse};
+use crate::file::{bmap, compression::Compression, signal::RegisteredTempDir, sparse};
 use anyhow::{Context, Result};
 use log::{info, warn};
 use rustix::{
@@ -13,7 +13,6 @@ use std::{
     iter,
     path::{Path, PathBuf},
 };
-use tempfile::TempDir;
 
 const TMP_DIR_PREFIX: &str = ".omnect-cli-";
 // the limit of Linux path resolution
@@ -145,7 +144,7 @@ fn staging_dir(dest: &Path) -> Result<(PathBuf, bool)> {
 /// image file mounted into a container, so for such a destination the new file is staged in
 /// TMPDIR and copied into it.
 pub struct Staged {
-    tmp_dir: TempDir,
+    tmp_dir: RegisteredTempDir,
     file: PathBuf,
     dest: PathBuf,
     mount_root: bool,
@@ -157,19 +156,19 @@ impl Staged {
     pub fn write(dest: &Path, write: impl FnOnce(&mut File) -> Result<()>) -> Result<Self> {
         let dest = resolve(dest)?;
         let (tmp_parent, mount_root) = staging_dir(&dest)?;
-        let tmp_dir = tempfile::Builder::new()
-            .prefix(TMP_DIR_PREFIX)
-            .tempdir_in(&tmp_parent)
-            .context(format!(
-                "cannot create a temp dir in {}",
-                tmp_parent.display()
-            ))?;
+        let tmp_dir = RegisteredTempDir::new(
+            tempfile::Builder::new()
+                .prefix(TMP_DIR_PREFIX)
+                .tempdir_in(&tmp_parent)
+                .context(format!(
+                    "cannot create a temp dir in {}",
+                    tmp_parent.display()
+                ))?,
+        );
         let file = tmp_dir.path().join(
             dest.file_name()
                 .context(format!("{} has no file name", dest.display()))?,
         );
-        signal::register(tmp_dir.path());
-        // from here on, drop unregisters the temp dir
         let staged = Self {
             tmp_dir,
             file,
@@ -227,7 +226,7 @@ impl Staged {
     /// Keeps the staged file if the copy fails or a signal stops it, because `dest` is truncated
     /// already.
     fn copy_into_dest(&mut self) -> Result<()> {
-        signal::unregister(self.tmp_dir.path());
+        self.tmp_dir.unregister();
         info!(
             "copying {} into {}; it stays if the copy fails",
             self.file.display(),
@@ -245,7 +244,7 @@ impl Staged {
                 .context(format!("cannot sync {}", self.dest.display()))
         });
         if result.is_err() {
-            self.tmp_dir.disable_cleanup(true);
+            self.tmp_dir.keep();
         }
         result.with_context(|| {
             format!(
@@ -254,12 +253,6 @@ impl Staged {
                 self.file.display()
             )
         })
-    }
-}
-
-impl Drop for Staged {
-    fn drop(&mut self) {
-        signal::unregister(self.tmp_dir.path());
     }
 }
 
@@ -348,7 +341,7 @@ fn resolve_existing_dir(path: &Path) -> Result<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use crate::file::output::*;
+    use crate::file::{output::*, signal};
     use std::{
         io::Write,
         os::unix::fs::{PermissionsExt, symlink},

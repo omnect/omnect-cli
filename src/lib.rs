@@ -26,14 +26,14 @@ use file::{
     compression::{self, Compression},
     functions::FileCopyToParams,
     output::{self, Staged, check_conflicts, output_image},
-    signal, sparse,
+    signal::RegisteredTempDir,
+    sparse,
 };
 use log::info;
 use std::{
     fs,
     path::{Path, PathBuf},
 };
-use tempfile::TempDir;
 
 fn run_image_command<F>(image_file: PathBuf, output: ImageOutput, command: F) -> Result<()>
 where
@@ -86,7 +86,7 @@ where
     if source_compression.is_none() {
         verify_input_bmap(&image_file)?;
     }
-    let tmp_dir = tempfile::tempdir().context("cannot create a temp dir")?;
+    let tmp_dir = RegisteredTempDir::new(tempfile::tempdir().context("cannot create a temp dir")?);
     let tmp_image_file = temp_image(&image_file, source_compression.as_ref(), tmp_dir.path())?;
     if source_compression.is_some() {
         verify_input_bmap(&tmp_image_file)?;
@@ -135,7 +135,8 @@ where
 
     match Compression::from_file(&image_file)? {
         Some(c) => {
-            let tmp_dir = tempfile::tempdir().context("cannot create a temp dir")?;
+            let tmp_dir =
+                RegisteredTempDir::new(tempfile::tempdir().context("cannot create a temp dir")?);
             command(&compression::decompress(&image_file, &c, tmp_dir.path())?)
         }
         None => command(&image_file),
@@ -176,15 +177,9 @@ fn temp_image(
 /// A new device certificate and key in a temp dir, so parallel runs do not share them and no
 /// private key is left behind, also not after a stop signal.
 struct CertInfo {
-    dir: TempDir,
+    _dir: RegisteredTempDir,
     cert_path: PathBuf,
     key_path: PathBuf,
-}
-
-impl Drop for CertInfo {
-    fn drop(&mut self) {
-        signal::unregister(self.dir.path());
-    }
 }
 
 struct CertificateOptions<'a> {
@@ -210,12 +205,13 @@ fn create_image_cert(cert_opts: CertificateOptions) -> Result<CertInfo> {
         .create_cert_and_key(cert_opts.subject, cert_opts.validity_days)
         .context("create_and_set_image_cert: couldn't create device cert and key")?;
 
-    let dir = tempfile::tempdir().context("create_and_set_image_cert: cannot create a temp dir")?;
-    signal::register(dir.path());
+    let dir = RegisteredTempDir::new(
+        tempfile::tempdir().context("create_and_set_image_cert: cannot create a temp dir")?,
+    );
     let cert_info = CertInfo {
         cert_path: dir.path().join(cert_opts.target_cert),
         key_path: dir.path().join(cert_opts.target_key),
-        dir,
+        _dir: dir,
     };
 
     fs::write(&cert_info.cert_path, cert_pem)

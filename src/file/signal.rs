@@ -14,6 +14,7 @@ use std::{
     sync::{Mutex, MutexGuard, Once, PoisonError},
     thread,
 };
+use tempfile::TempDir;
 
 const STOP_SIGNALS: [c_int; 3] = [SIGHUP, SIGINT, SIGTERM];
 // exit code of a process that a signal stopped, plus the signal number
@@ -22,18 +23,48 @@ const SIGNAL_EXIT_CODE_BASE: c_int = 128;
 static DIRS: Mutex<BTreeSet<PathBuf>> = Mutex::new(BTreeSet::new());
 static HANDLER: Once = Once::new();
 
-/// Removes `dir` if a stop signal ends the process before `unregister`.
-pub fn register(dir: &Path) {
+/// A temp dir that is also removed if a stop signal ends the process.
+pub struct RegisteredTempDir(TempDir);
+
+impl RegisteredTempDir {
+    pub fn new(dir: TempDir) -> Self {
+        register(dir.path());
+        Self(dir)
+    }
+
+    pub fn path(&self) -> &Path {
+        self.0.path()
+    }
+
+    /// Keeps the dir if a stop signal ends the process. Drop still removes it.
+    pub fn unregister(&self) {
+        unregister(self.path());
+    }
+
+    /// Keeps the dir, also on drop.
+    pub fn keep(&mut self) {
+        self.unregister();
+        self.0.disable_cleanup(true);
+    }
+}
+
+impl Drop for RegisteredTempDir {
+    fn drop(&mut self) {
+        self.unregister();
+    }
+}
+
+fn register(dir: &Path) {
     HANDLER.call_once(start_handler);
     dirs().insert(dir.to_path_buf());
 }
 
-pub fn unregister(dir: &Path) {
+fn unregister(dir: &Path) {
     dirs().remove(dir);
 }
 
 #[cfg(test)]
-pub fn is_registered(dir: &Path) -> bool {
+pub(crate) fn is_registered(dir: &Path) -> bool {
     dirs().contains(dir)
 }
 
@@ -85,13 +116,26 @@ mod tests {
     use crate::file::signal::*;
 
     #[test]
-    fn register_and_unregister() {
-        let dir = tempfile::tempdir().expect("create temp dir");
+    fn registered_temp_dir_is_registered_until_drop() {
+        let dir = RegisteredTempDir::new(tempfile::tempdir().expect("create temp dir"));
+        let path = dir.path().to_path_buf();
 
-        register(dir.path());
-        assert!(is_registered(dir.path()));
-        unregister(dir.path());
-        assert!(!is_registered(dir.path()));
+        assert!(is_registered(&path));
+        drop(dir);
+        assert!(!is_registered(&path));
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn registered_temp_dir_keep_unregisters_and_keeps_the_dir() {
+        let mut dir = RegisteredTempDir::new(tempfile::tempdir().expect("create temp dir"));
+        let path = dir.path().to_path_buf();
+
+        dir.keep();
+        assert!(!is_registered(&path));
+        drop(dir);
+        assert!(path.exists());
+        fs::remove_dir(&path).expect("remove dir");
     }
 
     #[test]

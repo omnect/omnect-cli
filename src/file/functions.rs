@@ -1,4 +1,6 @@
-use crate::file::{COPY_CHUNK_SIZE, IMAGE_BLOCK_SIZE, partition::SECTOR_SIZE, sparse};
+use crate::file::{
+    COPY_CHUNK_SIZE, IMAGE_BLOCK_SIZE, partition::SECTOR_SIZE, signal::RegisteredTempDir, sparse,
+};
 use anyhow::{Context, Result};
 use log::{debug, warn};
 use std::{
@@ -190,7 +192,9 @@ macro_rules! try_exec_cmd {
 
 pub fn copy_to_image(file_copy_params: &[FileCopyToParams], image_file: &Path) -> Result<()> {
     // the partition files get their own dir, so they never collide with the image
-    let working_dir = tempfile::tempdir().context("copy_to_image: cannot create a temp dir")?;
+    let working_dir = RegisteredTempDir::new(
+        tempfile::tempdir().context("copy_to_image: cannot create a temp dir")?,
+    );
     let image_file = image_file.to_str().unwrap();
     let mut partition_map: HashMap<&Partition, Vec<(&PathBuf, &PathBuf)>> = HashMap::new();
 
@@ -268,7 +272,9 @@ pub fn copy_to_image(file_copy_params: &[FileCopyToParams], image_file: &Path) -
 
 pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Path) -> Result<()> {
     // the partition files get their own dir, so they never collide with the image
-    let working_dir = tempfile::tempdir().context("copy_from_image: cannot create a temp dir")?;
+    let working_dir = RegisteredTempDir::new(
+        tempfile::tempdir().context("copy_from_image: cannot create a temp dir")?,
+    );
     let image_file = image_file.to_str().unwrap();
 
     for param in file_copy_params.iter() {
