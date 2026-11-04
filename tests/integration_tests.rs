@@ -907,8 +907,12 @@ const OLD_CONTENT_BYTE: u8 = 0xa5;
 // a file with a zero range that spans whole image blocks
 const ZERO_BLOCKS_FILE_EDGE: usize = 4096;
 const ZERO_BLOCKS_FILE_ZEROS: usize = 64 * 1024;
-const OTHER_IMAGE_BMAP: &str = "<bmap><ImageSize>4096</ImageSize><BlockSize>4096</BlockSize>\
-                                <BlockMap><Range>0</Range></BlockMap></bmap>";
+// a valid bmap of a one-block image, so only the image size check rejects it
+const OTHER_IMAGE_BMAP: &str = "<bmap version=\"2.0\"><ImageSize>4096</ImageSize>\
+    <BlockSize>4096</BlockSize><ChecksumType>sha256</ChecksumType><BlockMap>\
+    <Range chksum=\"ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7\">0</Range>\
+    </BlockMap></bmap>";
+const OTHER_IMAGE_SIZE_ERROR: &str = "bmap is for an image of 4096 bytes";
 
 fn bmap_path_of(image: &Path) -> PathBuf {
     PathBuf::from(format!("{}.bmap", image.to_string_lossy()))
@@ -1106,7 +1110,8 @@ fn check_input_bmap_of_another_image() {
         .arg("-b")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("cannot use input bmap"));
+        .stderr(predicate::str::contains("cannot use input bmap"))
+        .stderr(predicate::str::contains(OTHER_IMAGE_SIZE_ERROR));
     assert_eq!(Testrunner::file_hash(&image_path), image_hash);
 
     // reading from the image does not use the bmap
@@ -1360,7 +1365,8 @@ fn check_no_input_bmap() {
     .failure();
     copy_to_image(&["-b".as_ref()])
         .failure()
-        .stderr(predicate::str::contains("--no-input-bmap"));
+        .stderr(predicate::str::contains("--no-input-bmap"))
+        .stderr(predicate::str::contains(OTHER_IMAGE_SIZE_ERROR));
 
     copy_to_image(&["-b".as_ref(), "--no-input-bmap".as_ref()]).success();
     assert!(maps_whole_image(&read_bmap(&bmap_path)));
