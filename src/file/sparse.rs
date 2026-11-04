@@ -100,6 +100,20 @@ pub fn copy_to_empty_file(src: &File, src_offset: u64, dst: &File, len: u64) -> 
     copy_range(src, src_offset, dst, 0, len)
 }
 
+/// Copies the file `src` into the empty `dst`. Holes of `src` stay holes in `dst`.
+pub fn copy_file(src: &Path, dst: &File) -> Result<()> {
+    let src_file = File::open(src).context(format!("copy_file: cannot open {}", src.display()))?;
+    let len = src_file
+        .metadata()
+        .context(format!(
+            "copy_file: cannot get the size of {}",
+            src.display()
+        ))?
+        .len();
+
+    copy_to_empty_file(&src_file, 0, dst, len)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::file::sparse::*;
@@ -174,6 +188,27 @@ mod tests {
         dst.read_exact_at(&mut block, data_start)
             .expect("read block");
         assert!(block.iter().all(|b| *b == DATA_BYTE));
+    }
+
+    #[test]
+    fn copy_file_keeps_holes() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        sparse_file(dir.path());
+        let dst = File::options()
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open(dir.path().join("dst"))
+            .expect("create file");
+
+        copy_file(&dir.path().join("src"), &dst).expect("copy file");
+
+        let len = FILE_BLOCKS * BLOCK_SIZE;
+        assert_eq!(dst.metadata().expect("metadata").len(), len);
+        assert_eq!(
+            data_ranges(&dst, 0, len).expect("data ranges"),
+            vec![DATA_BLOCK * BLOCK_SIZE..(DATA_BLOCK + 1) * BLOCK_SIZE]
+        );
     }
 
     #[test]

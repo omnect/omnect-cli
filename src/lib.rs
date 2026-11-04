@@ -96,7 +96,7 @@ where
 
     let image = Staged::write(&dest_image_file, |dest| match &target_compression {
         Some(c) => compression::compress(&tmp_image_file, c, dest),
-        None => copy_image(&tmp_image_file, dest),
+        None => sparse::copy_file(&tmp_image_file, dest),
     })?;
     let bmap = output_bmap
         .then(|| {
@@ -166,24 +166,10 @@ fn temp_image(
             );
             let tmp_image = fs::File::create(&tmp_image_file)
                 .context(format!("cannot create {}", tmp_image_file.display()))?;
-            copy_image(image_file, &tmp_image).context(format!(
-                "error: copy_image({:?}, {:?})",
-                image_file, tmp_image_file
-            ))?;
+            sparse::copy_file(image_file, &tmp_image)?;
             Ok(tmp_image_file)
         }
     }
-}
-
-/// Copies `from` to the empty `to` and keeps the holes of a sparse `from`.
-fn copy_image(from: &Path, to: &fs::File) -> Result<()> {
-    let src = fs::File::open(from).context("copy_image: cannot open source")?;
-    let len = src
-        .metadata()
-        .context("copy_image: cannot get source size")?
-        .len();
-
-    sparse::copy_to_empty_file(&src, 0, to, len)
 }
 
 struct CertInfo {

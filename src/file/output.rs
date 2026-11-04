@@ -196,11 +196,6 @@ impl Staged {
     }
 
     fn copy_into_dest(&self) -> Result<()> {
-        let src = File::open(&self.file).context(format!("cannot open {}", self.file.display()))?;
-        let len = src
-            .metadata()
-            .context(format!("cannot get the size of {}", self.file.display()))?
-            .len();
         let dest = OpenOptions::new()
             .write(true)
             .create(true)
@@ -208,7 +203,7 @@ impl Staged {
             .open(&self.dest)
             .context(format!("cannot open {}", self.dest.display()))?;
 
-        sparse::copy_to_empty_file(&src, 0, &dest, len)?;
+        sparse::copy_file(&self.file, &dest)?;
         dest.sync_all()
             .context(format!("cannot sync {}", self.dest.display()))
     }
