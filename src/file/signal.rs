@@ -21,8 +21,7 @@ const SIGNAL_EXIT_CODE_BASE: c_int = 128;
 static DIRS: Mutex<BTreeSet<PathBuf>> = Mutex::new(BTreeSet::new());
 static HANDLER: Once = Once::new();
 
-/// Removes `dir` if a stop signal ends the process before `unregister`. A dir next to the
-/// output image, which can hold a whole image, is not left there by e.g. Ctrl-C.
+/// Removes `dir` if a stop signal ends the process before `unregister`.
 pub fn register(dir: &Path) {
     HANDLER.call_once(start_handler);
     dirs().insert(dir.to_path_buf());

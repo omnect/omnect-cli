@@ -3,7 +3,7 @@ pub mod compression;
 pub mod functions;
 pub(crate) mod output;
 mod partition;
-mod signal;
+pub(crate) mod signal;
 pub(crate) mod sparse;
 
 use super::validators::{

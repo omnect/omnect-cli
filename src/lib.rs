@@ -26,7 +26,7 @@ use file::{
     compression::{self, Compression},
     functions::FileCopyToParams,
     output::{self, Staged, check_conflicts, output_image},
-    sparse,
+    signal, sparse,
 };
 use log::info;
 use std::{
@@ -174,11 +174,17 @@ fn temp_image(
 }
 
 /// A new device certificate and key in a temp dir, so parallel runs do not share them and no
-/// private key is left behind.
+/// private key is left behind, also not after a stop signal.
 struct CertInfo {
-    _dir: TempDir,
+    dir: TempDir,
     cert_path: PathBuf,
     key_path: PathBuf,
+}
+
+impl Drop for CertInfo {
+    fn drop(&mut self) {
+        signal::unregister(self.dir.path());
+    }
 }
 
 struct CertificateOptions<'a> {
@@ -205,17 +211,19 @@ fn create_image_cert(cert_opts: CertificateOptions) -> Result<CertInfo> {
         .context("create_and_set_image_cert: couldn't create device cert and key")?;
 
     let dir = tempfile::tempdir().context("create_and_set_image_cert: cannot create a temp dir")?;
-    let cert_path = dir.path().join(cert_opts.target_cert);
-    let key_path = dir.path().join(cert_opts.target_key);
+    signal::register(dir.path());
+    let cert_info = CertInfo {
+        cert_path: dir.path().join(cert_opts.target_cert),
+        key_path: dir.path().join(cert_opts.target_key),
+        dir,
+    };
 
-    fs::write(&cert_path, cert_pem).context("create_and_set_image_cert: write device_cert_path")?;
-    fs::write(&key_path, key_pem).context("create_and_set_image_cert: write device_key_path")?;
+    fs::write(&cert_info.cert_path, cert_pem)
+        .context("create_and_set_image_cert: write device_cert_path")?;
+    fs::write(&cert_info.key_path, key_pem)
+        .context("create_and_set_image_cert: write device_key_path")?;
 
-    Ok(CertInfo {
-        _dir: dir,
-        cert_path,
-        key_path,
-    })
+    Ok(cert_info)
 }
 
 pub fn run() -> Result<()> {
