@@ -16,6 +16,8 @@ use std::{
 use tempfile::TempDir;
 
 const TMP_DIR_PREFIX: &str = ".omnect-cli-";
+// the limit of Linux path resolution
+const MAX_SYMLINKS: usize = 40;
 
 /// Returns `explicit`, else `image` if it has an extension of `target`, else `image` without the
 /// extension of its `source` compression, with the extension of `target` appended. Fails if
@@ -70,7 +72,8 @@ pub fn check_conflicts(
     ensure_writable(output_image)?;
 
     anyhow::ensure!(
-        explicit_output || in_place || !output_image.exists(),
+        // a symlink counts also if its target does not exist yet
+        explicit_output || in_place || output_image.symlink_metadata().is_err(),
         "{} exists; choose the output image with --output-image",
         output_image.display()
     );
@@ -294,9 +297,22 @@ fn same_file(a: &Path, b: &Path) -> Result<bool> {
     Ok(resolve(a)? == resolve(b)?)
 }
 
-/// The absolute path of `path` with symlinks resolved. A file that does not exist yet is
-/// resolved through its directory.
+/// The absolute path of `path` with symlinks resolved. A file that does not exist yet, also as
+/// the target of a symlink, is resolved through its directory.
 fn resolve(path: &Path) -> Result<PathBuf> {
+    let mut path = path.to_path_buf();
+    for _ in 0..MAX_SYMLINKS {
+        if !path.is_symlink() || path.exists() {
+            return resolve_existing_dir(&path);
+        }
+        let target = fs::read_link(&path).context(format!("cannot read {}", path.display()))?;
+        // a relative target is relative to the directory of the link
+        path = path.parent().unwrap_or(Path::new("")).join(target);
+    }
+    anyhow::bail!("too many symlinks in {}", path.display())
+}
+
+fn resolve_existing_dir(path: &Path) -> Result<PathBuf> {
     if path.exists() {
         return fs::canonicalize(path).context(format!("cannot resolve {}", path.display()));
     }
@@ -708,6 +724,40 @@ mod tests {
 
         assert!(image_bmap.is_symlink());
         assert_eq!(fs::read(&target_bmap).expect("read bmap"), NEW_CONTENT);
+    }
+
+    #[test]
+    fn staged_commit_creates_the_target_of_a_dangling_symlink() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let target = dir.path().join("target").join(IMAGE);
+        let link = dir.path().join(IMAGE);
+        fs::create_dir(target.parent().expect("target dir")).expect("create dir");
+        symlink(Path::new("target").join(IMAGE), &link).expect("create symlink");
+
+        commit(stage(&link, NEW_CONTENT), None).expect("commit");
+
+        assert!(link.is_symlink());
+        assert_eq!(fs::read(&target).expect("read target"), NEW_CONTENT);
+    }
+
+    #[test]
+    fn check_conflicts_rejects_a_dangling_derived_output() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image_xz = dir.path().join(IMAGE_XZ);
+        let image = dir.path().join(IMAGE);
+        touch(&image_xz);
+        symlink(dir.path().join("missing.wic"), &image).expect("create symlink");
+
+        assert!(check_conflicts(&image_xz, &image, false, false, None).is_err());
+    }
+
+    #[test]
+    fn resolve_stops_at_a_symlink_loop() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let link = dir.path().join(IMAGE);
+        symlink(&link, &link).expect("create symlink");
+
+        assert!(resolve(&link).is_err());
     }
 
     #[test]
