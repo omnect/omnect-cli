@@ -33,6 +33,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use tempfile::TempDir;
 
 fn run_image_command<F>(image_file: PathBuf, output: ImageOutput, command: F) -> Result<()>
 where
@@ -172,7 +173,10 @@ fn temp_image(
     }
 }
 
+/// A new device certificate and key in a temp dir, so parallel runs do not share them and no
+/// private key is left behind.
 struct CertInfo {
+    _dir: TempDir,
     cert_path: PathBuf,
     key_path: PathBuf,
 }
@@ -186,7 +190,7 @@ struct CertificateOptions<'a> {
     validity_days: u32,
 }
 
-fn create_image_cert(image: &Path, cert_opts: CertificateOptions) -> Result<CertInfo> {
+fn create_image_cert(cert_opts: CertificateOptions) -> Result<CertInfo> {
     let intermediate_full_chain_cert_str =
         std::fs::read_to_string(cert_opts.intermediate_full_chain_cert)
             .context("create_and_set_image_cert: couldn't read intermediate fullchain cert")?;
@@ -200,15 +204,17 @@ fn create_image_cert(image: &Path, cert_opts: CertificateOptions) -> Result<Cert
         .create_cert_and_key(cert_opts.subject, cert_opts.validity_days)
         .context("create_and_set_image_cert: couldn't create device cert and key")?;
 
-    let cert_path = file::get_file_path(image, cert_opts.target_cert)?;
-    let key_path = file::get_file_path(image, cert_opts.target_key)?;
+    let dir = tempfile::tempdir().context("create_and_set_image_cert: cannot create a temp dir")?;
+    let cert_path = dir.path().join(cert_opts.target_cert);
+    let key_path = dir.path().join(cert_opts.target_key);
 
     fs::write(&cert_path, cert_pem).context("create_and_set_image_cert: write device_cert_path")?;
     fs::write(&key_path, key_pem).context("create_and_set_image_cert: write device_key_path")?;
 
     Ok(CertInfo {
-        cert_path: cert_path.to_path_buf(),
-        key_path: key_path.to_path_buf(),
+        _dir: dir,
+        cert_path,
+        key_path,
     })
 }
 
@@ -270,17 +276,14 @@ pub fn run() -> Result<()> {
             days,
             output,
         }) => {
-            let cert_info = create_image_cert(
-                &image,
-                CertificateOptions {
-                    intermediate_full_chain_cert: &intermediate_full_chain_cert,
-                    intermediate_key: &intermediate_key,
-                    target_cert: "device_cert_path.pem",
-                    target_key: "device_key_path.key.pem",
-                    subject: &device_id,
-                    validity_days: days,
-                },
-            )
+            let cert_info = create_image_cert(CertificateOptions {
+                intermediate_full_chain_cert: &intermediate_full_chain_cert,
+                intermediate_key: &intermediate_key,
+                target_cert: "device_cert_path.pem",
+                target_key: "device_key_path.key.pem",
+                subject: &device_id,
+                validity_days: days,
+            })
             .context("set_device_certificate: could not create certificate")?;
 
             run_image_command(image, output, |img| {
@@ -300,17 +303,14 @@ pub fn run() -> Result<()> {
             days,
             output,
         }) => {
-            let cert_info = create_image_cert(
-                &image,
-                CertificateOptions {
-                    intermediate_full_chain_cert: &intermediate_full_chain_cert,
-                    intermediate_key: &intermediate_key,
-                    target_cert: "edge_ca_cert_path.pem",
-                    target_key: "edge_ca_key_path.key.pem",
-                    subject: &device_id,
-                    validity_days: days,
-                },
-            )
+            let cert_info = create_image_cert(CertificateOptions {
+                intermediate_full_chain_cert: &intermediate_full_chain_cert,
+                intermediate_key: &intermediate_key,
+                target_cert: "edge_ca_cert_path.pem",
+                target_key: "edge_ca_key_path.key.pem",
+                subject: &device_id,
+                validity_days: days,
+            })
             .context("set_edge_ca_certificate: could not create certificate")?;
 
             run_image_command(image, output, |img| {

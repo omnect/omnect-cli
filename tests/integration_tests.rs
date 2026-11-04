@@ -484,6 +484,14 @@ fn check_set_identity_config_tpm_template() {
     );
 }
 
+/// Fails if a file with one of `names` is in the directory of `image`.
+fn assert_no_files_next_to(image: &Path, names: &[&str]) {
+    for name in names {
+        let path = image.with_file_name(name);
+        assert!(!path.exists(), "{} was left behind", path.display());
+    }
+}
+
 #[test]
 fn check_set_device_cert_est() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
@@ -507,6 +515,10 @@ fn check_set_device_cert_est() {
         .arg("1")
         .assert();
     assert.success();
+    assert_no_files_next_to(
+        &image_path,
+        &["device_cert_path.pem", "device_key_path.key.pem"],
+    );
 
     let mut device_id_cert_out_path = tr.pathbuf();
     device_id_cert_out_path.push("dir1");
@@ -638,6 +650,10 @@ fn check_set_edge_ca_cert() {
         .arg("1")
         .assert();
     assert.success();
+    assert_no_files_next_to(
+        &image_path,
+        &["edge_ca_cert_path.pem", "edge_ca_key_path.key.pem"],
+    );
 
     let mut edge_ca_cert_out_path = tr.pathbuf();
     edge_ca_cert_out_path.push("dir1");
