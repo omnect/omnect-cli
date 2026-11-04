@@ -19,9 +19,10 @@ const TMP_DIR_PREFIX: &str = ".omnect-cli-";
 // the limit of Linux path resolution
 const MAX_SYMLINKS: usize = 40;
 
-/// Returns `explicit`, else `image` if it has an extension of `target`, else `image` without the
-/// extension of its `source` compression, with the extension of `target` appended. Fails if
-/// `explicit` has no extension of `target`, or a compression extension while `target` is none.
+/// Returns `explicit`, else `image` if it has the extension `target` writes, else `image` without
+/// the extension of its `source` compression, with the extension of `target` appended. Fails if
+/// `explicit` has not the extension `target` writes, or a compression extension while `target` is
+/// none.
 pub fn output_image(
     image: &Path,
     source: Option<&Compression>,
@@ -31,7 +32,7 @@ pub fn output_image(
     if let Some(path) = explicit {
         match target {
             Some(c) => anyhow::ensure!(
-                c.matches_extension(path),
+                c.matches_output_extension(path),
                 "{} has no extension of the -p compression; name it e.g. {}",
                 path.display(),
                 c.compressed_path(path).display()
@@ -44,7 +45,7 @@ pub fn output_image(
         }
         return Ok(path.to_path_buf());
     }
-    if target.is_some_and(|c| c.matches_extension(image)) {
+    if target.is_some_and(|c| c.matches_output_extension(image)) {
         return Ok(image.to_path_buf());
     }
 
@@ -390,20 +391,33 @@ mod tests {
     }
 
     #[test]
-    fn output_image_keeps_every_extension_of_the_same_compression() {
-        for (image, compression) in [
-            ("image.wic.gz", Compression::gzip),
-            ("image.wic.gzip", Compression::gzip),
-            ("image.wic.bz2", Compression::bzip2),
-            ("image.wic.bzip2", Compression::bzip2),
+    fn output_image_uses_the_extension_bmaptool_reads() {
+        for (image, compression, output) in [
+            ("image.wic.gz", Compression::gzip, "image.wic.gz"),
+            ("image.wic.gzip", Compression::gzip, "image.wic.gz"),
+            ("image.wic.bz2", Compression::bzip2, "image.wic.bz2"),
+            ("image.wic.bzip2", Compression::bzip2, "image.wic.bz2"),
         ] {
-            let image = Path::new(image);
             assert_eq!(
-                output_image(image, Some(&compression), Some(&compression), None)
-                    .expect("output image"),
-                image
+                output_image(
+                    Path::new(image),
+                    Some(&compression),
+                    Some(&compression),
+                    None
+                )
+                .expect("output image"),
+                Path::new(output)
             );
         }
+        assert!(
+            output_image(
+                Path::new(IMAGE),
+                None,
+                Some(&Compression::gzip),
+                Some(Path::new("device.wic.gzip"))
+            )
+            .is_err()
+        );
     }
 
     #[test]

@@ -128,6 +128,11 @@ impl Compression {
             .is_some_and(|e| self.extensions().contains(&e))
     }
 
+    /// Whether `path` has the extension of `compressed_path`, which `bmaptool` reads.
+    pub fn matches_output_extension(&self, path: &Path) -> bool {
+        path.extension().is_some_and(|e| e == self.extension())
+    }
+
     pub fn has_extension(path: &Path) -> bool {
         Compression::iter().any(|c| c.matches_extension(path))
     }
