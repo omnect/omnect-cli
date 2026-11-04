@@ -204,8 +204,15 @@ impl Staged {
         }
     }
 
-    /// Keeps the staged file if the copy fails, because `dest` is truncated already.
+    /// Keeps the staged file if the copy fails or a signal stops it, because `dest` is truncated
+    /// already.
     fn copy_into_dest(&mut self) -> Result<()> {
+        signal::unregister(self.tmp_dir.path());
+        info!(
+            "copying {} into {}; it stays if the copy fails",
+            self.file.display(),
+            self.dest.display()
+        );
         let dest = OpenOptions::new()
             .write(true)
             .create(true)
@@ -218,7 +225,6 @@ impl Staged {
                 .context(format!("cannot sync {}", self.dest.display()))
         });
         if result.is_err() {
-            signal::unregister(self.tmp_dir.path());
             self.tmp_dir.disable_cleanup(true);
         }
         result.with_context(|| {
@@ -637,6 +643,7 @@ mod tests {
         staged.dest = PathBuf::from(UNRESIZABLE_FILE);
 
         assert!(staged.copy_into_dest().is_err());
+        assert!(!signal::is_registered(staged.tmp_dir.path()));
         let file = staged.file.clone();
         drop(staged);
         assert_eq!(fs::read(&file).expect("read staged file"), NEW_CONTENT);
