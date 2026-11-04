@@ -157,10 +157,13 @@ impl Staged {
                 .set_permissions(metadata.permissions())
                 .context(format!("cannot set permissions of {}", file.display()))?;
         }
-        // the handle that wrote the data also gets the write errors
-        handle
-            .sync_all()
-            .context(format!("cannot sync {}", file.display()))?;
+        // a file in TMPDIR is only copied into `dest`, and the copy is synced
+        if !mount_root {
+            // the handle that wrote the data also gets the write errors
+            handle
+                .sync_all()
+                .context(format!("cannot sync {}", file.display()))?;
+        }
 
         Ok(Self {
             tmp_dir,
