@@ -1479,7 +1479,8 @@ fn check_bmap_generation_wic_xz() {
 fn check_bmap_generation_wic_xz_without_input_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
     let image_path_wic_xz = tr.to_pathbuf("testfiles/image.wic.xz");
-    let image_path_bmap = image_path_wic_xz.with_extension("bmap");
+    // the output image is the uncompressed image next to the input
+    let image_path_bmap = bmap_path(&image_path_wic_xz.with_extension(""));
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
 
     Command::cargo_bin("omnect-cli")
