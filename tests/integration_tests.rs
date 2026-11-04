@@ -1338,7 +1338,7 @@ fn check_derived_output_image_exists() {
     ])
     .failure()
     .stderr(predicate::str::contains(
-        "has no extension of the -p compression",
+        "does not end in .xz, the extension of the -p compression; name it e.g. ",
     ));
     // a path given with -o is overwritten
     copy_to_image(&["-o".as_ref(), image_path.as_os_str()]).success();

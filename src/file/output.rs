@@ -20,8 +20,8 @@ const MAX_SYMLINKS: usize = 40;
 
 /// Returns `explicit`, else `image` if it has the extension `target` writes, else `image` without
 /// the extension of its `source` compression, with the extension of `target` appended. Fails if
-/// `explicit` has not the extension `target` writes, or a compression extension while `target` is
-/// none.
+/// `explicit` does not have the extension `target` writes, or has a compression extension while
+/// `target` is none.
 pub fn output_image(
     image: &Path,
     source: Option<&Compression>,
@@ -32,9 +32,11 @@ pub fn output_image(
         match target {
             Some(c) => anyhow::ensure!(
                 c.matches_output_extension(path),
-                "{} has no extension of the -p compression; name it e.g. {}",
+                "{} does not end in .{}, the extension of the -p compression; name it e.g. {}",
                 path.display(),
-                c.compressed_path(path).display()
+                c.extension(),
+                c.compressed_path(&without_compression_extension(path))
+                    .display()
             ),
             None => anyhow::ensure!(
                 !Compression::has_extension(path),
@@ -56,6 +58,14 @@ pub fn output_image(
         Some(c) => c.compressed_path(&output),
         None => output,
     })
+}
+
+fn without_compression_extension(path: &Path) -> PathBuf {
+    let mut path = path.to_path_buf();
+    if Compression::has_extension(&path) {
+        path.set_extension("");
+    }
+    path
 }
 
 /// Fails if writing `output_image` and its bmap would overwrite a file the user did not name,
@@ -121,7 +131,8 @@ fn ensure_writable(path: &Path) -> Result<()> {
 fn ensure_staging_dir_writable(dest: &Path) -> Result<()> {
     let (dir, _) = staging_dir(&resolve(dest)?)?;
     rustix::fs::access(&dir, Access::WRITE_OK).context(format!(
-        "cannot write to {}, where the new {} is staged",
+        "cannot write to {}, where the new {} is staged; make it writable or choose another \
+         output image with --output-image",
         dir.display(),
         dest.display()
     ))
@@ -402,15 +413,14 @@ mod tests {
                 Path::new(output)
             );
         }
-        assert!(
-            output_image(
-                Path::new(IMAGE),
-                None,
-                Some(&Compression::gzip),
-                Some(Path::new("device.wic.gzip"))
-            )
-            .is_err()
-        );
+        let error = output_image(
+            Path::new(IMAGE),
+            None,
+            Some(&Compression::gzip),
+            Some(Path::new("device.wic.gzip")),
+        )
+        .expect_err("long name with -o");
+        assert!(error.to_string().contains("name it e.g. device.wic.gz"));
     }
 
     #[test]

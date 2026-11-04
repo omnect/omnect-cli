@@ -104,7 +104,7 @@ impl Compression {
         }
     }
 
-    fn extension(&self) -> &'static str {
+    pub fn extension(&self) -> &'static str {
         self.extensions()[0]
     }
 
