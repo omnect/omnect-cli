@@ -3,7 +3,10 @@ use assert_cmd::Command;
 use assert_json_diff::assert_json_eq;
 use common::Testrunner;
 use httpmock::prelude::*;
-use omnect_cli::{file::bmap::Bmap, ssh};
+use omnect_cli::{
+    file::bmap::{Bmap, bmap_path},
+    ssh,
+};
 use predicates::prelude::*;
 use std::{
     ffi::OsStr,
@@ -914,10 +917,6 @@ const OTHER_IMAGE_BMAP: &str = "<bmap version=\"2.0\"><ImageSize>4096</ImageSize
     </BlockMap></bmap>";
 const OTHER_IMAGE_SIZE_ERROR: &str = "bmap is for an image of 4096 bytes";
 
-fn bmap_path_of(image: &Path) -> PathBuf {
-    PathBuf::from(format!("{}.bmap", image.to_string_lossy()))
-}
-
 fn read_bmap(path: &Path) -> Bmap {
     Bmap::read(path).expect("read bmap")
 }
@@ -965,7 +964,7 @@ fn sparse_copy(from: &Path, to: &Path) {
 fn check_file_copy_without_input_bmap_maps_whole_image() {
     let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
     let image_path = tr.to_pathbuf("testfiles/image.wic");
-    let bmap_path = PathBuf::from(format!("{}.bmap", image_path.to_string_lossy()));
+    let bmap_path = bmap_path(&image_path);
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
 
     Command::cargo_bin("omnect-cli")
@@ -989,7 +988,7 @@ fn check_file_copy_keeps_holes() {
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let input_bmap_path = tr.to_pathbuf("testfiles/image.wic.bmap");
     let sparse_path = image_path.with_file_name("sparse.wic");
-    let bmap_path = PathBuf::from(format!("{}.bmap", sparse_path.to_string_lossy()));
+    let bmap_path = bmap_path(&sparse_path);
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
 
     sparse_copy(&image_path, &sparse_path);
@@ -1036,7 +1035,7 @@ fn check_file_copy_maps_zero_blocks_of_copied_files() {
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let input_bmap_path = tr.to_pathbuf("testfiles/image.wic.bmap");
     let sparse_path = image_path.with_file_name("sparse.wic");
-    let bmap_path = PathBuf::from(format!("{}.bmap", sparse_path.to_string_lossy()));
+    let bmap_path = bmap_path(&sparse_path);
     let device_path = tr.pathbuf().join("device.wic");
     let in_file = tr.pathbuf().join("zero-blocks.bin");
     let in_content = [
@@ -1093,7 +1092,7 @@ fn check_file_copy_maps_zero_blocks_of_copied_files() {
 fn check_input_bmap_of_another_image() {
     let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
     let image_path = tr.to_pathbuf("testfiles/image.wic");
-    let bmap_path = PathBuf::from(format!("{}.bmap", image_path.to_string_lossy()));
+    let bmap_path = bmap_path(&image_path);
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
     let out_file = tr.pathbuf().join("hosts");
     fs::write(&bmap_path, OTHER_IMAGE_BMAP).expect("write bmap");
@@ -1158,7 +1157,7 @@ fn check_no_output_bmap_when_image_write_back_fails() {
     let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
     let image_path = tr.to_pathbuf("testfiles/image.wic.xz");
     let written_image_path = image_path.with_extension("");
-    let bmap_path = image_path.with_extension("bmap");
+    let bmap_path = bmap_path(&written_image_path);
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
     // a directory as the output image makes the write back fail, also for root
     create_dir_all(&written_image_path).expect("create directory");
@@ -1287,7 +1286,7 @@ fn check_chained_commands_with_input_bmap() {
     assert_eq!(Testrunner::file_hash(&image_xz_path), image_xz_hash);
     assert_eq!(Testrunner::file_hash(&input_bmap_path), input_bmap_hash);
     assert!(maps_all_ranges_of(
-        &read_bmap(&bmap_path_of(&device_path)),
+        &read_bmap(&bmap_path(&device_path)),
         &read_bmap(&input_bmap_path)
     ));
 }
@@ -1337,7 +1336,7 @@ fn check_derived_output_image_exists() {
 fn check_no_input_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
     let image_path = tr.to_pathbuf("testfiles/image.wic");
-    let bmap_path = bmap_path_of(&image_path);
+    let bmap_path = bmap_path(&image_path);
     let other_bmap_path = tr.pathbuf().join("other.bmap");
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
     fs::write(&bmap_path, OTHER_IMAGE_BMAP).expect("write bmap");
@@ -1377,7 +1376,7 @@ fn check_bmap_generation_wic() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let image_path_copy = PathBuf::from(format!("{}.copy", image_path.to_str().unwrap()));
-    let bmap_path = PathBuf::from(format!("{}.bmap", image_path.to_str().unwrap()));
+    let bmap_path = bmap_path(&image_path);
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
     let in_file = in_file.to_str().unwrap();
 
@@ -1426,7 +1425,7 @@ fn check_bmap_generation_wic_xz() {
     let image_path_wic_xz = tr.to_pathbuf("testfiles/image.wic.xz");
     let image_path_wic = tr.pathbuf().join("device.wic");
     let image_path_wic_copy = image_path_wic_xz.with_extension("copy");
-    let image_path_bmap = bmap_path_of(&image_path_wic);
+    let image_path_bmap = bmap_path(&image_path_wic);
     let input_bmap = read_bmap(&tr.to_pathbuf("testfiles/image.wic.bmap"));
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
     let in_file = in_file.to_str().unwrap();
