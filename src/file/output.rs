@@ -117,7 +117,7 @@ fn ensure_writable(path: &Path) -> Result<()> {
 /// image file mounted into a container, so for such a destination the new file is staged in
 /// TMPDIR and copied into it.
 pub struct Staged {
-    _tmp_dir: TempDir,
+    tmp_dir: TempDir,
     file: PathBuf,
     dest: PathBuf,
     mount_root: bool,
@@ -163,14 +163,14 @@ impl Staged {
             .context(format!("cannot sync {}", file.display()))?;
 
         Ok(Self {
-            _tmp_dir: tmp_dir,
+            tmp_dir,
             file,
             dest,
             mount_root,
         })
     }
 
-    fn rename(&self) -> Result<()> {
+    fn rename(&mut self) -> Result<()> {
         if self.mount_root {
             return self.copy_into_dest();
         }
@@ -195,7 +195,8 @@ impl Staged {
         }
     }
 
-    fn copy_into_dest(&self) -> Result<()> {
+    /// Keeps the staged file if the copy fails, because `dest` is truncated already.
+    fn copy_into_dest(&mut self) -> Result<()> {
         let dest = OpenOptions::new()
             .write(true)
             .create(true)
@@ -203,9 +204,20 @@ impl Staged {
             .open(&self.dest)
             .context(format!("cannot open {}", self.dest.display()))?;
 
-        sparse::copy_file(&self.file, &dest)?;
-        dest.sync_all()
-            .context(format!("cannot sync {}", self.dest.display()))
+        let result = sparse::copy_file(&self.file, &dest).and_then(|()| {
+            dest.sync_all()
+                .context(format!("cannot sync {}", self.dest.display()))
+        });
+        if result.is_err() {
+            self.tmp_dir.disable_cleanup(true);
+        }
+        result.with_context(|| {
+            format!(
+                "cannot copy into {}; the new file is kept in {}",
+                self.dest.display(),
+                self.file.display()
+            )
+        })
     }
 }
 
@@ -228,7 +240,7 @@ fn is_mount_root(path: &Path) -> bool {
 /// Renames the staged `image` and its `bmap`, then syncs their directories, so the renames are
 /// not lost on a power loss. The old bmap is removed before the image is renamed, so if renaming
 /// the bmap fails, no bmap is left that does not match the new image.
-pub fn commit(image: Staged, bmap: Option<Staged>) -> Result<()> {
+pub fn commit(mut image: Staged, mut bmap: Option<Staged>) -> Result<()> {
     if let Some(bmap) = bmap.as_ref().filter(|bmap| !bmap.mount_root) {
         // a mount point that was not detected cannot be removed, the copy into it replaces it
         match fs::remove_file(&bmap.dest) {
@@ -239,7 +251,7 @@ pub fn commit(image: Staged, bmap: Option<Staged>) -> Result<()> {
         }
     }
     image.rename()?;
-    if let Some(bmap) = &bmap {
+    if let Some(bmap) = &mut bmap {
         bmap.rename()?;
     }
 
@@ -297,6 +309,7 @@ mod tests {
     const IMAGE_MODE: u32 = 0o644;
     const READ_ONLY_MODE: u32 = 0o444;
     const MODE_MASK: u32 = 0o777;
+    const UNRESIZABLE_FILE: &str = "/dev/full";
 
     fn touch(path: &Path) {
         fs::write(path, []).expect("create file");
@@ -585,6 +598,19 @@ mod tests {
             .expect("copy into dest");
 
         assert_eq!(fs::read(&image).expect("read image"), NEW_CONTENT);
+    }
+
+    #[test]
+    fn copy_into_dest_keeps_the_staged_file_when_the_copy_fails() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let mut staged = stage(&dir.path().join(IMAGE), NEW_CONTENT);
+        // a character device cannot be resized, so the copy fails after the open
+        staged.dest = PathBuf::from(UNRESIZABLE_FILE);
+
+        assert!(staged.copy_into_dest().is_err());
+        let file = staged.file.clone();
+        drop(staged);
+        assert_eq!(fs::read(&file).expect("read staged file"), NEW_CONTENT);
     }
 
     #[test]
