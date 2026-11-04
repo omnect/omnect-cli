@@ -259,22 +259,21 @@ fn is_mount_root(path: &Path) -> bool {
     })
 }
 
-/// Renames the staged `image` and its `bmap`, then syncs their directories, so the renames are
-/// not lost on a power loss. The old bmap is removed before the image is renamed, so if renaming
-/// the bmap fails, no bmap is left that does not match the new image.
+/// Renames the staged `image` and then its `bmap`, then syncs their directories, so the renames
+/// are not lost on a power loss. If the image fails, the old image keeps its bmap. If the bmap
+/// fails, the old bmap is removed, because it does not match the new image.
 pub fn commit(mut image: Staged, mut bmap: Option<Staged>) -> Result<()> {
-    if let Some(bmap) = bmap.as_ref().filter(|bmap| !bmap.mount_root) {
-        // a mount point that was not detected cannot be removed, the copy into it replaces it
+    image.rename()?;
+    if let Some(bmap) = &mut bmap
+        && let Err(e) = bmap.rename()
+    {
         match fs::remove_file(&bmap.dest) {
-            Err(e) if !matches!(e.kind(), ErrorKind::NotFound | ErrorKind::ResourceBusy) => {
-                return Err(e).context(format!("cannot remove {}", bmap.dest.display()));
+            Err(remove) if remove.kind() != ErrorKind::NotFound => {
+                warn!("cannot remove the old {}: {remove}", bmap.dest.display())
             }
             _ => {}
         }
-    }
-    image.rename()?;
-    if let Some(bmap) = &mut bmap {
-        bmap.rename()?;
+        return Err(e);
     }
 
     let dirs: BTreeSet<_> = iter::once(&image)
@@ -620,6 +619,22 @@ mod tests {
         assert!(commit(stage(&image, NEW_CONTENT), Some(staged_bmap)).is_err());
         assert_eq!(fs::read(&image).expect("read image"), NEW_CONTENT);
         assert!(!image_bmap.exists());
+    }
+
+    #[test]
+    fn commit_keeps_the_old_bmap_when_the_image_rename_fails() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        let image_bmap = bmap::bmap_path(&image);
+        fs::write(&image, OLD_CONTENT).expect("write image");
+        fs::write(&image_bmap, OLD_CONTENT).expect("write bmap");
+
+        let staged_image = stage(&image, NEW_CONTENT);
+        fs::remove_file(&staged_image.file).expect("remove staged image");
+
+        assert!(commit(staged_image, Some(stage(&image_bmap, NEW_CONTENT))).is_err());
+        assert_eq!(fs::read(&image).expect("read image"), OLD_CONTENT);
+        assert_eq!(fs::read(&image_bmap).expect("read bmap"), OLD_CONTENT);
     }
 
     #[test]
