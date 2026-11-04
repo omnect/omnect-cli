@@ -8,8 +8,9 @@ use std::{
     collections::BTreeSet,
     ffi::c_int,
     fs,
+    mem::MaybeUninit,
     path::{Path, PathBuf},
-    process,
+    process, ptr,
     sync::{Mutex, MutexGuard, Once, PoisonError},
     thread,
 };
@@ -41,7 +42,12 @@ fn dirs() -> MutexGuard<'static, BTreeSet<PathBuf>> {
 }
 
 fn start_handler() {
-    let mut signals = match Signals::new(STOP_SIGNALS) {
+    // e.g. `nohup` ignores SIGHUP, and a shell ignores SIGINT for a background job
+    let signals: Vec<_> = STOP_SIGNALS
+        .into_iter()
+        .filter(|signal| !is_ignored(*signal))
+        .collect();
+    let mut signals = match Signals::new(signals) {
         Ok(signals) => signals,
         Err(e) => {
             warn!("cannot handle stop signals, so a stop leaves temp dirs: {e}");
@@ -66,6 +72,14 @@ fn start_handler() {
     });
 }
 
+fn is_ignored(signal: c_int) -> bool {
+    let mut action = MaybeUninit::<libc::sigaction>::zeroed();
+    // SAFETY: without a new action, sigaction only writes the current one into `action`
+    let result = unsafe { libc::sigaction(signal, ptr::null(), action.as_mut_ptr()) };
+    // SAFETY: the action was zeroed, and sigaction fills it on success
+    result == 0 && unsafe { action.assume_init() }.sa_sigaction == libc::SIG_IGN
+}
+
 #[cfg(test)]
 mod tests {
     use crate::file::signal::*;
@@ -78,5 +92,14 @@ mod tests {
         assert!(is_registered(dir.path()));
         unregister(dir.path());
         assert!(!is_registered(dir.path()));
+    }
+
+    #[test]
+    fn is_ignored_reads_the_disposition() {
+        // SAFETY: SIGUSR2 is not used by the tests
+        unsafe { libc::signal(libc::SIGUSR2, libc::SIG_IGN) };
+
+        assert!(is_ignored(libc::SIGUSR2));
+        assert!(!is_ignored(libc::SIGUSR1));
     }
 }

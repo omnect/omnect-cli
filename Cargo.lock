@@ -1767,6 +1767,7 @@ dependencies = [
  "hmac",
  "httpmock",
  "keyring-core",
+ "libc",
  "log",
  "mbrman",
  "num_cpus",
