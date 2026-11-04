@@ -54,7 +54,7 @@
 - `src/file/bmap.rs` — input bmap lookup and checksum check; writes the output bmap: input ranges (or the whole image) plus data blocks
 - `src/file/output.rs` — output image name, conflict checks, staged write and commit of the output image and bmap
 - `src/file/sparse.rs` — data/hole ranges via `SEEK_DATA`/`SEEK_HOLE`, sparse range copy
-- `src/file/signal.rs` — removes registered temp dirs (staged output, device key) on SIGINT/SIGTERM/SIGHUP
+- `src/file/signal.rs` — `RegisteredTempDir`: a temp dir that SIGINT/SIGTERM/SIGHUP (unless ignored) also removes
 - `src/file/partition.rs` — GPT/MBR partition table parsing
 - `src/file/compression.rs` — xz/bzip2/gzip compress/decompress with auto-detection
 - `src/validators/` — validation for identity config (TOML), device-update config (JSON), SSH keys
