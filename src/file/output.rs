@@ -313,6 +313,8 @@ mod tests {
     const READ_ONLY_MODE: u32 = 0o444;
     const MODE_MASK: u32 = 0o777;
     const UNRESIZABLE_FILE: &str = "/dev/full";
+    const MOUNTINFO: &str = "/proc/self/mountinfo";
+    const MOUNTINFO_MOUNT_POINT: usize = 4;
 
     fn touch(path: &Path) {
         fs::write(path, []).expect("create file");
@@ -622,8 +624,24 @@ mod tests {
         let image = dir.path().join(IMAGE);
         touch(&image);
 
-        assert!(is_mount_root(Path::new("/")));
         assert!(!is_mount_root(&image));
+
+        // kernels before 5.8 do not report mount roots, and `/` of a chroot is no mount root
+        let root = Path::new("/");
+        let reported = rustix::fs::statx(CWD, root, AtFlags::empty(), StatxFlags::empty())
+            .is_ok_and(|statx| {
+                statx
+                    .stx_attributes_mask
+                    .contains(StatxAttributes::MOUNT_ROOT)
+            });
+        let mounted = fs::read_to_string(MOUNTINFO).is_ok_and(|mountinfo| {
+            mountinfo
+                .lines()
+                .any(|line| line.split(' ').nth(MOUNTINFO_MOUNT_POINT) == Some("/"))
+        });
+        if reported && mounted {
+            assert!(is_mount_root(root));
+        }
     }
 
     #[test]
