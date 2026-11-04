@@ -1,4 +1,4 @@
-use crate::file::{bmap, compression::Compression, sparse};
+use crate::file::{bmap, compression::Compression, signal, sparse};
 use anyhow::{Context, Result};
 use log::{info, warn};
 use rustix::{
@@ -148,29 +148,35 @@ impl Staged {
             dest.file_name()
                 .context(format!("{} has no file name", dest.display()))?,
         );
+        signal::register(tmp_dir.path());
+        // from here on, drop unregisters the temp dir
+        let staged = Self {
+            tmp_dir,
+            file,
+            dest,
+            mount_root,
+        };
 
-        let mut handle =
-            File::create(&file).context(format!("cannot create {}", file.display()))?;
+        let mut handle = File::create(&staged.file)
+            .context(format!("cannot create {}", staged.file.display()))?;
         write(&mut handle)?;
-        if let Ok(metadata) = fs::metadata(&dest) {
+        if let Ok(metadata) = fs::metadata(&staged.dest) {
             handle
                 .set_permissions(metadata.permissions())
-                .context(format!("cannot set permissions of {}", file.display()))?;
+                .context(format!(
+                    "cannot set permissions of {}",
+                    staged.file.display()
+                ))?;
         }
         // a file in TMPDIR is only copied into `dest`, and the copy is synced
         if !mount_root {
             // the handle that wrote the data also gets the write errors
             handle
                 .sync_all()
-                .context(format!("cannot sync {}", file.display()))?;
+                .context(format!("cannot sync {}", staged.file.display()))?;
         }
 
-        Ok(Self {
-            tmp_dir,
-            file,
-            dest,
-            mount_root,
-        })
+        Ok(staged)
     }
 
     fn rename(&mut self) -> Result<()> {
@@ -212,6 +218,7 @@ impl Staged {
                 .context(format!("cannot sync {}", self.dest.display()))
         });
         if result.is_err() {
+            signal::unregister(self.tmp_dir.path());
             self.tmp_dir.disable_cleanup(true);
         }
         result.with_context(|| {
@@ -221,6 +228,12 @@ impl Staged {
                 self.file.display()
             )
         })
+    }
+}
+
+impl Drop for Staged {
+    fn drop(&mut self) {
+        signal::unregister(self.tmp_dir.path());
     }
 }
 
@@ -554,6 +567,17 @@ mod tests {
             1,
             "temp dir was left"
         );
+    }
+
+    #[test]
+    fn staged_registers_its_temp_dir_until_drop() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let staged = stage(&dir.path().join(IMAGE), NEW_CONTENT);
+        let tmp_dir = staged.tmp_dir.path().to_path_buf();
+
+        assert!(signal::is_registered(&tmp_dir));
+        drop(staged);
+        assert!(!signal::is_registered(&tmp_dir));
     }
 
     #[test]
