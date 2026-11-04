@@ -52,7 +52,9 @@
 - `src/file/mod.rs` — high-level image operations: identity config, certs, hostname patching
 - `src/file/functions.rs` — sparse partition read, modify via e2cp/mcopy, write back of changed blocks only
 - `src/file/bmap.rs` — input bmap lookup and checksum check; writes the output bmap: input ranges (or the whole image) plus data blocks
+- `src/file/output.rs` — output image name, conflict checks, staged write and commit of the output image and bmap
 - `src/file/sparse.rs` — data/hole ranges via `SEEK_DATA`/`SEEK_HOLE`, sparse range copy
+- `src/file/signal.rs` — removes staging dirs on SIGINT/SIGTERM/SIGHUP
 - `src/file/partition.rs` — GPT/MBR partition table parsing
 - `src/file/compression.rs` — xz/bzip2/gzip compress/decompress with auto-detection
 - `src/validators/` — validation for identity config (TOML), device-update config (JSON), SSH keys
