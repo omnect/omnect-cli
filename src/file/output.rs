@@ -70,6 +70,7 @@ pub fn check_conflicts(
 ) -> Result<()> {
     let in_place = same_file(input_image, output_image)?;
     ensure_writable(output_image)?;
+    ensure_staging_dir_writable(output_image)?;
 
     anyhow::ensure!(
         // a symlink counts also if its target does not exist yet
@@ -80,6 +81,7 @@ pub fn check_conflicts(
     if output_bmap {
         let target_bmap = bmap::bmap_path(output_image);
         ensure_writable(&target_bmap)?;
+        ensure_staging_dir_writable(&target_bmap)?;
         if !in_place {
             let found_bmap = bmap::find_input_bmap(input_image, None)?;
             for bmap in input_bmap.into_iter().chain(found_bmap.as_deref()) {
@@ -115,6 +117,28 @@ fn ensure_writable(path: &Path) -> Result<()> {
     }
 }
 
+/// Fails before the command runs if `Staged::write` could not create its temp dir for `dest`.
+fn ensure_staging_dir_writable(dest: &Path) -> Result<()> {
+    let (dir, _) = staging_dir(&resolve(dest)?)?;
+    rustix::fs::access(&dir, Access::WRITE_OK).context(format!(
+        "cannot write to {}, where the new {} is staged",
+        dir.display(),
+        dest.display()
+    ))
+}
+
+/// The directory for the staged file of the resolved `dest`, and whether `dest` is a mount
+/// point.
+fn staging_dir(dest: &Path) -> Result<(PathBuf, bool)> {
+    if is_mount_root(dest) {
+        return Ok((env::temp_dir(), true));
+    }
+    let dir = dest
+        .parent()
+        .context(format!("{} has no directory", dest.display()))?;
+    Ok((dir.to_path_buf(), false))
+}
+
 /// A new file in the directory of its destination, which `commit` renames to the destination.
 /// Until then the destination stays unchanged. A rename cannot replace a mount point, e.g. an
 /// image file mounted into a container, so for such a destination the new file is staged in
@@ -131,15 +155,7 @@ impl Staged {
     /// keeps its permissions.
     pub fn write(dest: &Path, write: impl FnOnce(&mut File) -> Result<()>) -> Result<Self> {
         let dest = resolve(dest)?;
-        let dir = dest
-            .parent()
-            .context(format!("{} has no directory", dest.display()))?;
-        let mount_root = is_mount_root(&dest);
-        let tmp_parent = if mount_root {
-            env::temp_dir()
-        } else {
-            dir.to_path_buf()
-        };
+        let (tmp_parent, mount_root) = staging_dir(&dest)?;
         let tmp_dir = tempfile::Builder::new()
             .prefix(TMP_DIR_PREFIX)
             .tempdir_in(&tmp_parent)
@@ -346,6 +362,8 @@ mod tests {
     const IMAGE_MODE: u32 = 0o644;
     const READ_ONLY_MODE: u32 = 0o444;
     const MODE_MASK: u32 = 0o777;
+    const DIR_MODE: u32 = 0o755;
+    const READ_ONLY_DIR_MODE: u32 = 0o555;
     const UNRESIZABLE_FILE: &str = "/dev/full";
     const MOUNTINFO: &str = "/proc/self/mountinfo";
     const MOUNTINFO_MOUNT_POINT: usize = 4;
@@ -489,6 +507,22 @@ mod tests {
         check_conflicts(&image, &image, false, false, None).expect("writable image");
         fs::set_permissions(&image, read_only).expect("set permissions");
         assert!(check_conflicts(&image, &image, false, false, None).is_err());
+    }
+
+    #[test]
+    fn check_conflicts_rejects_a_read_only_output_dir() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        touch(&image);
+        fs::set_permissions(dir.path(), fs::Permissions::from_mode(READ_ONLY_DIR_MODE))
+            .expect("set permissions");
+        // root can write a read-only directory
+        let writable = rustix::fs::access(dir.path(), Access::WRITE_OK).is_ok();
+
+        let result = check_conflicts(&image, &image, false, false, None);
+        fs::set_permissions(dir.path(), fs::Permissions::from_mode(DIR_MODE))
+            .expect("set permissions");
+        assert_eq!(result.is_ok(), writable);
     }
 
     #[test]
