@@ -6,6 +6,7 @@ use rustix::{
     io::Errno,
 };
 use std::{
+    borrow::Borrow,
     collections::BTreeSet,
     env,
     fs::{self, File, OpenOptions},
@@ -13,6 +14,7 @@ use std::{
     iter,
     path::{Path, PathBuf},
 };
+use strum::IntoEnumIterator;
 
 const TMP_DIR_PREFIX: &str = ".omnect-cli-";
 // the limit of Linux path resolution
@@ -35,7 +37,7 @@ pub fn output_image(
                 "{} does not end in .{}, the extension of the -p compression; name it e.g. {}",
                 path.display(),
                 c.extension(),
-                c.compressed_path(&without_compression_extension(path))
+                c.compressed_path(&without_extension_of(path, Compression::iter()))
                     .display()
             ),
             None => anyhow::ensure!(
@@ -50,19 +52,23 @@ pub fn output_image(
         return Ok(image.to_path_buf());
     }
 
-    let mut output = image.to_path_buf();
-    if source.is_some_and(|c| c.matches_extension(image)) {
-        output.set_extension("");
-    }
+    let output = without_extension_of(image, source);
     Ok(match target {
         Some(c) => c.compressed_path(&output),
         None => output,
     })
 }
 
-fn without_compression_extension(path: &Path) -> PathBuf {
+/// `path` without its extension if it is an extension of one of `compressions`.
+fn without_extension_of<C: Borrow<Compression>>(
+    path: &Path,
+    compressions: impl IntoIterator<Item = C>,
+) -> PathBuf {
     let mut path = path.to_path_buf();
-    if Compression::has_extension(&path) {
+    if compressions
+        .into_iter()
+        .any(|c| c.borrow().matches_extension(&path))
+    {
         path.set_extension("");
     }
     path
