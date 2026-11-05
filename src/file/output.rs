@@ -85,9 +85,7 @@ pub fn check_conflicts(
     input_bmap: Option<&Path>,
 ) -> Result<()> {
     let in_place = same_file(input_image, output_image)?;
-    ensure_regular_file(output_image)?;
-    ensure_writable(output_image)?;
-    ensure_staging_dir_writable(output_image)?;
+    ensure_replaceable(output_image)?;
 
     anyhow::ensure!(
         // a symlink counts also if its target does not exist yet
@@ -96,10 +94,8 @@ pub fn check_conflicts(
         output_image.display()
     );
     if output_bmap {
-        let target_bmap = bmap::bmap_path(output_image);
-        ensure_regular_file(&target_bmap)?;
-        ensure_writable(&target_bmap)?;
-        ensure_staging_dir_writable(&target_bmap)?;
+        let target_bmap = output_bmap_path(input_image, output_image)?;
+        ensure_replaceable(&target_bmap)?;
         if !in_place {
             let found_bmap = bmap::find_input_bmap(input_image, None)?;
             for bmap in input_bmap.into_iter().chain(found_bmap.as_deref()) {
@@ -121,6 +117,24 @@ pub fn check_conflicts(
     }
 
     Ok(())
+}
+
+/// `<output image>.bmap`, but for an image changed in place the bmap that `bmaptool` finds next
+/// to it, e.g. `x.wic.bmap` for `x.wic.xz`, so no bmap of the old image stays.
+pub fn output_bmap_path(input_image: &Path, output_image: &Path) -> Result<PathBuf> {
+    if same_file(input_image, output_image)?
+        && let Some(bmap) = bmap::find_input_bmap(input_image, None)?
+    {
+        return Ok(bmap);
+    }
+    Ok(bmap::bmap_path(output_image))
+}
+
+/// Fails if `Staged::write` and `commit` could not replace `path`.
+fn ensure_replaceable(path: &Path) -> Result<()> {
+    ensure_regular_file(path)?;
+    ensure_writable(path)?;
+    ensure_staging_dir_writable(path)
 }
 
 /// Fails if `path` exists and is no regular file, e.g. a block device, which the rename of the
@@ -558,6 +572,21 @@ mod tests {
         touch(&image_bmap);
 
         check_conflicts(&image, &image, false, true, Some(&image_bmap)).expect("no conflict");
+    }
+
+    #[test]
+    fn output_bmap_path_replaces_the_bmap_bmaptool_finds_in_place() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image_xz = dir.path().join(IMAGE_XZ);
+        let image_bmap = bmap::bmap_path(&dir.path().join(IMAGE));
+        let other = dir.path().join(OTHER_IMAGE);
+        touch(&image_xz);
+
+        let output = |output| output_bmap_path(&image_xz, output).expect("output bmap");
+        assert_eq!(output(&image_xz), bmap::bmap_path(&image_xz));
+        touch(&image_bmap);
+        assert_eq!(output(&image_xz), image_bmap);
+        assert_eq!(output(&other), bmap::bmap_path(&other));
     }
 
     #[test]

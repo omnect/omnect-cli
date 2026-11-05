@@ -1537,6 +1537,43 @@ fn check_bmap_of_compressed_output_keeps_input_bmap() {
 }
 
 #[test]
+fn check_bmap_of_compressed_image_changed_in_place_replaces_the_input_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path_xz = tr.to_pathbuf("testfiles/image.wic.xz");
+    let input_bmap_path = tr.to_pathbuf("testfiles/image.wic.bmap");
+    let input_bmap_hash = Testrunner::file_hash(&input_bmap_path);
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path_xz)
+        .arg("-b")
+        .arg("-p")
+        .arg("xz")
+        .assert()
+        .success();
+
+    assert_ne!(
+        Testrunner::file_hash(&input_bmap_path),
+        input_bmap_hash,
+        "bmap of the replaced image stayed"
+    );
+    assert!(!bmap_path(&image_path_xz).exists());
+    Command::new("bmaptool")
+        .arg("copy")
+        .args(["--bmap", &input_bmap_path.to_string_lossy()])
+        .arg(&image_path_xz)
+        .arg(image_path_xz.with_extension("copy"))
+        .assert()
+        .success();
+}
+
+#[test]
 fn check_image_compression() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
     let image_path_wic = tr.to_pathbuf("testfiles/image.wic");

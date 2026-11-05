@@ -105,13 +105,16 @@ where
                 Some((path, _)) => info!("the bmap maps the ranges of {}", path.display()),
                 None => info!("no input bmap, so the bmap maps the whole image"),
             }
-            Staged::write(&bmap::bmap_path(&dest_image_file), |dest| {
-                bmap::write_bmap(
-                    &tmp_image_file,
-                    input_bmap.as_ref().map(|(_, bmap)| bmap),
-                    dest,
-                )
-            })
+            Staged::write(
+                &output::output_bmap_path(&image_file, &dest_image_file)?,
+                |dest| {
+                    bmap::write_bmap(
+                        &tmp_image_file,
+                        input_bmap.as_ref().map(|(_, bmap)| bmap),
+                        dest,
+                    )
+                },
+            )
         })
         .transpose()?;
 
