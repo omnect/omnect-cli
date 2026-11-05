@@ -47,13 +47,7 @@ pub fn merge(mut ranges: Vec<Range<u64>>) -> Vec<Range<u64>> {
 
 /// Copies `len` bytes of `src` at `src_offset` to `dst` at `dst_offset`. Holes of `src` are
 /// skipped, so they stay holes in a new `dst`.
-pub fn copy_range(
-    src: &File,
-    src_offset: u64,
-    dst: &File,
-    dst_offset: u64,
-    len: u64,
-) -> Result<()> {
+fn copy_range(src: &File, src_offset: u64, dst: &File, dst_offset: u64, len: u64) -> Result<()> {
     let src_len = src
         .metadata()
         .context("copy_range: cannot get source size")?
@@ -93,7 +87,7 @@ pub fn copy_to_new_file(src: &File, src_offset: u64, dst: &Path, len: u64) -> Re
 
 /// Sets the size of the empty `dst` to `len` and copies `len` bytes of `src` at `src_offset`
 /// into it. Holes of `src` stay holes in `dst`.
-pub fn copy_to_empty_file(src: &File, src_offset: u64, dst: &File, len: u64) -> Result<()> {
+fn copy_to_empty_file(src: &File, src_offset: u64, dst: &File, len: u64) -> Result<()> {
     dst.set_len(len)
         .context("copy_to_empty_file: cannot set destination size")?;
 
