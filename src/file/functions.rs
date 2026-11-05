@@ -1,5 +1,6 @@
 use crate::file::{
-    COPY_CHUNK_SIZE, IMAGE_BLOCK_SIZE, partition::SECTOR_SIZE, signal::RegisteredTempDir, sparse,
+    COPY_CHUNK_SIZE, IMAGE_BLOCK_SIZE, dir_of, partition::SECTOR_SIZE, signal::RegisteredTempDir,
+    sparse,
 };
 use anyhow::{Context, Result};
 use log::{debug, warn};
@@ -269,7 +270,22 @@ pub fn copy_to_image(file_copy_params: &[FileCopyToParams], image_file: &Path) -
     Ok(())
 }
 
+/// Fails if the directory of `out_file` does not exist. A path without a directory is in the
+/// current directory.
+fn ensure_output_dir_exists(out_file: &Path) -> Result<()> {
+    let dir = dir_of(out_file);
+    anyhow::ensure!(
+        dir.is_dir(),
+        "copy_from_image: output dir {} does not exist",
+        dir.display()
+    );
+    Ok(())
+}
+
 pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Path) -> Result<()> {
+    for param in file_copy_params {
+        ensure_output_dir_exists(&param.out_file)?;
+    }
     // the partition files get their own dir, so they never collide with the image
     let working_dir =
         RegisteredTempDir::create().context("copy_from_image: cannot create a temp dir")?;
@@ -285,16 +301,6 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
         let partition_file = partition_file.to_str().unwrap();
 
         read_partition(image_file, partition_file, &partition_info)?;
-
-        anyhow::ensure!(
-            param
-                .out_file
-                .parent()
-                .unwrap()
-                .try_exists()
-                .is_ok_and(|exists| exists),
-            "copy_from_image: output dir does not exist."
-        );
 
         // copy
         if param.partition == Partition::boot {
@@ -548,6 +554,15 @@ mod tests {
             start: PART_START,
             count: PART_SECTORS,
         }
+    }
+
+    #[test]
+    fn ensure_output_dir_exists_takes_a_bare_name() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+
+        ensure_output_dir_exists(Path::new("out.txt")).expect("current dir");
+        ensure_output_dir_exists(&dir.path().join("out.txt")).expect("existing dir");
+        assert!(ensure_output_dir_exists(&dir.path().join("missing/out.txt")).is_err());
     }
 
     #[test]

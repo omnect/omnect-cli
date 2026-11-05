@@ -28,6 +28,14 @@ static ZERO_BLOCK: [u8; IMAGE_BLOCK_SIZE] = [0; IMAGE_BLOCK_SIZE];
 
 /// A slice compare compiles to `memcmp`, which is many times faster than a byte loop with an
 /// early exit.
+/// The directory of `path`; `.` for a path without one.
+fn dir_of(path: &Path) -> &Path {
+    match path.parent() {
+        Some(dir) if !dir.as_os_str().is_empty() => dir,
+        _ => Path::new("."),
+    }
+}
+
 fn is_zero(data: &[u8]) -> bool {
     data.chunks(IMAGE_BLOCK_SIZE)
         .all(|chunk| chunk == &ZERO_BLOCK[..chunk.len()])
@@ -315,6 +323,12 @@ pub(crate) fn get_file_path(image_path: &Path, file_name: &str) -> Result<PathBu
 #[cfg(test)]
 mod tests {
     use crate::file::*;
+
+    #[test]
+    fn dir_of_a_bare_name_is_the_current_dir() {
+        assert_eq!(dir_of(Path::new("out.txt")), Path::new("."));
+        assert_eq!(dir_of(Path::new("dir/out.txt")), Path::new("dir"));
+    }
 
     #[test]
     fn is_zero_checks_every_byte() {

@@ -1574,6 +1574,41 @@ fn check_bmap_of_compressed_image_changed_in_place_replaces_the_input_bmap() {
 }
 
 #[test]
+fn check_copy_from_image_to_a_file_in_the_current_dir() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    let out_file = "boot.out";
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path)
+        .assert()
+        .success();
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .current_dir(tr.pathbuf())
+        .arg("file")
+        .arg("copy-from-image")
+        .arg("-f")
+        .arg(format!("boot:/my-file,{out_file}"))
+        .arg("-i")
+        .arg(&image_path)
+        .assert()
+        .success();
+
+    assert_eq!(
+        Testrunner::file_hash(&tr.pathbuf().join(out_file)),
+        Testrunner::file_hash(&in_file)
+    );
+}
+
+#[test]
 fn check_image_compression() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
     let image_path_wic = tr.to_pathbuf("testfiles/image.wic");

@@ -1,4 +1,4 @@
-use crate::file::{bmap, compression::Compression, signal::RegisteredTempDir, sparse};
+use crate::file::{bmap, compression::Compression, dir_of, signal::RegisteredTempDir, sparse};
 use anyhow::{Context, Result};
 use log::{info, warn};
 use rustix::{
@@ -405,10 +405,7 @@ fn resolve_existing_dir(path: &Path) -> Result<PathBuf> {
     if path.exists() {
         return fs::canonicalize(path).context(format!("cannot resolve {}", path.display()));
     }
-    let dir = match path.parent() {
-        Some(dir) if !dir.as_os_str().is_empty() => dir,
-        _ => Path::new("."),
-    };
+    let dir = dir_of(path);
     let name = path
         .file_name()
         .context(format!("{} has no file name", path.display()))?;
