@@ -24,8 +24,13 @@ use std::{
 const IMAGE_BLOCK_SIZE: usize = 4096;
 const COPY_CHUNK_SIZE: usize = 1024 * 1024;
 
+static ZERO_BLOCK: [u8; IMAGE_BLOCK_SIZE] = [0; IMAGE_BLOCK_SIZE];
+
+/// A slice compare compiles to `memcmp`, which is many times faster than a byte loop with an
+/// early exit.
 fn is_zero(data: &[u8]) -> bool {
-    data.iter().all(|b| *b == 0)
+    data.chunks(IMAGE_BLOCK_SIZE)
+        .all(|chunk| chunk == &ZERO_BLOCK[..chunk.len()])
 }
 
 pub fn set_iotedge_gateway_config(
@@ -305,4 +310,22 @@ pub(crate) fn get_file_path(image_path: &Path, file_name: &str) -> Result<PathBu
         .to_path_buf();
     file_path.push(file_name);
     Ok(file_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::file::*;
+
+    #[test]
+    fn is_zero_checks_every_byte() {
+        let mut data = vec![0u8; 2 * IMAGE_BLOCK_SIZE + 1];
+
+        assert!(is_zero(&[]));
+        assert!(is_zero(&data));
+        for byte in [0, IMAGE_BLOCK_SIZE, data.len() - 1] {
+            data[byte] = 1;
+            assert!(!is_zero(&data), "byte {byte} is not zero");
+            data[byte] = 0;
+        }
+    }
 }
