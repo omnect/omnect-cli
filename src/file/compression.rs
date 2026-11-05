@@ -1,6 +1,6 @@
 use crate::file::{COPY_CHUNK_SIZE, IMAGE_BLOCK_SIZE, is_zero};
 use anyhow::{Context, Result};
-use filemagic::Magic;
+use filemagic::{Flags, Magic};
 use log::debug;
 use std::{
     env,
@@ -138,8 +138,9 @@ impl Compression {
     }
 
     pub fn from_file(image_file_name: &PathBuf) -> Result<Option<Compression>> {
-        let detector = Magic::open(Default::default())
-            .context("image::compression: failed to open libmagic")?;
+        // a symlink, e.g. the Yocto deploy link to the latest image, is checked by its target
+        let detector =
+            Magic::open(Flags::SYMLINK).context("image::compression: failed to open libmagic")?;
 
         detector
             .load::<String>(&[])
@@ -262,6 +263,8 @@ mod tests {
     use crate::file::compression::*;
     use std::{fs, io::Read, os::unix::fs::MetadataExt};
 
+    const XZ_TEST_IMAGE: &str = "testfiles/image.wic.xz";
+
     // unit of `st_blocks`
     const STAT_BLOCK_SIZE: u64 = 512;
     const DATA_OFFSET: usize = 1024 * 1024 + 100;
@@ -300,6 +303,22 @@ mod tests {
             .expect("compress");
         compressed.rewind().expect("rewind compressed");
         compressed
+    }
+
+    #[test]
+    fn from_file_follows_a_symlink() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let link = dir.path().join("image.wic.xz");
+        std::os::unix::fs::symlink(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join(XZ_TEST_IMAGE),
+            &link,
+        )
+        .expect("create symlink");
+
+        assert!(matches!(
+            Compression::from_file(&link).expect("detect compression"),
+            Some(Compression::xz { .. })
+        ));
     }
 
     fn read_all(file: &mut File) -> Vec<u8> {
