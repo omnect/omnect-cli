@@ -57,6 +57,11 @@ impl RegisteredTempDir {
         unregister(self.path());
     }
 
+    /// Removes the dir again if a stop signal ends the process.
+    pub fn register(&self) {
+        register(self.path());
+    }
+
     /// Keeps the dir, also on drop.
     pub fn keep(&mut self) {
         self.unregister();
@@ -153,6 +158,16 @@ mod tests {
             .permissions()
             .mode();
         assert_eq!(mode & MODE_MASK, DIR_MODE);
+    }
+
+    #[test]
+    fn registered_temp_dir_register_again_after_unregister() {
+        let dir = RegisteredTempDir::create().expect("create temp dir");
+
+        dir.unregister();
+        assert!(!is_registered(dir.path()));
+        dir.register();
+        assert!(is_registered(dir.path()));
     }
 
     #[test]

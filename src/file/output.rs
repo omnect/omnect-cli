@@ -185,6 +185,7 @@ pub struct Staged {
     file: PathBuf,
     dest: PathBuf,
     mount_root: bool,
+    kept: bool,
 }
 
 impl Staged {
@@ -205,6 +206,7 @@ impl Staged {
             file,
             dest,
             mount_root,
+            kept: false,
         };
 
         let mut handle = File::create(&staged.file)
@@ -274,8 +276,12 @@ impl Staged {
             dest.sync_all()
                 .context(format!("cannot sync {}", self.dest.display()))
         });
-        if result.is_err() {
-            self.tmp_dir.keep();
+        match result {
+            Ok(()) => self.tmp_dir.register(),
+            Err(_) => {
+                self.tmp_dir.keep();
+                self.kept = true;
+            }
         }
         result.with_context(|| {
             format!(
@@ -304,19 +310,21 @@ fn is_mount_root(path: &Path) -> bool {
 }
 
 /// Renames the staged `image` and then its `bmap`, then syncs their directories, so the renames
-/// are not lost on a power loss. If the image fails, the old image keeps its bmap. If the bmap
-/// fails, the old bmap is removed, because it does not match the new image.
+/// are not lost on a power loss. If the image fails, the old image keeps its bmap, unless the
+/// image was truncated already: then the old bmap is removed and the new one is kept next to the
+/// kept image. If the bmap fails, the old bmap is removed, because it does not match the new
+/// image.
 pub fn commit(mut image: Staged, mut bmap: Option<Staged>) -> Result<()> {
-    image.rename()?;
+    if let Err(e) = image.rename() {
+        return match &bmap {
+            Some(bmap) if image.kept => Err(keep_next_to(bmap, &image, e)),
+            _ => Err(e),
+        };
+    }
     if let Some(bmap) = &mut bmap
         && let Err(e) = bmap.rename()
     {
-        match fs::remove_file(&bmap.dest) {
-            Err(remove) if remove.kind() != ErrorKind::NotFound => {
-                warn!("cannot remove the old {}: {remove}", bmap.dest.display())
-            }
-            _ => {}
-        }
+        remove_old(&bmap.dest);
         return Err(e);
     }
 
@@ -332,6 +340,32 @@ pub fn commit(mut image: Staged, mut bmap: Option<Staged>) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Copies the staged `bmap` next to the kept staged `image` and removes the old bmap, which
+/// matches no image anymore.
+fn keep_next_to(bmap: &Staged, image: &Staged, error: anyhow::Error) -> anyhow::Error {
+    remove_old(&bmap.dest);
+    let Some(name) = bmap.dest.file_name() else {
+        return error;
+    };
+    let kept = image.tmp_dir.path().join(name);
+    match fs::copy(&bmap.file, &kept) {
+        Ok(_) => error.context(format!("the new bmap is kept in {}", kept.display())),
+        Err(e) => {
+            warn!("cannot keep the new bmap in {}: {e}", kept.display());
+            error
+        }
+    }
+}
+
+fn remove_old(path: &Path) {
+    match fs::remove_file(path) {
+        Err(e) if e.kind() != ErrorKind::NotFound => {
+            warn!("cannot remove the old {}: {e}", path.display())
+        }
+        _ => {}
+    }
 }
 
 fn same_file(a: &Path, b: &Path) -> Result<bool> {
@@ -747,11 +781,11 @@ mod tests {
         let image = dir.path().join(IMAGE);
         fs::write(&image, b"old image with more bytes").expect("write image");
 
-        stage(&image, NEW_CONTENT)
-            .copy_into_dest()
-            .expect("copy into dest");
+        let mut staged = stage(&image, NEW_CONTENT);
+        staged.copy_into_dest().expect("copy into dest");
 
         assert_eq!(fs::read(&image).expect("read image"), NEW_CONTENT);
+        assert!(signal::is_registered(staged.tmp_dir.path()));
     }
 
     #[test]
@@ -766,6 +800,27 @@ mod tests {
         let file = staged.file.clone();
         drop(staged);
         assert_eq!(fs::read(&file).expect("read staged file"), NEW_CONTENT);
+    }
+
+    #[test]
+    fn commit_keeps_the_new_bmap_next_to_an_image_kept_after_a_failed_copy() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        let image_bmap = bmap::bmap_path(&image);
+        fs::write(&image_bmap, OLD_CONTENT).expect("write bmap");
+        let mut staged_image = stage(&image, NEW_CONTENT);
+        staged_image.dest = PathBuf::from(UNRESIZABLE_FILE);
+        staged_image.mount_root = true;
+        let kept_bmap = staged_image
+            .file
+            .with_file_name(image_bmap.file_name().expect("bmap name"));
+
+        let e =
+            commit(staged_image, Some(stage(&image_bmap, NEW_CONTENT))).expect_err("commit fails");
+
+        assert!(format!("{e:#}").contains(&kept_bmap.display().to_string()));
+        assert_eq!(fs::read(&kept_bmap).expect("read kept bmap"), NEW_CONTENT);
+        assert!(!image_bmap.exists());
     }
 
     #[test]
