@@ -81,7 +81,7 @@ pub fn check_conflicts(
     input_image: &Path,
     output_image: &Path,
     explicit_output: bool,
-    output_bmap: bool,
+    output_bmap: Option<&Path>,
     input_bmap: Option<&Path>,
 ) -> Result<()> {
     let in_place = same_file(input_image, output_image)?;
@@ -93,14 +93,13 @@ pub fn check_conflicts(
         "{} exists; choose the output image with --output-image",
         output_image.display()
     );
-    if output_bmap {
-        let target_bmap = output_bmap_path(input_image, output_image)?;
-        ensure_replaceable(&target_bmap)?;
+    if let Some(target_bmap) = output_bmap {
+        ensure_replaceable(target_bmap)?;
         if !in_place {
             let found_bmap = bmap::find_input_bmap(input_image, None)?;
             for bmap in input_bmap.into_iter().chain(found_bmap.as_deref()) {
                 anyhow::ensure!(
-                    !same_file(bmap, &target_bmap)?,
+                    !same_file(bmap, target_bmap)?,
                     "{} is the bmap of {} and would be replaced; choose another output image \
                      with --output-image",
                     bmap.display(),
@@ -439,6 +438,10 @@ mod tests {
     const MOUNTINFO: &str = "/proc/self/mountinfo";
     const MOUNTINFO_MOUNT_POINT: usize = 4;
 
+    fn bmap_of(input_image: &Path, output_image: &Path) -> PathBuf {
+        output_bmap_path(input_image, output_image).expect("output bmap path")
+    }
+
     fn touch(path: &Path) {
         fs::write(path, []).expect("create file");
     }
@@ -568,7 +571,14 @@ mod tests {
         touch(&image);
         touch(&image_bmap);
 
-        check_conflicts(&image, &image, false, true, Some(&image_bmap)).expect("no conflict");
+        check_conflicts(
+            &image,
+            &image,
+            false,
+            Some(&bmap_of(&image, &image)),
+            Some(&image_bmap),
+        )
+        .expect("no conflict");
     }
 
     #[test]
@@ -579,7 +589,7 @@ mod tests {
         let other = dir.path().join(OTHER_IMAGE);
         touch(&image_xz);
 
-        let output = |output| output_bmap_path(&image_xz, output).expect("output bmap");
+        let output = |output| bmap_of(&image_xz, output);
         assert_eq!(output(&image_xz), bmap::bmap_path(&image_xz));
         touch(&image_bmap);
         assert_eq!(output(&image_xz), image_bmap);
@@ -600,11 +610,20 @@ mod tests {
             return;
         }
 
-        assert!(check_conflicts(&image, &image, false, true, Some(&image_bmap)).is_err());
+        assert!(
+            check_conflicts(
+                &image,
+                &image,
+                false,
+                Some(&bmap_of(&image, &image)),
+                Some(&image_bmap)
+            )
+            .is_err()
+        );
         fs::remove_file(&image_bmap).expect("remove bmap");
-        check_conflicts(&image, &image, false, false, None).expect("writable image");
+        check_conflicts(&image, &image, false, None, None).expect("writable image");
         fs::set_permissions(&image, read_only).expect("set permissions");
-        assert!(check_conflicts(&image, &image, false, false, None).is_err());
+        assert!(check_conflicts(&image, &image, false, None, None).is_err());
     }
 
     #[test]
@@ -617,7 +636,7 @@ mod tests {
         // root can write a read-only directory
         let writable = rustix::fs::access(dir.path(), Access::WRITE_OK).is_ok();
 
-        let result = check_conflicts(&image, &image, false, false, None);
+        let result = check_conflicts(&image, &image, false, None, None);
         fs::set_permissions(dir.path(), fs::Permissions::from_mode(DIR_MODE))
             .expect("set permissions");
         assert_eq!(result.is_ok(), writable);
@@ -634,7 +653,7 @@ mod tests {
         fs::create_dir(&output_dir).expect("create dir");
 
         for output in [&device, &output_dir] {
-            let error = check_conflicts(&image, output, true, false, None).expect_err("no file");
+            let error = check_conflicts(&image, output, true, None, None).expect_err("no file");
             assert!(error.to_string().contains("is not a regular file"));
         }
     }
@@ -647,8 +666,8 @@ mod tests {
         touch(&image_xz);
         touch(&image);
 
-        assert!(check_conflicts(&image_xz, &image, false, false, None).is_err());
-        check_conflicts(&image_xz, &image, true, false, None).expect("explicit output");
+        assert!(check_conflicts(&image_xz, &image, false, None, None).is_err());
+        check_conflicts(&image_xz, &image, true, None, None).expect("explicit output");
     }
 
     #[test]
@@ -660,9 +679,25 @@ mod tests {
         touch(&image_xz);
         touch(&image_bmap);
 
-        assert!(check_conflicts(&image_xz, &image, false, true, Some(&image_bmap)).is_err());
+        assert!(
+            check_conflicts(
+                &image_xz,
+                &image,
+                false,
+                Some(&bmap_of(&image_xz, &image)),
+                Some(&image_bmap)
+            )
+            .is_err()
+        );
         let other = dir.path().join(OTHER_IMAGE);
-        check_conflicts(&image_xz, &other, true, true, Some(&image_bmap)).expect("other output");
+        check_conflicts(
+            &image_xz,
+            &other,
+            true,
+            Some(&bmap_of(&image_xz, &other)),
+            Some(&image_bmap),
+        )
+        .expect("other output");
     }
 
     #[test]
@@ -672,7 +707,7 @@ mod tests {
         touch(&image);
         touch(&bmap::bmap_path(&image));
 
-        assert!(check_conflicts(&image, &image, false, false, None).is_err());
+        assert!(check_conflicts(&image, &image, false, None, None).is_err());
     }
 
     #[test]
@@ -682,7 +717,7 @@ mod tests {
         touch(&image);
         touch(&dir.path().join("image.bmap"));
 
-        assert!(check_conflicts(&image, &image, false, false, None).is_err());
+        assert!(check_conflicts(&image, &image, false, None, None).is_err());
     }
 
     #[test]
@@ -694,8 +729,15 @@ mod tests {
         touch(&image_bmap);
 
         // bmaptool uses image.wic.bmap for image.wic.xz
-        assert!(check_conflicts(&image_xz, &image_xz, false, false, None).is_err());
-        check_conflicts(&image_xz, &image_xz, false, true, Some(&image_bmap)).expect("with -b");
+        assert!(check_conflicts(&image_xz, &image_xz, false, None, None).is_err());
+        check_conflicts(
+            &image_xz,
+            &image_xz,
+            false,
+            Some(&bmap_of(&image_xz, &image_xz)),
+            Some(&image_bmap),
+        )
+        .expect("with -b");
     }
 
     #[test]
@@ -709,8 +751,26 @@ mod tests {
         touch(&other_bmap);
 
         // --input-bmap and --no-input-bmap
-        assert!(check_conflicts(&image_xz, &image, false, true, Some(&other_bmap)).is_err());
-        assert!(check_conflicts(&image_xz, &image, false, true, None).is_err());
+        assert!(
+            check_conflicts(
+                &image_xz,
+                &image,
+                false,
+                Some(&bmap_of(&image_xz, &image)),
+                Some(&other_bmap)
+            )
+            .is_err()
+        );
+        assert!(
+            check_conflicts(
+                &image_xz,
+                &image,
+                false,
+                Some(&bmap_of(&image_xz, &image)),
+                None
+            )
+            .is_err()
+        );
     }
 
     fn stage(dest: &Path, content: &'static [u8]) -> Staged {
@@ -917,7 +977,7 @@ mod tests {
         touch(&image_xz);
         symlink(dir.path().join("missing.wic"), &image).expect("create symlink");
 
-        assert!(check_conflicts(&image_xz, &image, false, false, None).is_err());
+        assert!(check_conflicts(&image_xz, &image, false, None, None).is_err());
     }
 
     #[test]

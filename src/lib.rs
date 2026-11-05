@@ -67,11 +67,14 @@ where
         target_compression.as_ref(),
         explicit_output.as_deref(),
     )?;
+    let dest_bmap_file = output_bmap
+        .then(|| output::output_bmap_path(&image_file, &dest_image_file))
+        .transpose()?;
     check_conflicts(
         &image_file,
         &dest_image_file,
         explicit_output.is_some(),
-        output_bmap,
+        dest_bmap_file.as_deref(),
         input_bmap.as_ref().map(|(path, _)| path.as_path()),
     )?;
 
@@ -99,22 +102,19 @@ where
         Some(c) => compression::compress(&tmp_image_file, c, dest),
         None => sparse::copy_file(&tmp_image_file, dest),
     })?;
-    let bmap = output_bmap
-        .then(|| {
+    let bmap = dest_bmap_file
+        .map(|dest_bmap_file| {
             match &input_bmap {
                 Some((path, _)) => info!("the bmap maps the ranges of {}", path.display()),
                 None => info!("no input bmap, so the bmap maps the whole image"),
             }
-            Staged::write(
-                &output::output_bmap_path(&image_file, &dest_image_file)?,
-                |dest| {
-                    bmap::write_bmap(
-                        &tmp_image_file,
-                        input_bmap.as_ref().map(|(_, bmap)| bmap),
-                        dest,
-                    )
-                },
-            )
+            Staged::write(&dest_bmap_file, |dest| {
+                bmap::write_bmap(
+                    &tmp_image_file,
+                    input_bmap.as_ref().map(|(_, bmap)| bmap),
+                    dest,
+                )
+            })
         })
         .transpose()?;
 
