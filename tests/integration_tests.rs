@@ -1169,13 +1169,12 @@ fn check_file_copy_without_output_bmap_keeps_image_sparse() {
 }
 
 #[test]
-fn check_no_output_bmap_when_image_write_back_fails() {
+fn check_output_image_that_is_no_regular_file() {
     let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
     let image_path = tr.to_pathbuf("testfiles/image.wic.xz");
     let written_image_path = image_path.with_extension("");
     let bmap_path = bmap_path(&written_image_path);
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
-    // a directory as the output image makes the write back fail, also for root
     create_dir_all(&written_image_path).expect("create directory");
 
     Command::cargo_bin("omnect-cli")
@@ -1191,7 +1190,8 @@ fn check_no_output_bmap_when_image_write_back_fails() {
         .arg(&written_image_path)
         .assert()
         .failure()
-        .stderr(predicate::str::contains("cannot rename"));
+        .stderr(predicate::str::contains("is not a regular file"));
+    assert!(written_image_path.is_dir(), "the directory was replaced");
     assert!(
         !bmap_path.exists(),
         "bmap written for an image that was not written back"

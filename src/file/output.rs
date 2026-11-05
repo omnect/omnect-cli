@@ -79,6 +79,7 @@ pub fn check_conflicts(
     input_bmap: Option<&Path>,
 ) -> Result<()> {
     let in_place = same_file(input_image, output_image)?;
+    ensure_regular_file(output_image)?;
     ensure_writable(output_image)?;
     ensure_staging_dir_writable(output_image)?;
 
@@ -90,6 +91,7 @@ pub fn check_conflicts(
     );
     if output_bmap {
         let target_bmap = bmap::bmap_path(output_image);
+        ensure_regular_file(&target_bmap)?;
         ensure_writable(&target_bmap)?;
         ensure_staging_dir_writable(&target_bmap)?;
         if !in_place {
@@ -112,6 +114,24 @@ pub fn check_conflicts(
         );
     }
 
+    Ok(())
+}
+
+/// Fails if `path` exists and is no regular file, e.g. a block device, which the rename of the
+/// staged file would replace instead of writing to it.
+fn ensure_regular_file(path: &Path) -> Result<()> {
+    match fs::metadata(path) {
+        Ok(metadata) => anyhow::ensure!(
+            metadata.is_file(),
+            "{} is not a regular file; choose another output image with --output-image",
+            path.display()
+        ),
+        Err(e) => anyhow::ensure!(
+            e.kind() == ErrorKind::NotFound,
+            "cannot read {}: {e}",
+            path.display()
+        ),
+    }
     Ok(())
 }
 
@@ -370,6 +390,7 @@ mod tests {
     const DIR_MODE: u32 = 0o755;
     const READ_ONLY_DIR_MODE: u32 = 0o555;
     const UNRESIZABLE_FILE: &str = "/dev/full";
+    const DEVICE_FILE: &str = "/dev/null";
     const MOUNTINFO: &str = "/proc/self/mountinfo";
     const MOUNTINFO_MOUNT_POINT: usize = 4;
 
@@ -540,6 +561,22 @@ mod tests {
         fs::set_permissions(dir.path(), fs::Permissions::from_mode(DIR_MODE))
             .expect("set permissions");
         assert_eq!(result.is_ok(), writable);
+    }
+
+    #[test]
+    fn check_conflicts_rejects_an_output_that_is_no_regular_file() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        let device = dir.path().join(OTHER_IMAGE);
+        let output_dir = dir.path().join("output.wic");
+        touch(&image);
+        symlink(DEVICE_FILE, &device).expect("create symlink");
+        fs::create_dir(&output_dir).expect("create dir");
+
+        for output in [&device, &output_dir] {
+            let error = check_conflicts(&image, output, true, false, None).expect_err("no file");
+            assert!(error.to_string().contains("is not a regular file"));
+        }
     }
 
     #[test]
