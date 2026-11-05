@@ -86,7 +86,7 @@ where
     if source_compression.is_none() {
         verify_input_bmap(&image_file)?;
     }
-    let tmp_dir = RegisteredTempDir::new(tempfile::tempdir().context("cannot create a temp dir")?);
+    let tmp_dir = RegisteredTempDir::create().context("cannot create a temp dir")?;
     let tmp_image_file = temp_image(&image_file, source_compression.as_ref(), tmp_dir.path())?;
     if source_compression.is_some() {
         verify_input_bmap(&tmp_image_file)?;
@@ -135,8 +135,7 @@ where
 
     match Compression::from_file(&image_file)? {
         Some(c) => {
-            let tmp_dir =
-                RegisteredTempDir::new(tempfile::tempdir().context("cannot create a temp dir")?);
+            let tmp_dir = RegisteredTempDir::create().context("cannot create a temp dir")?;
             command(&compression::decompress(&image_file, &c, tmp_dir.path())?)
         }
         None => command(&image_file),
@@ -205,9 +204,8 @@ fn create_image_cert(cert_opts: CertificateOptions) -> Result<CertInfo> {
         .create_cert_and_key(cert_opts.subject, cert_opts.validity_days)
         .context("create_and_set_image_cert: couldn't create device cert and key")?;
 
-    let dir = RegisteredTempDir::new(
-        tempfile::tempdir().context("create_and_set_image_cert: cannot create a temp dir")?,
-    );
+    let dir = RegisteredTempDir::create()
+        .context("create_and_set_image_cert: cannot create a temp dir")?;
     let cert_info = CertInfo {
         cert_path: dir.path().join(cert_opts.target_cert),
         key_path: dir.path().join(cert_opts.target_key),

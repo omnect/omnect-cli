@@ -6,19 +6,25 @@ use signal_hook::{
 };
 use std::{
     collections::BTreeSet,
+    env,
     ffi::c_int,
-    fs,
+    fs::{self, Permissions},
+    io,
     mem::MaybeUninit,
+    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     process, ptr,
     sync::{Mutex, MutexGuard, Once, PoisonError},
     thread,
 };
-use tempfile::TempDir;
+use tempfile::{Builder, TempDir};
 
 const STOP_SIGNALS: [c_int; 3] = [SIGHUP, SIGINT, SIGTERM];
 // exit code of a process that a signal stopped, plus the signal number
 const SIGNAL_EXIT_CODE_BASE: c_int = 128;
+const DEFAULT_PREFIX: &str = ".tmp";
+// the dirs hold images and keys, so other users must not read them
+const DIR_MODE: u32 = 0o700;
 
 static DIRS: Mutex<BTreeSet<PathBuf>> = Mutex::new(BTreeSet::new());
 static HANDLER: Once = Once::new();
@@ -27,9 +33,19 @@ static HANDLER: Once = Once::new();
 pub struct RegisteredTempDir(TempDir);
 
 impl RegisteredTempDir {
-    pub fn new(dir: TempDir) -> Self {
+    /// Creates the dir in TMPDIR.
+    pub fn create() -> io::Result<Self> {
+        Self::create_in(&env::temp_dir(), DEFAULT_PREFIX)
+    }
+
+    /// Creates the dir in `parent`, with a name that starts with `prefix`.
+    pub fn create_in(parent: &Path, prefix: &str) -> io::Result<Self> {
+        let dir = Builder::new()
+            .prefix(prefix)
+            .permissions(Permissions::from_mode(DIR_MODE))
+            .tempdir_in(parent)?;
         register(dir.path());
-        Self(dir)
+        Ok(Self(dir))
     }
 
     pub fn path(&self) -> &Path {
@@ -115,9 +131,11 @@ fn is_ignored(signal: c_int) -> bool {
 mod tests {
     use crate::file::signal::*;
 
+    const MODE_MASK: u32 = 0o777;
+
     #[test]
     fn registered_temp_dir_is_registered_until_drop() {
-        let dir = RegisteredTempDir::new(tempfile::tempdir().expect("create temp dir"));
+        let dir = RegisteredTempDir::create().expect("create temp dir");
         let path = dir.path().to_path_buf();
 
         assert!(is_registered(&path));
@@ -127,8 +145,19 @@ mod tests {
     }
 
     #[test]
+    fn registered_temp_dir_is_private() {
+        let dir = RegisteredTempDir::create().expect("create temp dir");
+
+        let mode = fs::metadata(dir.path())
+            .expect("metadata")
+            .permissions()
+            .mode();
+        assert_eq!(mode & MODE_MASK, DIR_MODE);
+    }
+
+    #[test]
     fn registered_temp_dir_keep_unregisters_and_keeps_the_dir() {
-        let mut dir = RegisteredTempDir::new(tempfile::tempdir().expect("create temp dir"));
+        let mut dir = RegisteredTempDir::create().expect("create temp dir");
         let path = dir.path().to_path_buf();
 
         dir.keep();

@@ -193,15 +193,9 @@ impl Staged {
     pub fn write(dest: &Path, write: impl FnOnce(&mut File) -> Result<()>) -> Result<Self> {
         let dest = resolve(dest)?;
         let (tmp_parent, mount_root) = staging_dir(&dest)?;
-        let tmp_dir = RegisteredTempDir::new(
-            tempfile::Builder::new()
-                .prefix(TMP_DIR_PREFIX)
-                .tempdir_in(&tmp_parent)
-                .context(format!(
-                    "cannot create a temp dir in {}",
-                    tmp_parent.display()
-                ))?,
-        );
+        let tmp_dir = RegisteredTempDir::create_in(&tmp_parent, TMP_DIR_PREFIX).context(
+            format!("cannot create a temp dir in {}", tmp_parent.display()),
+        )?;
         let file = tmp_dir.path().join(
             dest.file_name()
                 .context(format!("{} has no file name", dest.display()))?,
