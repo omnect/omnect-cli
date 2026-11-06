@@ -137,6 +137,10 @@ pub fn find_input_bmap(image: &Path, explicit: Option<&Path>) -> Result<Option<P
     }
 }
 
+pub fn is_bmap(path: &Path) -> bool {
+    path.extension().is_some_and(|ext| ext == BMAP_EXTENSION)
+}
+
 pub fn bmap_path(image: &Path) -> PathBuf {
     image.with_added_extension(BMAP_EXTENSION)
 }

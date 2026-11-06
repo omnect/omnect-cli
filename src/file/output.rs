@@ -95,17 +95,24 @@ pub fn check_conflicts(
     );
     if let Some(target_bmap) = output_bmap {
         ensure_replaceable(target_bmap)?;
-        if !in_place {
-            let found_bmap = bmap::find_input_bmap(input_image, None)?;
-            for bmap in input_bmap.into_iter().chain(found_bmap.as_deref()) {
-                anyhow::ensure!(
-                    !same_file(bmap, target_bmap)?,
-                    "{} is the bmap of {} and would be replaced; choose another output image \
-                     with --output-image",
-                    bmap.display(),
-                    input_image.display()
-                );
-            }
+        ensure_bmap_next_to(output_image, target_bmap)?;
+        if !in_place && let Some(bmap) = input_bmap {
+            anyhow::ensure!(
+                !same_file(bmap, target_bmap)?,
+                "{} is the bmap of {} and would be replaced; choose another output image with \
+                 --output-image",
+                bmap.display(),
+                input_image.display()
+            );
+        }
+        for image in images_using(target_bmap)? {
+            anyhow::ensure!(
+                same_file(&image, output_image)?,
+                "{} is also the bmap of {}, which stays, and would be replaced; choose another \
+                 output image with --output-image",
+                target_bmap.display(),
+                image.display()
+            );
         }
     } else if let Some(stale_bmap) = bmap::find_input_bmap(output_image, None)? {
         anyhow::bail!(
@@ -115,6 +122,51 @@ pub fn check_conflicts(
         );
     }
 
+    Ok(())
+}
+
+/// The images next to `bmap` for which `bmaptool` finds `bmap`.
+fn images_using(bmap: &Path) -> Result<Vec<PathBuf>> {
+    let dir = dir_of(bmap);
+    let Some(stem) = bmap.file_stem() else {
+        return Ok(vec![]);
+    };
+    let stem = stem.to_string_lossy();
+    let mut images = vec![];
+    for entry in fs::read_dir(dir).context(format!("cannot read {}", dir.display()))? {
+        let path = entry
+            .context(format!("cannot read {}", dir.display()))?
+            .path();
+        let Some(name) = path.file_name().map(|name| name.to_string_lossy()) else {
+            continue;
+        };
+        // bmaptool strips one extension at a time
+        let named_after_stem = name == stem
+            || name
+                .strip_prefix(stem.as_ref())
+                .is_some_and(|rest| rest.starts_with('.'));
+        if named_after_stem
+            && !bmap::is_bmap(&path)
+            && path.is_file()
+            && bmap::find_input_bmap(&path, None)?
+                .is_some_and(|found| same_file(&found, bmap).unwrap_or(false))
+        {
+            images.push(path);
+        }
+    }
+    Ok(images)
+}
+
+/// Fails if `output_image` is a mount point, e.g. an image file mounted into a container, and
+/// `bmap` is not: the bmap would then be written next to the mount point, not next to the image.
+fn ensure_bmap_next_to(output_image: &Path, bmap: &Path) -> Result<()> {
+    anyhow::ensure!(
+        !is_mount_root(&resolve(output_image)?) || is_mount_root(&resolve(bmap)?),
+        "{} is a mount point, so its bmap {} would not be written next to the image; mount the \
+         directory of the image instead",
+        output_image.display(),
+        bmap.display()
+    );
     Ok(())
 }
 
@@ -177,27 +229,29 @@ fn ensure_staging_dir_writable(dest: &Path) -> Result<()> {
     ))
 }
 
-/// The directory for the staged file of the resolved `dest`, and whether `dest` is a mount
-/// point.
+/// The directory for the staged file of the resolved `dest`, and whether the staged file is
+/// copied into `dest`. A rename cannot replace a mount point, and needs write access to the
+/// directory of `dest`, so an existing `dest` without either is staged in TMPDIR.
 fn staging_dir(dest: &Path) -> Result<(PathBuf, bool)> {
-    if is_mount_root(dest) {
-        return Ok((env::temp_dir(), true));
-    }
     let dir = dest
         .parent()
         .context(format!("{} has no directory", dest.display()))?;
+    let dir_writable = rustix::fs::access(dir, Access::WRITE_OK).is_ok();
+    if is_mount_root(dest) || (dest.exists() && !dir_writable) {
+        return Ok((env::temp_dir(), true));
+    }
     Ok((dir.to_path_buf(), false))
 }
 
 /// A new file in the directory of its destination, which `commit` renames to the destination.
 /// Until then the destination stays unchanged. A rename cannot replace a mount point, e.g. an
-/// image file mounted into a container, so for such a destination the new file is staged in
-/// TMPDIR and copied into it.
+/// image file mounted into a container, or a file in a directory the user cannot write, so for
+/// such a destination the new file is staged in TMPDIR and copied into it.
 pub struct Staged {
     tmp_dir: RegisteredTempDir,
     file: PathBuf,
     dest: PathBuf,
-    mount_root: bool,
+    in_tmpdir: bool,
     kept: bool,
 }
 
@@ -206,7 +260,7 @@ impl Staged {
     /// keeps its permissions.
     pub fn write(dest: &Path, write: impl FnOnce(&mut File) -> Result<()>) -> Result<Self> {
         let dest = resolve(dest)?;
-        let (tmp_parent, mount_root) = staging_dir(&dest)?;
+        let (tmp_parent, in_tmpdir) = staging_dir(&dest)?;
         let tmp_dir = RegisteredTempDir::create_in(&tmp_parent, TMP_DIR_PREFIX).context(
             format!("cannot create a temp dir in {}", tmp_parent.display()),
         )?;
@@ -218,7 +272,7 @@ impl Staged {
             tmp_dir,
             file,
             dest,
-            mount_root,
+            in_tmpdir,
             kept: false,
         };
 
@@ -234,7 +288,7 @@ impl Staged {
                 ))?;
         }
         // a file in TMPDIR is only copied into `dest`, and the copy is synced
-        if !mount_root {
+        if !in_tmpdir {
             // the handle that wrote the data also gets the write errors
             handle
                 .sync_all()
@@ -245,7 +299,7 @@ impl Staged {
     }
 
     fn rename(&mut self) -> Result<()> {
-        if self.mount_root {
+        if self.in_tmpdir {
             return self.copy_into_dest();
         }
         match fs::rename(&self.file, &self.dest) {
@@ -326,7 +380,7 @@ fn is_mount_root(path: &Path) -> bool {
 /// are not lost on a power loss. If the image fails, the old image keeps its bmap, unless the
 /// image was truncated already: then the old bmap is removed and the new one is kept next to the
 /// kept image. If the bmap fails, the old bmap is removed, because it does not match the new
-/// image.
+/// image. A stop signal after the image step removes the staged bmap and keeps the old one.
 pub fn commit(mut image: Staged, mut bmap: Option<Staged>) -> Result<()> {
     if let Err(e) = image.rename() {
         return match &bmap {
@@ -627,7 +681,7 @@ mod tests {
     }
 
     #[test]
-    fn check_conflicts_rejects_a_read_only_output_dir() {
+    fn check_conflicts_allows_only_in_place_in_a_read_only_dir() {
         let dir = tempfile::tempdir().expect("create temp dir");
         let image = dir.path().join(IMAGE);
         touch(&image);
@@ -636,10 +690,31 @@ mod tests {
         // root can write a read-only directory
         let writable = rustix::fs::access(dir.path(), Access::WRITE_OK).is_ok();
 
-        let result = check_conflicts(&image, &image, false, None, None);
+        let in_place = check_conflicts(&image, &image, false, None, None);
+        let new_file = check_conflicts(&image, &dir.path().join(OTHER_IMAGE), true, None, None);
         fs::set_permissions(dir.path(), fs::Permissions::from_mode(DIR_MODE))
             .expect("set permissions");
-        assert_eq!(result.is_ok(), writable);
+        in_place.expect("in place");
+        assert_eq!(new_file.is_ok(), writable);
+    }
+
+    #[test]
+    fn staged_commit_copies_into_a_file_in_a_read_only_dir() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        fs::write(&image, OLD_CONTENT).expect("write image");
+        fs::set_permissions(dir.path(), fs::Permissions::from_mode(READ_ONLY_DIR_MODE))
+            .expect("set permissions");
+        let writable = rustix::fs::access(dir.path(), Access::WRITE_OK).is_ok();
+
+        let staged = stage(&image, NEW_CONTENT);
+        let in_tmpdir = staged.in_tmpdir;
+        let result = commit(staged, None);
+        fs::set_permissions(dir.path(), fs::Permissions::from_mode(DIR_MODE))
+            .expect("set permissions");
+        result.expect("commit");
+        assert_eq!(in_tmpdir, !writable);
+        assert_eq!(fs::read(&image).expect("read image"), NEW_CONTENT);
     }
 
     #[test]
@@ -896,7 +971,7 @@ mod tests {
         fs::write(&image_bmap, OLD_CONTENT).expect("write bmap");
         let mut staged_image = stage(&image, NEW_CONTENT);
         staged_image.dest = PathBuf::from(UNRESIZABLE_FILE);
-        staged_image.mount_root = true;
+        staged_image.in_tmpdir = true;
         let kept_bmap = staged_image
             .file
             .with_file_name(image_bmap.file_name().expect("bmap name"));
@@ -910,7 +985,7 @@ mod tests {
     }
 
     #[test]
-    fn is_mount_root_detects_the_root_dir() {
+    fn is_copy_detects_the_root_dir() {
         let dir = tempfile::tempdir().expect("create temp dir");
         let image = dir.path().join(IMAGE);
         touch(&image);
@@ -933,6 +1008,61 @@ mod tests {
         if reported && mounted {
             assert!(is_mount_root(root));
         }
+    }
+
+    #[test]
+    fn ensure_bmap_next_to_rejects_a_bmap_next_to_a_mount_point() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        let root = Path::new("/");
+        touch(&image);
+
+        ensure_bmap_next_to(&image, &bmap::bmap_path(&image)).expect("no mount point");
+        // the kernel cannot always tell, see is_mount_root_detects_the_root_dir
+        if is_mount_root(root) {
+            assert!(ensure_bmap_next_to(root, &bmap::bmap_path(&image)).is_err());
+            ensure_bmap_next_to(root, root).expect("bmap is a mount point too");
+        }
+    }
+
+    #[test]
+    fn check_conflicts_rejects_replacing_the_bmap_of_another_image() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image_xz = dir.path().join(IMAGE_XZ);
+        let image = dir.path().join(IMAGE);
+        let image_bmap = bmap::bmap_path(&image);
+        touch(&image_xz);
+        touch(&image);
+        touch(&image_bmap);
+
+        // bmaptool uses image.wic.bmap for both images
+        for input in [&image_xz, &image] {
+            let error = check_conflicts(input, input, false, Some(&image_bmap), None)
+                .expect_err("shared bmap");
+            assert!(error.to_string().contains("is also the bmap of"));
+        }
+        touch(&bmap::bmap_path(&image_xz));
+        check_conflicts(&image, &image, false, Some(&image_bmap), None).expect("own bmaps");
+    }
+
+    #[test]
+    fn images_using_finds_the_images_bmaptool_maps_to_a_bmap() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image_xz = dir.path().join(IMAGE_XZ);
+        let image = dir.path().join(IMAGE);
+        let image_bmap = bmap::bmap_path(&image);
+        for path in [
+            &image_xz,
+            &image,
+            &image_bmap,
+            &dir.path().join("image.wicked"),
+        ] {
+            touch(path);
+        }
+
+        let mut images = images_using(&image_bmap).expect("images");
+        images.sort();
+        assert_eq!(images, vec![image, image_xz]);
     }
 
     #[test]
