@@ -60,7 +60,11 @@ fn find_partition(file: &mut File, partition_num: u32) -> Result<PartitionData> 
             return Ok(PartitionData {
                 num: partition_num,
                 start: sectors(entry.starting_lba)?,
-                count: sectors(entry.ending_lba - entry.starting_lba + 1)?,
+                count: sectors(
+                    (entry.ending_lba - entry.starting_lba)
+                        .checked_add(1)
+                        .with_context(|| format!("GPT partition {partition_num} is too large"))?,
+                )?,
             });
         }
         Err(e) => e,
