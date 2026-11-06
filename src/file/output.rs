@@ -12,6 +12,7 @@ use std::{
     fs::{self, File, OpenOptions},
     io::ErrorKind,
     iter,
+    os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
 };
 use strum::IntoEnumIterator;
@@ -331,6 +332,8 @@ impl Staged {
             .write(true)
             .create(true)
             .truncate(true)
+            // `dest` is resolved already; a symlink here was put in its place since then
+            .custom_flags(libc::O_NOFOLLOW)
             .open(&self.dest)
             .context(format!("cannot open {}", self.dest.display()))?;
 
@@ -939,6 +942,21 @@ mod tests {
 
         assert_eq!(fs::read(&image).expect("read image"), NEW_CONTENT);
         assert!(signal::is_registered(staged.tmp_dir.path()));
+    }
+
+    #[test]
+    fn copy_into_dest_does_not_follow_a_symlink_put_in_place_of_dest() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        let other = dir.path().join(OTHER_IMAGE);
+        fs::write(&image, OLD_CONTENT).expect("write image");
+        fs::write(&other, OLD_CONTENT).expect("write other image");
+        let mut staged = stage(&image, NEW_CONTENT);
+        fs::remove_file(&image).expect("remove image");
+        symlink(&other, &image).expect("create symlink");
+
+        assert!(staged.copy_into_dest().is_err());
+        assert_eq!(fs::read(&other).expect("read other image"), OLD_CONTENT);
     }
 
     #[test]
