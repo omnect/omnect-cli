@@ -124,21 +124,21 @@ pub fn find_input_bmap(image: &Path, explicit: Option<&Path>) -> Result<Option<P
         return Ok(Some(path.to_path_buf()));
     }
 
-    let mut image = image.to_path_buf();
-    loop {
-        let bmap = bmap_path(&image);
-        if bmap.is_file() {
-            return Ok(Some(bmap));
-        }
-        if image.extension().is_none() {
-            return Ok(None);
-        }
-        image.set_extension("");
-    }
+    Ok(bmaptool_lookup(image)
+        .into_iter()
+        .find(|bmap| bmap.is_file()))
 }
 
-pub fn is_bmap(path: &Path) -> bool {
-    path.extension().is_some_and(|ext| ext == BMAP_EXTENSION)
+/// The paths where `bmaptool` looks for the bmap of `image`, in its order: `<image>.bmap`, then
+/// the same with one extension of `image` removed at a time.
+pub fn bmaptool_lookup(image: &Path) -> Vec<PathBuf> {
+    let mut image = image.to_path_buf();
+    let mut bmaps = vec![bmap_path(&image)];
+    while image.extension().is_some() {
+        image.set_extension("");
+        bmaps.push(bmap_path(&image));
+    }
+    bmaps
 }
 
 pub fn bmap_path(image: &Path) -> PathBuf {

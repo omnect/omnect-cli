@@ -1479,23 +1479,31 @@ fn check_bmap_generation_wic_xz() {
 fn check_bmap_generation_wic_xz_without_input_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
     let image_path_wic_xz = tr.to_pathbuf("testfiles/image.wic.xz");
-    // the output image is the uncompressed image next to the input
-    let image_path_bmap = bmap_path(&image_path_wic_xz.with_extension(""));
+    let image_path_wic = tr.pathbuf().join("device.wic");
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    let copy_to_image = |output: Option<&Path>| {
+        let mut command = Command::cargo_bin("omnect-cli").expect("omnect-cli binary");
+        command
+            .arg("file")
+            .arg("copy-to-image")
+            .arg("-f")
+            .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+            .arg("-i")
+            .arg(&image_path_wic_xz)
+            .arg("-b");
+        if let Some(output) = output {
+            command.arg("-o").arg(output);
+        }
+        command.assert()
+    };
 
-    Command::cargo_bin("omnect-cli")
-        .expect("omnect-cli binary")
-        .arg("file")
-        .arg("copy-to-image")
-        .arg("-f")
-        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
-        .arg("-i")
-        .arg(&image_path_wic_xz)
-        .arg("-b")
-        .assert()
-        .success();
+    // bmaptool would use the new image.wic.bmap also for image.wic.xz, which stays
+    copy_to_image(None)
+        .failure()
+        .stderr(predicate::str::contains("which stays"));
+    copy_to_image(Some(&image_path_wic)).success();
 
-    assert!(maps_whole_image(&read_bmap(&image_path_bmap)));
+    assert!(maps_whole_image(&read_bmap(&bmap_path(&image_path_wic))));
 }
 
 #[test]

@@ -17,6 +17,8 @@ use std::{
 use strum::IntoEnumIterator;
 
 const TMP_DIR_PREFIX: &str = ".omnect-cli-";
+// the extensions of the compressed images that `bmaptool` reads
+const BMAPTOOL_COMPRESSIONS: [&str; 7] = ["gz", "gzip", "bz2", "xz", "lzo", "lz4", "zst"];
 // the limit of Linux path resolution
 const MAX_SYMLINKS: usize = 40;
 
@@ -108,8 +110,8 @@ pub fn check_conflicts(
         for image in images_using(target_bmap)? {
             anyhow::ensure!(
                 same_file(&image, output_image)?,
-                "{} is also the bmap of {}, which stays, and would be replaced; choose another \
-                 output image with --output-image",
+                "bmaptool would use {} also for {}, which stays and would not match it; choose \
+                 another output image with --output-image",
                 target_bmap.display(),
                 image.display()
             );
@@ -125,33 +127,25 @@ pub fn check_conflicts(
     Ok(())
 }
 
-/// The images next to `bmap` for which `bmaptool` finds `bmap`.
+/// The existing images next to `bmap` for which `bmaptool` would use `bmap`: `<stem>` and
+/// `<stem>.<compression>`, if no other bmap comes first in the lookup of `bmaptool`.
 fn images_using(bmap: &Path) -> Result<Vec<PathBuf>> {
-    let dir = dir_of(bmap);
-    let Some(stem) = bmap.file_stem() else {
-        return Ok(vec![]);
-    };
-    let stem = stem.to_string_lossy();
+    let stem = bmap.with_extension("");
+    let candidates = iter::once(stem.clone()).chain(
+        BMAPTOOL_COMPRESSIONS
+            .iter()
+            .map(|extension| stem.with_added_extension(extension)),
+    );
     let mut images = vec![];
-    for entry in fs::read_dir(dir).context(format!("cannot read {}", dir.display()))? {
-        let path = entry
-            .context(format!("cannot read {}", dir.display()))?
-            .path();
-        let Some(name) = path.file_name().map(|name| name.to_string_lossy()) else {
-            continue;
-        };
-        // bmaptool strips one extension at a time
-        let named_after_stem = name == stem
-            || name
-                .strip_prefix(stem.as_ref())
-                .is_some_and(|rest| rest.starts_with('.'));
-        if named_after_stem
-            && !bmap::is_bmap(&path)
-            && path.is_file()
-            && bmap::find_input_bmap(&path, None)?
-                .is_some_and(|found| same_file(&found, bmap).unwrap_or(false))
-        {
-            images.push(path);
+    for image in candidates.filter(|image| image.is_file()) {
+        for lookup in bmap::bmaptool_lookup(&image) {
+            if same_file(&lookup, bmap)? {
+                images.push(image);
+                break;
+            }
+            if lookup.is_file() {
+                break;
+            }
         }
     }
     Ok(images)
@@ -1034,10 +1028,14 @@ mod tests {
         for input in [&image_xz, &image] {
             let error = check_conflicts(input, input, false, Some(&image_bmap), None)
                 .expect_err("shared bmap");
-            assert!(error.to_string().contains("is also the bmap of"));
+            assert!(error.to_string().contains("which stays"));
         }
         touch(&bmap::bmap_path(&image_xz));
         check_conflicts(&image, &image, false, Some(&image_bmap), None).expect("own bmaps");
+        fs::remove_file(&image_bmap).expect("remove bmap");
+        fs::remove_file(bmap::bmap_path(&image_xz)).expect("remove bmap");
+        // the new bmap would be the first bmap that bmaptool finds for image.wic.xz
+        assert!(check_conflicts(&image, &image, false, Some(&image_bmap), None).is_err());
     }
 
     #[test]
@@ -1051,6 +1049,8 @@ mod tests {
             &image,
             &image_bmap,
             &dir.path().join("image.wicked"),
+            &dir.path().join("image.wic.xz.sha256"),
+            &dir.path().join("image.wic.bmap.bak"),
         ] {
             touch(path);
         }
