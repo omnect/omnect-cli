@@ -295,10 +295,13 @@ impl Staged {
             return self.copy_into_dest();
         }
         match fs::rename(&self.file, &self.dest) {
+            // a sticky dir, e.g. /tmp, refuses to replace a file of another user
             Err(e)
                 if matches!(
                     e.kind(),
-                    ErrorKind::ResourceBusy | ErrorKind::CrossesDevices
+                    ErrorKind::ResourceBusy
+                        | ErrorKind::CrossesDevices
+                        | ErrorKind::PermissionDenied
                 ) =>
             {
                 info!(
