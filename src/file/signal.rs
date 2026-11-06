@@ -30,7 +30,10 @@ static DIRS: Mutex<BTreeSet<PathBuf>> = Mutex::new(BTreeSet::new());
 static HANDLER: Once = Once::new();
 
 /// A temp dir that is also removed if a stop signal ends the process.
-pub struct RegisteredTempDir(TempDir);
+pub struct RegisteredTempDir {
+    dir: TempDir,
+    kept: bool,
+}
 
 impl RegisteredTempDir {
     /// Creates the dir in TMPDIR.
@@ -40,16 +43,18 @@ impl RegisteredTempDir {
 
     /// Creates the dir in `parent`, with a name that starts with `prefix`.
     pub fn create_in(parent: &Path, prefix: &str) -> io::Result<Self> {
-        let dir = Builder::new()
+        let mut dir = Builder::new()
             .prefix(prefix)
             .permissions(Permissions::from_mode(DIR_MODE))
             .tempdir_in(parent)?;
+        // removed by Drop
+        dir.disable_cleanup(true);
         register(dir.path());
-        Ok(Self(dir))
+        Ok(Self { dir, kept: false })
     }
 
     pub fn path(&self) -> &Path {
-        self.0.path()
+        self.dir.path()
     }
 
     /// Keeps the dir if a stop signal ends the process. Drop still removes it.
@@ -65,12 +70,20 @@ impl RegisteredTempDir {
     /// Keeps the dir, also on drop.
     pub fn keep(&mut self) {
         self.unregister();
-        self.0.disable_cleanup(true);
+        self.kept = true;
     }
 }
 
 impl Drop for RegisteredTempDir {
+    /// Removes the dir before it unregisters it, so a stop signal during the removal of a large
+    /// file still removes the rest.
     fn drop(&mut self) {
+        if !self.kept
+            && let Err(e) = fs::remove_dir_all(self.path())
+            && e.kind() != io::ErrorKind::NotFound
+        {
+            warn!("cannot remove {}: {e}", self.path().display());
+        }
         self.unregister();
     }
 }
