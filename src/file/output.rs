@@ -140,14 +140,18 @@ pub fn check_conflicts(
 }
 
 /// The existing images next to `bmap` for which `bmaptool` would use `bmap`: `<stem>` and
-/// `<stem>.<compression>`, if no other bmap comes first in the lookup of `bmaptool`.
+/// `<stem>.<compression>`, if no other bmap comes first in the lookup of `bmaptool`. The stem is
+/// taken from `bmap` and from its resolved path, because a symlinked bmap, e.g. a Yocto deploy
+/// link, is also the bmap of the images named after its target.
 fn images_using(bmap: &Path) -> Result<Vec<PathBuf>> {
-    let stem = bmap.with_extension("");
-    let candidates = iter::once(stem.clone()).chain(
-        BMAPTOOL_COMPRESSIONS
-            .iter()
-            .map(|extension| stem.with_added_extension(extension)),
-    );
+    let stems = BTreeSet::from([bmap.with_extension(""), resolve(bmap)?.with_extension("")]);
+    let candidates = stems.into_iter().flat_map(|stem| {
+        iter::once(stem.clone()).chain(
+            BMAPTOOL_COMPRESSIONS
+                .iter()
+                .map(move |extension| stem.with_added_extension(extension)),
+        )
+    });
     let mut images = vec![];
     for image in candidates.filter(|image| image.is_file()) {
         for lookup in bmap::bmaptool_lookup(&image) {
@@ -1188,6 +1192,19 @@ mod tests {
         let mut images = images_using(&image_bmap).expect("images");
         images.sort();
         assert_eq!(images, vec![image, image_xz]);
+    }
+
+    #[test]
+    fn images_using_finds_the_images_named_after_the_target_of_a_symlinked_bmap() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        let image_bmap = bmap::bmap_path(&image);
+        let link_bmap = dir.path().join("latest.wic.bmap");
+        touch(&image);
+        touch(&image_bmap);
+        symlink(&image_bmap, &link_bmap).expect("create symlink");
+
+        assert_eq!(images_using(&link_bmap).expect("images"), vec![image]);
     }
 
     #[test]
