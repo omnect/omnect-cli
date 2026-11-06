@@ -13,6 +13,9 @@ use std::{
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
+/// The extensions of the compressed images that `bmaptool` reads.
+pub const BMAPTOOL_COMPRESSIONS: [&str; 7] = ["gz", "gzip", "bz2", "xz", "lzo", "lz4", "zst"];
+
 #[derive(Clone, Debug, EnumIter)]
 #[allow(non_camel_case_types)]
 pub enum Compression {
@@ -112,7 +115,7 @@ impl Compression {
     fn extensions(&self) -> &'static [&'static str] {
         match &self {
             Compression::bzip2 => &["bz2", "bzip2"],
-            Compression::gzip => &["gz", "gzip"],
+            Compression::gzip => &["gzip", "gz"],
             Compression::xz { .. } => &["xz"],
         }
     }
@@ -128,9 +131,13 @@ impl Compression {
             .is_some_and(|e| self.extensions().contains(&e))
     }
 
-    /// Whether `path` has the extension of `compressed_path`, which `bmaptool` reads.
+    /// Whether `path` has an extension of `self` that `bmaptool` reads.
     pub fn matches_output_extension(&self, path: &Path) -> bool {
-        path.extension().is_some_and(|e| e == self.extension())
+        self.matches_extension(path)
+            && path
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|e| BMAPTOOL_COMPRESSIONS.contains(&e))
     }
 
     pub fn has_extension(path: &Path) -> bool {
@@ -446,7 +453,7 @@ mod tests {
     #[test]
     fn compressed_path_has_an_extension_bmaptool_reads() {
         let image = Path::new("image.wic");
-        let expected = ["image.wic.bz2", "image.wic.gz", "image.wic.xz"];
+        let expected = ["image.wic.bz2", "image.wic.gzip", "image.wic.xz"];
 
         for (compression, expected) in all_compressions().iter().zip(expected) {
             assert_eq!(compression.compressed_path(image), Path::new(expected));

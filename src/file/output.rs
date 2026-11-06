@@ -1,4 +1,10 @@
-use crate::file::{bmap, compression::Compression, dir_of, signal::RegisteredTempDir, sparse};
+use crate::file::{
+    bmap,
+    compression::{BMAPTOOL_COMPRESSIONS, Compression},
+    dir_of,
+    signal::RegisteredTempDir,
+    sparse,
+};
 use anyhow::{Context, Result};
 use log::{info, warn};
 use rustix::{
@@ -18,15 +24,13 @@ use std::{
 use strum::IntoEnumIterator;
 
 const TMP_DIR_PREFIX: &str = ".omnect-cli-";
-// the extensions of the compressed images that `bmaptool` reads
-const BMAPTOOL_COMPRESSIONS: [&str; 7] = ["gz", "gzip", "bz2", "xz", "lzo", "lz4", "zst"];
 // the limit of Linux path resolution
 const MAX_SYMLINKS: usize = 40;
 
-/// Returns `explicit`, else `image` if it has the extension `target` writes, else `image` without
-/// the extension of its `source` compression, with the extension of `target` appended. Fails if
-/// `explicit` does not have the extension `target` writes, or has a compression extension while
-/// `target` is none.
+/// Returns `explicit`, else `image` if it has an extension of `target` that `bmaptool` reads, else
+/// `image` without the extension of its `source` compression, with the extension of `target`
+/// appended. Fails if `explicit` does not have an extension of `target` that `bmaptool` reads, or
+/// has a compression extension while `target` is none.
 pub fn output_image(
     image: &Path,
     source: Option<&Compression>,
@@ -37,9 +41,9 @@ pub fn output_image(
         match target {
             Some(c) => anyhow::ensure!(
                 c.matches_output_extension(path),
-                "{} does not end in .{}, the extension of the -p compression; name it e.g. {}",
+                "{} does not end in an extension of the -p compression that bmaptool reads; name \
+                 it e.g. {}",
                 path.display(),
-                c.extension(),
                 c.compressed_path(&without_extension_of(path, Compression::iter()))
                     .display()
             ),
@@ -516,7 +520,7 @@ mod tests {
     fn output_image_uses_the_extension_bmaptool_reads() {
         for (image, compression, output) in [
             ("image.wic.gz", Compression::gzip, "image.wic.gz"),
-            ("image.wic.gzip", Compression::gzip, "image.wic.gz"),
+            ("image.wic.gzip", Compression::gzip, "image.wic.gzip"),
             ("image.wic.bz2", Compression::bzip2, "image.wic.bz2"),
             ("image.wic.bzip2", Compression::bzip2, "image.wic.bz2"),
         ] {
@@ -534,11 +538,17 @@ mod tests {
         let error = output_image(
             Path::new(IMAGE),
             None,
-            Some(&Compression::gzip),
-            Some(Path::new("device.wic.gzip")),
+            Some(&Compression::bzip2),
+            Some(Path::new("device.wic.bzip2")),
         )
         .expect_err("long name with -o");
-        assert!(error.to_string().contains("name it e.g. device.wic.gz"));
+        assert!(error.to_string().contains("name it e.g. device.wic.bz2"));
+        let gz = Path::new("device.wic.gz");
+        assert_eq!(
+            output_image(Path::new(IMAGE), None, Some(&Compression::gzip), Some(gz))
+                .expect("short gzip name with -o"),
+            gz
+        );
     }
 
     #[test]

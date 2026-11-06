@@ -23,7 +23,7 @@ pub struct ImageOutput {
         conflicts_with = "input_bmap"
     )]
     pub no_input_bmap: bool,
-    /// optional: write the output image to this path, ending in .xz, .bz2 or .gz with --pack-image, else without a compression extension; default: the input image, without the compression extension, plus the --pack-image extension
+    /// optional: write the output image to this path, ending in .xz, .bz2, .gzip or .gz with --pack-image, else without a compression extension; default: the input image, without the compression extension, plus the --pack-image extension
     #[arg(short = 'o', long = "output-image")]
     pub output_image: Option<PathBuf>,
     /// optional: pack image [xz, bzip2, gzip] (for xz default level '9' is used, which can be overwritten by setting 'XZ_COMPRESSION_LEVEL=')
