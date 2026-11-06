@@ -339,15 +339,22 @@ impl Staged {
             self.file.display(),
             self.dest.display()
         );
-        // `dest` exists on every path to here; with O_CREAT, `fs.protected_regular` refuses the
-        // file of another user in a sticky dir
-        let dest = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            // `dest` is resolved already; a symlink here was put in its place since then
-            .custom_flags(libc::O_NOFOLLOW)
-            .open(&self.dest)
-            .context(format!("cannot open {}", self.dest.display()))?;
+        let open = |create_new| {
+            OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .create_new(create_new)
+                // `dest` is resolved already; a symlink here was put in its place since then
+                .custom_flags(libc::O_NOFOLLOW)
+                .open(&self.dest)
+        };
+        // O_CREAT only for a new `dest`: `fs.protected_regular` refuses it for an existing file
+        // of another user in a sticky dir
+        let dest = match open(false) {
+            Err(e) if e.kind() == ErrorKind::NotFound => open(true),
+            result => result,
+        }
+        .context(format!("cannot open {}", self.dest.display()))?;
 
         let result = sparse::copy_file(&self.file, &dest).and_then(|()| {
             dest.sync_all()
@@ -1014,13 +1021,13 @@ mod tests {
     }
 
     #[test]
-    fn copy_into_dest_does_not_create_dest() {
+    fn copy_into_dest_creates_a_missing_dest() {
         let dir = tempfile::tempdir().expect("create temp dir");
         let image = dir.path().join(IMAGE);
         let mut staged = stage(&image, NEW_CONTENT);
 
-        assert!(staged.copy_into_dest().is_err());
-        assert!(!image.exists());
+        staged.copy_into_dest().expect("copy into dest");
+        assert_eq!(fs::read(&image).expect("read image"), NEW_CONTENT);
     }
 
     #[test]
