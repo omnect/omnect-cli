@@ -102,6 +102,13 @@ pub fn check_conflicts(
     );
     if let Some(target_bmap) = output_bmap {
         ensure_replaceable(target_bmap)?;
+        // e.g. an image named `x.bmap`, for which `bmaptool` finds the image itself as its bmap
+        anyhow::ensure!(
+            !same_file(target_bmap, output_image)?,
+            "{} would be both the output image and its bmap; choose another output image with \
+             --output-image",
+            output_image.display()
+        );
         ensure_bmap_next_to(output_image, target_bmap)?;
         if !in_place && let Some(bmap) = input_bmap {
             anyhow::ensure!(
@@ -644,6 +651,21 @@ mod tests {
             Some(&image_bmap),
         )
         .expect("no conflict");
+    }
+
+    #[test]
+    fn check_conflicts_rejects_an_image_that_is_its_own_bmap() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join("image.bmap");
+        touch(&image);
+
+        let error = check_conflicts(&image, &image, false, Some(&bmap_of(&image, &image)), None)
+            .expect_err("image is its own bmap");
+        assert!(
+            error
+                .to_string()
+                .contains("both the output image and its bmap")
+        );
     }
 
     #[test]
