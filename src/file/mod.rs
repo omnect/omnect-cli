@@ -26,8 +26,6 @@ const COPY_CHUNK_SIZE: usize = 1024 * 1024;
 
 static ZERO_BLOCK: [u8; IMAGE_BLOCK_SIZE] = [0; IMAGE_BLOCK_SIZE];
 
-/// A slice compare compiles to `memcmp`, which is many times faster than a byte loop with an
-/// early exit.
 /// The directory of `path`; `.` for a path without one.
 fn dir_of(path: &Path) -> &Path {
     match path.parent() {
@@ -36,6 +34,8 @@ fn dir_of(path: &Path) -> &Path {
     }
 }
 
+/// A slice compare compiles to `memcmp`, which is many times faster than a byte loop with an
+/// early exit.
 fn is_zero(data: &[u8]) -> bool {
     data.chunks(IMAGE_BLOCK_SIZE)
         .all(|chunk| chunk == &ZERO_BLOCK[..chunk.len()])
