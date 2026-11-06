@@ -394,7 +394,8 @@ fn is_mount_root(path: &Path) -> bool {
 /// are not lost on a power loss. If the image fails, the old image keeps its bmap, unless the
 /// image was truncated already: then the old bmap is removed and the new one is kept next to the
 /// kept image. If the bmap fails, the old bmap is removed, because it does not match the new
-/// image, and the error names it if it stays. A stop signal after the image step removes the staged bmap and keeps the old one.
+/// image. An old bmap that cannot be removed is named in the error. A stop signal after the image
+/// step removes the staged bmap and keeps the old one.
 pub fn commit(mut image: Staged, mut bmap: Option<Staged>) -> Result<()> {
     if let Err(e) = image.rename() {
         return match &bmap {
@@ -405,13 +406,7 @@ pub fn commit(mut image: Staged, mut bmap: Option<Staged>) -> Result<()> {
     if let Some(bmap) = &mut bmap
         && let Err(e) = bmap.rename()
     {
-        return Err(match remove_old(&bmap.dest) {
-            Ok(()) => e,
-            Err(remove_error) => e.context(format!(
-                "the old {} stays and does not match the new image: {remove_error}",
-                bmap.dest.display()
-            )),
-        });
+        return Err(remove_old_bmap(bmap, e));
     }
 
     let dirs: BTreeSet<_> = iter::once(&image)
@@ -431,9 +426,7 @@ pub fn commit(mut image: Staged, mut bmap: Option<Staged>) -> Result<()> {
 /// Copies the staged `bmap` next to the kept staged `image` and removes the old bmap, which
 /// matches no image anymore.
 fn keep_next_to(bmap: &Staged, image: &Staged, error: anyhow::Error) -> anyhow::Error {
-    if let Err(e) = remove_old(&bmap.dest) {
-        warn!("cannot remove the old {}: {e}", bmap.dest.display());
-    }
+    let error = remove_old_bmap(bmap, error);
     let Some(name) = bmap.dest.file_name() else {
         return error;
     };
@@ -445,6 +438,23 @@ fn keep_next_to(bmap: &Staged, image: &Staged, error: anyhow::Error) -> anyhow::
             error
         }
     }
+}
+
+/// Removes the old bmap at the destination of `bmap`, and adds to `error` if it stays. A kept
+/// `bmap` was truncated already by the copy into its destination.
+fn remove_old_bmap(bmap: &Staged, error: anyhow::Error) -> anyhow::Error {
+    let Err(e) = remove_old(&bmap.dest) else {
+        return error;
+    };
+    let state = if bmap.tmp_dir.is_kept() {
+        "is incomplete"
+    } else {
+        "does not match the new image"
+    };
+    error.context(format!(
+        "the old {} stays and {state}: {e}",
+        bmap.dest.display()
+    ))
 }
 
 fn remove_old(path: &Path) -> io::Result<()> {
@@ -974,6 +984,34 @@ mod tests {
 
         let error = commit(stage(&image, NEW_CONTENT), Some(staged_bmap)).expect_err("commit");
         assert!(format!("{error:#}").contains("stays and does not match"));
+    }
+
+    #[test]
+    fn commit_names_an_old_bmap_that_stays_next_to_an_image_kept_after_a_failed_copy() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        let image_bmap = bmap::bmap_path(&image);
+        let staged_bmap = stage(&image_bmap, NEW_CONTENT);
+        // a dir cannot be removed as a file
+        fs::create_dir(&image_bmap).expect("create dir in place of the bmap");
+        let mut staged_image = stage(&image, NEW_CONTENT);
+        staged_image.dest = PathBuf::from(UNRESIZABLE_FILE);
+        staged_image.in_tmpdir = true;
+
+        let error = commit(staged_image, Some(staged_bmap)).expect_err("commit fails");
+        assert!(format!("{error:#}").contains("stays and does not match"));
+    }
+
+    #[test]
+    fn remove_old_bmap_names_a_truncated_bmap_incomplete() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image_bmap = bmap::bmap_path(&dir.path().join(IMAGE));
+        let mut staged_bmap = stage(&image_bmap, NEW_CONTENT);
+        fs::create_dir(&image_bmap).expect("create dir in place of the bmap");
+        staged_bmap.tmp_dir.keep();
+
+        let error = remove_old_bmap(&staged_bmap, anyhow::anyhow!("copy failed"));
+        assert!(format!("{error:#}").contains("stays and is incomplete"));
     }
 
     #[test]
