@@ -16,7 +16,7 @@ use std::{
     collections::BTreeSet,
     env,
     fs::{self, File, OpenOptions},
-    io::ErrorKind,
+    io::{self, ErrorKind},
     iter,
     os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
@@ -332,9 +332,10 @@ impl Staged {
             self.file.display(),
             self.dest.display()
         );
+        // `dest` exists on every path to here; with O_CREAT, `fs.protected_regular` refuses the
+        // file of another user in a sticky dir
         let dest = OpenOptions::new()
             .write(true)
-            .create(true)
             .truncate(true)
             // `dest` is resolved already; a symlink here was put in its place since then
             .custom_flags(libc::O_NOFOLLOW)
@@ -379,7 +380,7 @@ fn is_mount_root(path: &Path) -> bool {
 /// are not lost on a power loss. If the image fails, the old image keeps its bmap, unless the
 /// image was truncated already: then the old bmap is removed and the new one is kept next to the
 /// kept image. If the bmap fails, the old bmap is removed, because it does not match the new
-/// image. A stop signal after the image step removes the staged bmap and keeps the old one.
+/// image, and the error names it if it stays. A stop signal after the image step removes the staged bmap and keeps the old one.
 pub fn commit(mut image: Staged, mut bmap: Option<Staged>) -> Result<()> {
     if let Err(e) = image.rename() {
         return match &bmap {
@@ -390,8 +391,13 @@ pub fn commit(mut image: Staged, mut bmap: Option<Staged>) -> Result<()> {
     if let Some(bmap) = &mut bmap
         && let Err(e) = bmap.rename()
     {
-        remove_old(&bmap.dest);
-        return Err(e);
+        return Err(match remove_old(&bmap.dest) {
+            Ok(()) => e,
+            Err(remove_error) => e.context(format!(
+                "the old {} stays and does not match the new image: {remove_error}",
+                bmap.dest.display()
+            )),
+        });
     }
 
     let dirs: BTreeSet<_> = iter::once(&image)
@@ -411,7 +417,9 @@ pub fn commit(mut image: Staged, mut bmap: Option<Staged>) -> Result<()> {
 /// Copies the staged `bmap` next to the kept staged `image` and removes the old bmap, which
 /// matches no image anymore.
 fn keep_next_to(bmap: &Staged, image: &Staged, error: anyhow::Error) -> anyhow::Error {
-    remove_old(&bmap.dest);
+    if let Err(e) = remove_old(&bmap.dest) {
+        warn!("cannot remove the old {}: {e}", bmap.dest.display());
+    }
     let Some(name) = bmap.dest.file_name() else {
         return error;
     };
@@ -425,12 +433,10 @@ fn keep_next_to(bmap: &Staged, image: &Staged, error: anyhow::Error) -> anyhow::
     }
 }
 
-fn remove_old(path: &Path) {
+fn remove_old(path: &Path) -> io::Result<()> {
     match fs::remove_file(path) {
-        Err(e) if e.kind() != ErrorKind::NotFound => {
-            warn!("cannot remove the old {}: {e}", path.display())
-        }
-        _ => {}
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
+        result => result,
     }
 }
 
@@ -926,6 +932,22 @@ mod tests {
     }
 
     #[test]
+    fn commit_names_an_old_bmap_that_stays_when_the_bmap_rename_fails() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        let image_bmap = bmap::bmap_path(&image);
+        fs::write(&image, OLD_CONTENT).expect("write image");
+
+        let staged_bmap = stage(&image_bmap, NEW_CONTENT);
+        fs::remove_file(&staged_bmap.file).expect("remove staged bmap");
+        // a dir cannot be removed as a file
+        fs::create_dir(&image_bmap).expect("create dir in place of the bmap");
+
+        let error = commit(stage(&image, NEW_CONTENT), Some(staged_bmap)).expect_err("commit");
+        assert!(format!("{error:#}").contains("stays and does not match"));
+    }
+
+    #[test]
     fn commit_keeps_the_old_bmap_when_the_image_rename_fails() {
         let dir = tempfile::tempdir().expect("create temp dir");
         let image = dir.path().join(IMAGE);
@@ -967,6 +989,16 @@ mod tests {
 
         assert!(staged.copy_into_dest().is_err());
         assert_eq!(fs::read(&other).expect("read other image"), OLD_CONTENT);
+    }
+
+    #[test]
+    fn copy_into_dest_does_not_create_dest() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        let mut staged = stage(&image, NEW_CONTENT);
+
+        assert!(staged.copy_into_dest().is_err());
+        assert!(!image.exists());
     }
 
     #[test]
