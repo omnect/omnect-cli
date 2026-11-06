@@ -985,7 +985,7 @@ mod tests {
     }
 
     #[test]
-    fn is_copy_detects_the_root_dir() {
+    fn is_mount_root_detects_the_root_dir() {
         let dir = tempfile::tempdir().expect("create temp dir");
         let image = dir.path().join(IMAGE);
         touch(&image);
