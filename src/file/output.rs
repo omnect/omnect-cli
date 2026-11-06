@@ -252,7 +252,6 @@ pub struct Staged {
     file: PathBuf,
     dest: PathBuf,
     in_tmpdir: bool,
-    kept: bool,
 }
 
 impl Staged {
@@ -273,7 +272,6 @@ impl Staged {
             file,
             dest,
             in_tmpdir,
-            kept: false,
         };
 
         let mut handle = File::create(&staged.file)
@@ -345,10 +343,7 @@ impl Staged {
         });
         match result {
             Ok(()) => self.tmp_dir.register(),
-            Err(_) => {
-                self.tmp_dir.keep();
-                self.kept = true;
-            }
+            Err(_) => self.tmp_dir.keep(),
         }
         result.with_context(|| {
             format!(
@@ -384,7 +379,7 @@ fn is_mount_root(path: &Path) -> bool {
 pub fn commit(mut image: Staged, mut bmap: Option<Staged>) -> Result<()> {
     if let Err(e) = image.rename() {
         return match &bmap {
-            Some(bmap) if image.kept => Err(keep_next_to(bmap, &image, e)),
+            Some(bmap) if image.tmp_dir.is_kept() => Err(keep_next_to(bmap, &image, e)),
             _ => Err(e),
         };
     }

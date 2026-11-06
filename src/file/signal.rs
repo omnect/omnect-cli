@@ -72,6 +72,10 @@ impl RegisteredTempDir {
         self.unregister();
         self.kept = true;
     }
+
+    pub fn is_kept(&self) -> bool {
+        self.kept
+    }
 }
 
 impl Drop for RegisteredTempDir {
@@ -188,7 +192,9 @@ mod tests {
         let mut dir = RegisteredTempDir::create().expect("create temp dir");
         let path = dir.path().to_path_buf();
 
+        assert!(!dir.is_kept());
         dir.keep();
+        assert!(dir.is_kept());
         assert!(!is_registered(&path));
         drop(dir);
         assert!(path.exists());
