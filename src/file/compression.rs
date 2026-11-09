@@ -5,7 +5,7 @@ use log::debug;
 use std::{
     env,
     fs::File,
-    io::{BufWriter, IntoInnerError, Read, Seek, SeekFrom, Write},
+    io::{self, BufRead, BufReader, BufWriter, IntoInnerError, Read, Seek, SeekFrom, Write},
     os::unix::fs::FileExt,
     path::{Path, PathBuf},
     str::FromStr,
@@ -84,19 +84,41 @@ impl Compression {
         source: &mut std::fs::File,
         destination: &mut std::fs::File,
     ) -> std::io::Result<u64> {
-        // the multi decoders also read concatenated streams, as pbzip2 writes them
-        let mut decoder: Box<dyn Read + '_> = match &self {
-            Compression::bzip2 => Box::new(bzip2::read::MultiBzDecoder::new(source)),
-            Compression::gzip => Box::new(flate2::read::MultiGzDecoder::new(source)),
-            Compression::xz { .. } => Box::new(xz2::read::XzDecoder::new_multi_decoder(source)),
-        };
         let mut sparse = BufWriter::with_capacity(COPY_CHUNK_SIZE, SparseWriter::new(destination)?);
-        let bytes_written = std::io::copy(&mut decoder, &mut sparse)?;
+        let bytes_written = self.copy_streams(
+            BufReader::with_capacity(COPY_CHUNK_SIZE, source),
+            &mut sparse,
+        )?;
         sparse
             .into_inner()
             .map_err(IntoInnerError::into_error)?
             .finish()?;
         Ok(bytes_written)
+    }
+
+    /// Decompresses one stream after the other, as pbzip2 writes them, and ignores zero padding
+    /// after the last one, as `gzip` and `bzip2` do.
+    fn copy_streams(
+        &self,
+        mut source: impl BufRead,
+        destination: &mut impl Write,
+    ) -> io::Result<u64> {
+        let mut bytes_written = 0;
+        loop {
+            let mut decoder: Box<dyn Read + '_> = match &self {
+                Compression::bzip2 => Box::new(bzip2::bufread::BzDecoder::new(&mut source)),
+                Compression::gzip => Box::new(flate2::bufread::GzDecoder::new(&mut source)),
+                // liblzma reads all streams and the padding between them
+                Compression::xz { .. } => {
+                    Box::new(xz2::bufread::XzDecoder::new_multi_decoder(&mut source))
+                }
+            };
+            bytes_written += io::copy(&mut decoder, destination)?;
+            drop(decoder);
+            if skip_zero_padding(&mut source)? {
+                return Ok(bytes_written);
+            }
+        }
     }
 
     fn marker(&self) -> &'static str {
@@ -218,6 +240,29 @@ impl Write for SparseWriter<'_> {
     }
 }
 
+/// Skips zero bytes; `true` if nothing else is left. Fails on data after zero padding.
+fn skip_zero_padding(source: &mut impl BufRead) -> io::Result<bool> {
+    let mut skipped = false;
+    loop {
+        let buf = source.fill_buf()?;
+        if buf.is_empty() {
+            return Ok(true);
+        }
+        let zeros = buf.iter().take_while(|byte| **byte == 0).count();
+        if zeros < buf.len() {
+            if skipped || zeros > 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "data after the zero padding of the compressed image",
+                ));
+            }
+            return Ok(false);
+        }
+        source.consume(zeros);
+        skipped = true;
+    }
+}
+
 /// Decompresses `image_file_name` into `dest_dir`, named without the compression extension.
 pub fn decompress(
     image_file_name: &Path,
@@ -282,6 +327,8 @@ mod tests {
     const TRUNCATED_BYTES: u64 = 4;
     const OLD_CONTENT_BYTE: u8 = 0xa5;
     const OLD_CONTENT_EXTRA_LEN: usize = 4096;
+    // a multiple of 4 bytes, the unit of xz stream padding
+    const PADDING_LEN: usize = 4096;
 
     fn all_compressions() -> [Compression; 3] {
         [
@@ -424,6 +471,46 @@ mod tests {
             assert!(
                 read_all(&mut decompressed) == image,
                 "{compression:?}: content differs"
+            );
+        }
+    }
+
+    fn compressed_with_tail(compression: &Compression, tail: &[u8]) -> File {
+        let mut compressed = compress_image(compression, &test_image());
+        compressed.seek(SeekFrom::End(0)).expect("seek to end");
+        compressed.write_all(tail).expect("write tail");
+        compressed.rewind().expect("rewind compressed");
+        compressed
+    }
+
+    #[test]
+    fn decompress_ignores_zero_padding_after_the_last_stream() {
+        for compression in all_compressions() {
+            let mut compressed = compressed_with_tail(&compression, &[0; PADDING_LEN]);
+            let mut decompressed = tempfile::tempfile().expect("create decompressed");
+            compression
+                .decompress(&mut compressed, &mut decompressed)
+                .expect("decompress");
+            assert!(
+                read_all(&mut decompressed) == test_image(),
+                "{compression:?}: content differs"
+            );
+        }
+    }
+
+    #[test]
+    fn decompress_rejects_data_after_zero_padding() {
+        let mut tail = vec![0; PADDING_LEN];
+        tail.extend_from_slice(DATA);
+
+        for compression in all_compressions() {
+            let mut compressed = compressed_with_tail(&compression, &tail);
+            let mut decompressed = tempfile::tempfile().expect("create decompressed");
+            assert!(
+                compression
+                    .decompress(&mut compressed, &mut decompressed)
+                    .is_err(),
+                "{compression:?}: data after the padding accepted"
             );
         }
     }
