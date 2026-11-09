@@ -101,6 +101,7 @@ mod tests {
     const GPT_SECTOR_SIZE: u64 = 4096;
     const DISK_SECTORS: u64 = 64;
     const PART_NUM: u32 = 1;
+    const OTHER_PART_NUM: u32 = 2;
     const PART_SECTORS: u64 = 8;
     const GUID: [u8; 16] = [0xff; 16];
     // times 8 for 4K sectors and times 512 bytes is more than u64::MAX
@@ -153,23 +154,37 @@ mod tests {
         );
     }
 
-    #[test]
-    fn get_partition_data_rejects_an_overflowing_offset() {
-        let dir = tempfile::tempdir().expect("create temp dir");
-        let (path, _) = gpt_image(dir.path());
+    /// Writes partition `num` with the LBA range `starting_lba..=ending_lba`, which may lie outside
+    /// the disk, into the image at `path`.
+    fn write_lba_range(path: &Path, num: u32, starting_lba: u64, ending_lba: u64) {
         // `GPT::write_into` refuses such an entry, the primary header and entries do not check it
         let mut file = File::options()
             .read(true)
             .write(true)
-            .open(&path)
+            .open(path)
             .expect("open image");
         let mut gpt = GPT::find_from(&mut file).expect("read gpt");
-        gpt[PART_NUM].starting_lba = OVERFLOWING_LBA;
-        gpt[PART_NUM].ending_lba = OVERFLOWING_LBA + PART_SECTORS - 1;
+        gpt[num] = GPTPartitionEntry {
+            starting_lba,
+            ending_lba,
+            ..gpt[PART_NUM].clone()
+        };
         let partitions: Vec<_> = gpt.iter().map(|(_, entry)| entry.clone()).collect();
         gpt.header
             .write_into(&mut file, GPT_SECTOR_SIZE, &partitions)
             .expect("write gpt header");
+    }
+
+    #[test]
+    fn get_partition_data_rejects_an_overflowing_offset() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let (path, _) = gpt_image(dir.path());
+        write_lba_range(
+            &path,
+            PART_NUM,
+            OVERFLOWING_LBA,
+            OVERFLOWING_LBA + PART_SECTORS - 1,
+        );
 
         let error = get_partition_data(&path, PART_NUM).expect_err("overflowing offset");
         assert!(
@@ -177,5 +192,16 @@ mod tests {
                 .to_string()
                 .contains("ends after the end of the image")
         );
+    }
+
+    #[test]
+    fn get_partition_data_rejects_an_overflowing_sector_count() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let (path, _) = gpt_image(dir.path());
+        // gptman cannot read a GPT whose used partitions all start at LBA 0, so `PART_NUM` stays
+        write_lba_range(&path, OTHER_PART_NUM, 0, u64::MAX);
+
+        let error = get_partition_data(&path, OTHER_PART_NUM).expect_err("overflowing count");
+        assert!(error.to_string().contains("is too large"));
     }
 }
