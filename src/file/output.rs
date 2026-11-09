@@ -103,12 +103,15 @@ pub fn check_conflicts(
     if let Some(target_bmap) = output_bmap {
         ensure_replaceable(target_bmap)?;
         // e.g. an image named `x.bmap`, for which `bmaptool` finds the image itself as its bmap
-        anyhow::ensure!(
-            !same_file(target_bmap, output_image)?,
-            "{} would be both the output image and its bmap; choose another output image with \
-             --output-image",
-            output_image.display()
-        );
+        for image in [input_image, output_image] {
+            anyhow::ensure!(
+                !same_file(target_bmap, image)?,
+                "{} would be replaced by the bmap of {}; choose another output image with \
+                 --output-image",
+                image.display(),
+                output_image.display()
+            );
+        }
         ensure_bmap_next_to(output_image, target_bmap)?;
         if !in_place && let Some(bmap) = input_bmap {
             anyhow::ensure!(
@@ -129,6 +132,12 @@ pub fn check_conflicts(
             );
         }
     } else if let Some(stale_bmap) = bmap::find_input_bmap(output_image, None)? {
+        anyhow::ensure!(
+            !same_file(&stale_bmap, output_image)?,
+            "bmaptool would use {} as its own bmap; choose another output image with \
+             --output-image",
+            output_image.display()
+        );
         anyhow::bail!(
             "{} would not match {}; pass -b to write a matching bmap",
             stale_bmap.display(),
@@ -681,11 +690,33 @@ mod tests {
         touch(&image);
 
         let error = check_conflicts(&image, &image, false, Some(&bmap_of(&image, &image)), None)
-            .expect_err("image is its own bmap");
+            .expect_err("with -b");
         assert!(
             error
                 .to_string()
-                .contains("both the output image and its bmap")
+                .contains("would be replaced by the bmap of")
+        );
+        let error = check_conflicts(&image, &image, false, None, None).expect_err("without -b");
+        assert!(
+            error
+                .to_string()
+                .contains("as its own bmap; choose another output image")
+        );
+    }
+
+    #[test]
+    fn check_conflicts_rejects_an_output_bmap_that_is_the_input_image() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let input = dir.path().join("image.bmap");
+        let output = dir.path().join("image");
+        touch(&input);
+
+        let error = check_conflicts(&input, &output, true, Some(&bmap_of(&input, &output)), None)
+            .expect_err("output bmap is the input image");
+        assert!(
+            error
+                .to_string()
+                .contains(&format!("{} would be replaced", input.display()))
         );
     }
 
