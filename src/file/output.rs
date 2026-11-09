@@ -153,7 +153,8 @@ pub fn check_conflicts(
 /// taken from `bmap` and from its resolved path, because a symlinked bmap, e.g. a Yocto deploy
 /// link, is also the bmap of the images named after its target.
 fn images_using(bmap: &Path) -> Result<Vec<PathBuf>> {
-    let stems = BTreeSet::from([bmap.with_extension(""), resolve(bmap)?.with_extension("")]);
+    let resolved_bmap = resolve(bmap)?;
+    let stems = [bmap.with_extension(""), resolved_bmap.with_extension("")];
     let candidates = stems.into_iter().flat_map(|stem| {
         iter::once(stem.clone()).chain(
             BMAPTOOL_COMPRESSIONS
@@ -162,7 +163,14 @@ fn images_using(bmap: &Path) -> Result<Vec<PathBuf>> {
         )
     });
     let mut images = vec![];
+    // both stems name the same images if `bmap` is no symlink
+    let mut seen = BTreeSet::new();
     for image in candidates.filter(|image| image.is_file()) {
+        let resolved = resolve(&image)?;
+        // e.g. the link `x.wic.bmap` to `x.wic.bmap.orig`
+        if resolved == resolved_bmap || !seen.insert(resolved) {
+            continue;
+        }
         for lookup in bmap::bmaptool_lookup(&image) {
             if same_file(&lookup, bmap)? {
                 images.push(image);
@@ -1235,7 +1243,38 @@ mod tests {
         touch(&image_bmap);
         symlink(&image_bmap, &link_bmap).expect("create symlink");
 
-        assert_eq!(images_using(&link_bmap).expect("images"), vec![image]);
+        let images = images_using(&link_bmap).expect("images");
+        assert_eq!(images.len(), 1);
+        assert!(same_file(&images[0], &image).expect("same file"));
+    }
+
+    #[test]
+    fn images_using_skips_a_bmap_link_named_after_its_target() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        let image_bmap = bmap::bmap_path(&image);
+        let target = image_bmap.with_added_extension("orig");
+        touch(&image);
+        touch(&target);
+        symlink(&target, &image_bmap).expect("create symlink");
+
+        assert_eq!(images_using(&image_bmap).expect("images"), vec![image]);
+    }
+
+    #[test]
+    fn images_using_lists_each_image_once_through_a_symlinked_dir() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let real = dir.path().join("real");
+        let link = dir.path().join("link");
+        fs::create_dir(&real).expect("create dir");
+        symlink(&real, &link).expect("create symlink");
+        for name in [IMAGE, IMAGE_XZ, "image.wic.bmap"] {
+            touch(&real.join(name));
+        }
+
+        let mut images = images_using(&link.join("image.wic.bmap")).expect("images");
+        images.sort();
+        assert_eq!(images, vec![link.join(IMAGE), link.join(IMAGE_XZ)]);
     }
 
     #[test]
