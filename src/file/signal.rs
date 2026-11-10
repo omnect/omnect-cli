@@ -13,15 +13,13 @@ use std::{
     mem::MaybeUninit,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
-    process, ptr,
+    ptr,
     sync::{Mutex, MutexGuard, Once, PoisonError},
     thread,
 };
 use tempfile::{Builder, TempDir};
 
 const STOP_SIGNALS: [c_int; 3] = [SIGHUP, SIGINT, SIGTERM];
-// exit code of a process that a signal stopped, plus the signal number
-const SIGNAL_EXIT_CODE_BASE: c_int = 128;
 const DEFAULT_PREFIX: &str = ".tmp";
 // the dirs hold images and keys, so other users must not read them
 const DIR_MODE: u32 = 0o700;
@@ -132,11 +130,9 @@ fn start_handler() {
                     warn!("cannot remove {}: {e}", dir.display());
                 }
             }
-            // the caller sees the signal as the cause of the stop
-            if let Err(e) = low_level::emulate_default_handler(signal) {
-                warn!("cannot stop with signal {signal}: {e}");
-            }
-            process::exit(SIGNAL_EXIT_CODE_BASE + signal);
+            // the caller sees the signal as the cause of the stop; for a stop signal this does
+            // not return, it aborts if the signal cannot be raised
+            let _ = low_level::emulate_default_handler(signal);
         }
     });
 }
