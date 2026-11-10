@@ -95,7 +95,8 @@ pub fn check_conflicts(
     output_bmap: Option<&Path>,
     input_bmap: Option<&Path>,
 ) -> Result<()> {
-    for path in iter::once(output_image).chain(output_bmap) {
+    let outputs = || iter::once(output_image).chain(output_bmap);
+    for path in outputs() {
         ensure_regular_file(path)?;
     }
     anyhow::ensure!(
@@ -127,7 +128,7 @@ pub fn check_conflicts(
         }
         None => find_stale_bmap(output_image, in_place)?,
     };
-    for path in iter::once(output_image).chain(output_bmap) {
+    for path in outputs() {
         ensure_replaceable(path)?;
     }
     if let Some(stale_bmap) = stale_bmap {
