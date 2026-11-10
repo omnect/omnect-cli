@@ -13,13 +13,16 @@ use std::{
     mem::MaybeUninit,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
-    ptr,
+    process, ptr,
     sync::{Mutex, MutexGuard, Once, PoisonError},
     thread,
 };
 use tempfile::{Builder, TempDir};
 
 const STOP_SIGNALS: [c_int; 3] = [SIGHUP, SIGINT, SIGTERM];
+const INIT_PID: u32 = 1;
+// exit code of a process that a signal stopped, plus the signal number
+const SIGNAL_EXIT_CODE_BASE: c_int = 128;
 const DEFAULT_PREFIX: &str = ".tmp";
 // the dirs hold images and keys, so other users must not read them
 const DIR_MODE: u32 = 0o700;
@@ -129,6 +132,11 @@ fn start_handler() {
                 if let Err(e) = fs::remove_dir_all(dir) {
                     warn!("cannot remove {}: {e}", dir.display());
                 }
+            }
+            // as PID 1, e.g. in a container, the process ignores a signal it raises itself, and
+            // the abort after it ends in SIGSEGV
+            if process::id() == INIT_PID {
+                process::exit(SIGNAL_EXIT_CODE_BASE + signal);
             }
             // the caller sees the signal as the cause of the stop; for a stop signal this does
             // not return, it aborts if the signal cannot be raised
