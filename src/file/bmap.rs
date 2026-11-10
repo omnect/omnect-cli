@@ -30,15 +30,29 @@ pub struct Bmap {
 
 impl Bmap {
     pub fn read(path: &Path) -> Result<Self> {
+        let file =
+            fs::File::open(path).context(format!("Bmap::read: cannot open {}", path.display()))?;
+        let too_large = || {
+            anyhow::anyhow!(
+                "Bmap::read: {} is larger than {MAX_BMAP_SIZE} bytes, so it is not a bmap",
+                path.display()
+            )
+        };
+        let len = file
+            .metadata()
+            .context(format!("Bmap::read: cannot stat {}", path.display()))?
+            .len();
+        if len > MAX_BMAP_SIZE {
+            return Err(too_large());
+        }
         let mut text = String::new();
-        fs::File::open(path)
-            .and_then(|file| file.take(MAX_BMAP_SIZE + 1).read_to_string(&mut text))
+        // also for a file that grows after the check
+        file.take(MAX_BMAP_SIZE + 1)
+            .read_to_string(&mut text)
             .context(format!("Bmap::read: cannot read {}", path.display()))?;
-        anyhow::ensure!(
-            text.len() as u64 <= MAX_BMAP_SIZE,
-            "Bmap::read: {} is larger than {MAX_BMAP_SIZE} bytes, so it is not a bmap",
-            path.display()
-        );
+        if text.len() as u64 > MAX_BMAP_SIZE {
+            return Err(too_large());
+        }
         let doc = roxmltree::Document::parse(&text)
             .context(format!("Bmap::read: invalid xml in {}", path.display()))?;
         let root = doc.root_element();
@@ -393,9 +407,13 @@ mod tests {
     fn read_rejects_a_file_larger_than_a_bmap() {
         let dir = tempfile::tempdir().expect("create temp dir");
         let path = dir.path().join("image.wic.bmap");
-        fs::File::create(&path)
+        // not UTF-8, as e.g. a compressed image
+        fs::write(&path, [u8::MAX]).expect("write file");
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&path)
             .and_then(|file| file.set_len(MAX_BMAP_SIZE + 1))
-            .expect("create sparse file");
+            .expect("make the file sparse and large");
 
         let error = Bmap::read(&path).expect_err("too large");
         assert!(error.to_string().contains("so it is not a bmap"));
