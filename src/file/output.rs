@@ -82,8 +82,11 @@ fn without_extension_of<C: Borrow<Compression>>(
 }
 
 /// Fails if writing `output_image` and its bmap would overwrite a file the user did not name,
-/// replace the bmap of an image that stays, or leave a bmap that `bmaptool` would use for the
-/// output image and that does not match it.
+/// write a bmap over an image, write the output image over a bmap of an image that stays,
+/// replace the bmap of an image that stays, leave a bmap that `bmaptool` would use for the
+/// output image and that does not match it, or read the input image as its own bmap. The checks
+/// that `--output-image` fixes come first, so a hint does not name an option that a later check
+/// refuses.
 pub fn check_conflicts(
     input_image: &Path,
     output_image: &Path,
@@ -100,17 +103,6 @@ pub fn check_conflicts(
         "{} exists; choose the output image with --output-image",
         output_image.display()
     );
-    if let Some(bmap) = input_bmap {
-        anyhow::ensure!(
-            !same_file(bmap, input_image)?,
-            "bmaptool would use {} as its own bmap; pass the bmap with --input-bmap, or map the \
-             whole image with --no-input-bmap",
-            input_image.display()
-        );
-    }
-    if !in_place {
-        ensure_no_bmap_replaced(input_image, output_image, output_bmap, input_bmap)?;
-    }
     if let Some(target_bmap) = output_bmap {
         ensure_replaceable(target_bmap)?;
         // e.g. an image named `x.bmap`, for which `bmaptool` finds the image itself as its bmap
@@ -123,6 +115,11 @@ pub fn check_conflicts(
                 output_image.display()
             );
         }
+    }
+    if !in_place {
+        ensure_no_bmap_replaced(input_image, output_image, output_bmap, input_bmap)?;
+    }
+    if let Some(target_bmap) = output_bmap {
         ensure_bmap_next_to(output_image, target_bmap)?;
         for image in images_using(target_bmap)? {
             anyhow::ensure!(
@@ -157,12 +154,20 @@ pub fn check_conflicts(
             output_image.display()
         );
     }
+    if let Some(bmap) = input_bmap {
+        anyhow::ensure!(
+            !same_file(bmap, input_image)?,
+            "bmaptool would use {} as its own bmap; pass the bmap with --input-bmap, or map the \
+             whole image with --no-input-bmap",
+            input_image.display()
+        );
+    }
 
     Ok(())
 }
 
 /// Fails if the output image or its bmap would replace the input bmap, or if the output image
-/// would replace a bmap that `bmaptool` uses for another image.
+/// would replace or become a bmap that `bmaptool` uses for another image.
 fn ensure_no_bmap_replaced(
     input_image: &Path,
     output_image: &Path,
@@ -171,24 +176,24 @@ fn ensure_no_bmap_replaced(
 ) -> Result<()> {
     if let Some(bmap) = input_bmap {
         for output in iter::once(output_image).chain(output_bmap) {
-            anyhow::ensure!(
-                !same_file(bmap, output)?,
-                "{} is the bmap of {} and would be replaced; choose another output image with \
-                 --output-image",
-                bmap.display(),
-                input_image.display()
-            );
+            if same_file(bmap, output)? {
+                return Err(bmap_of_image_that_stays(output, input_image));
+            }
         }
     }
-    if let Some(image) = images_using(output_image)?.first() {
-        anyhow::bail!(
-            "{} is the bmap of {} and would be replaced; choose another output image with \
-             --output-image",
-            output_image.display(),
-            image.display()
-        );
+    match images_using(output_image)?.first() {
+        Some(image) => Err(bmap_of_image_that_stays(output_image, image)),
+        None => Ok(()),
     }
-    Ok(())
+}
+
+fn bmap_of_image_that_stays(output: &Path, image: &Path) -> anyhow::Error {
+    anyhow::anyhow!(
+        "{} is or would become the bmap of {}, which stays; choose another output image with \
+         --output-image",
+        output.display(),
+        image.display()
+    )
 }
 
 /// The existing images next to `bmap` for which `bmaptool` would use `bmap`: `<stem>` and
@@ -780,8 +785,15 @@ mod tests {
         let image = dir.path().join("image.bmap");
         touch(&image);
 
-        let error = conflicts(&image, &image, false, Some(&bmap_of(&image, &image)), None)
-            .expect_err("with -b");
+        // bmaptool finds the image itself also as its input bmap
+        let error = conflicts(
+            &image,
+            &image,
+            false,
+            Some(&bmap_of(&image, &image)),
+            Some(&image),
+        )
+        .expect_err("with -b");
         assert!(
             error
                 .to_string()
@@ -802,8 +814,14 @@ mod tests {
         let output = dir.path().join("image");
         touch(&input);
 
-        let error = conflicts(&input, &output, true, Some(&bmap_of(&input, &output)), None)
-            .expect_err("output bmap is the input image");
+        let error = conflicts(
+            &input,
+            &output,
+            true,
+            Some(&bmap_of(&input, &output)),
+            Some(&input),
+        )
+        .expect_err("output bmap is the input image");
         assert!(
             error
                 .to_string()
@@ -847,7 +865,7 @@ mod tests {
             let error = conflicts(&image, &image_bmap, true, output_bmap, input_bmap)
                 .expect_err("output image is the input bmap");
             assert!(error.to_string().contains(&format!(
-                "{} is the bmap of {} and would be replaced",
+                "{} is or would become the bmap of {}, which stays",
                 image_bmap.display(),
                 image.display()
             )));
