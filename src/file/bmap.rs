@@ -45,14 +45,18 @@ impl Bmap {
         if len > MAX_BMAP_SIZE {
             return Err(too_large());
         }
-        let mut text = String::new();
-        // also for a file that grows after the check
+        let mut bytes = vec![];
+        // the size from stat is 0 for e.g. a device or a pipe
         file.take(MAX_BMAP_SIZE + 1)
-            .read_to_string(&mut text)
+            .read_to_end(&mut bytes)
             .context(format!("Bmap::read: cannot read {}", path.display()))?;
-        if text.len() as u64 > MAX_BMAP_SIZE {
+        if bytes.len() as u64 > MAX_BMAP_SIZE {
             return Err(too_large());
         }
+        let text = String::from_utf8(bytes).context(format!(
+            "Bmap::read: {} is not UTF-8, so it is not a bmap",
+            path.display()
+        ))?;
         let doc = roxmltree::Document::parse(&text)
             .context(format!("Bmap::read: invalid xml in {}", path.display()))?;
         let root = doc.root_element();
@@ -322,6 +326,8 @@ mod tests {
     use crate::file::bmap::*;
 
     const BLOCK_SIZE: u64 = IMAGE_BLOCK_SIZE as u64;
+    // reads zeros without end and reports the size 0
+    const ZERO_DEVICE: &str = "/dev/zero";
     const IMAGE_BLOCKS: u64 = 16;
     const DATA_BLOCK: u64 = 0;
     const ZERO_BLOCKS: RangeInclusive<u64> = 2..=3;
@@ -407,16 +413,29 @@ mod tests {
     fn read_rejects_a_file_larger_than_a_bmap() {
         let dir = tempfile::tempdir().expect("create temp dir");
         let path = dir.path().join("image.wic.bmap");
-        // not UTF-8, as e.g. a compressed image
-        fs::write(&path, [u8::MAX]).expect("write file");
-        fs::OpenOptions::new()
-            .write(true)
-            .open(&path)
+        fs::File::create(&path)
             .and_then(|file| file.set_len(MAX_BMAP_SIZE + 1))
-            .expect("make the file sparse and large");
+            .expect("create sparse file");
 
-        let error = Bmap::read(&path).expect_err("too large");
-        assert!(error.to_string().contains("so it is not a bmap"));
+        for path in [path.as_path(), Path::new(ZERO_DEVICE)] {
+            let error = Bmap::read(path).expect_err("too large");
+            assert!(
+                error.to_string().contains("is larger than"),
+                "{}: {error}",
+                path.display()
+            );
+        }
+    }
+
+    #[test]
+    fn read_rejects_a_file_that_is_not_utf8() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let path = dir.path().join("image.wic.bmap");
+        // as e.g. a compressed image
+        fs::write(&path, [u8::MAX]).expect("write file");
+
+        let error = Bmap::read(&path).expect_err("not UTF-8");
+        assert!(error.to_string().contains("is not UTF-8"), "{error}");
     }
 
     #[test]
