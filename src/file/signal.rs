@@ -11,7 +11,7 @@ use std::{
     fs::{self, Permissions},
     io,
     mem::MaybeUninit,
-    os::unix::fs::PermissionsExt,
+    os::unix::{ffi::OsStrExt, fs::PermissionsExt},
     path::{Path, PathBuf},
     process, ptr,
     sync::{Mutex, MutexGuard, Once, PoisonError},
@@ -39,7 +39,9 @@ pub struct RegisteredTempDir {
 impl RegisteredTempDir {
     /// Creates the dir in TMPDIR.
     pub fn create() -> io::Result<Self> {
-        Self::create_in(&env::temp_dir(), DEFAULT_PREFIX)
+        let tmp_dir = env::temp_dir();
+        ensure_no_colon(&tmp_dir)?;
+        Self::create_in(&tmp_dir, DEFAULT_PREFIX)
     }
 
     /// Creates the dir in `parent`, with a name that starts with `prefix`.
@@ -91,6 +93,22 @@ impl Drop for RegisteredTempDir {
         }
         self.unregister();
     }
+}
+
+/// The partition files are in TMPDIR, and e2tools split their `<file>:<path>` argument at the
+/// first `:`.
+fn ensure_no_colon(tmp_dir: &Path) -> io::Result<()> {
+    if tmp_dir.as_os_str().as_bytes().contains(&b':') {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "TMPDIR {} contains ':', which e2tools cannot read; set TMPDIR to a path without \
+                 ':'",
+                tmp_dir.display()
+            ),
+        ));
+    }
+    Ok(())
 }
 
 fn register(dir: &Path) {
@@ -203,6 +221,13 @@ mod tests {
         drop(dir);
         assert!(path.exists());
         fs::remove_dir(&path).expect("remove dir");
+    }
+
+    #[test]
+    fn ensure_no_colon_rejects_a_tmpdir_with_a_colon() {
+        ensure_no_colon(Path::new("/data/ci-job1")).expect("no colon");
+        let error = ensure_no_colon(Path::new("/data/ci:job1")).expect_err("colon");
+        assert!(error.to_string().contains("set TMPDIR"), "{error}");
     }
 
     #[test]
