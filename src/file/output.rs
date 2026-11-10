@@ -85,8 +85,8 @@ fn without_extension_of<C: Borrow<Compression>>(
 /// write a bmap over an image, write the output image over the input bmap or a bmap of an image
 /// that stays, replace the bmap of an image that stays, leave a bmap that `bmaptool` would use
 /// for the output image and that does not match it, write a file that cannot be replaced, or
-/// read the input image as its own bmap. The checks that `--output-image` fixes come first, so a
-/// hint does not name an option that a later check refuses.
+/// read the input image as its own bmap. Where `--output-image` fixes a conflict, the hint names
+/// it, also next to another option, because the other option can lead to a new conflict.
 pub fn check_conflicts(
     input_image: &Path,
     output_image: &Path,
@@ -126,14 +126,15 @@ pub fn check_conflicts(
             ensure_used_only_for(target_bmap, output_image)?;
             None
         }
-        None => find_stale_bmap(output_image, in_place)?,
+        None => find_stale_bmap(output_image)?,
     };
     for path in outputs() {
         ensure_replaceable(path)?;
     }
     if let Some(stale_bmap) = stale_bmap {
         anyhow::bail!(
-            "{} would not match {}; pass -b to write a matching bmap",
+            "{} would not match {}; write a matching bmap with -b, or choose another output \
+             image with --output-image",
             stale_bmap.display(),
             output_image.display()
         );
@@ -165,9 +166,8 @@ fn ensure_used_only_for(target_bmap: &Path, output_image: &Path) -> Result<()> {
 }
 
 /// The bmap that `bmaptool` would use for `output_image` without `-b`, which would not match it.
-/// Fails if `-b` would not help either: the bmap is the image itself, or `-b` would replace it
-/// while it is also the bmap of an image that stays.
-fn find_stale_bmap(output_image: &Path, in_place: bool) -> Result<Option<PathBuf>> {
+/// Fails if the bmap is the image itself.
+fn find_stale_bmap(output_image: &Path) -> Result<Option<PathBuf>> {
     let Some(stale_bmap) = bmap::find_input_bmap(output_image, None)? else {
         return Ok(None);
     };
@@ -177,19 +177,6 @@ fn find_stale_bmap(output_image: &Path, in_place: bool) -> Result<Option<PathBuf
          --output-image",
         output_image.display()
     );
-    // else -b writes `<output image>.bmap`, which comes first in the lookup of `bmaptool`
-    if in_place || same_file(&stale_bmap, &bmap::bmap_path(output_image))? {
-        for image in images_using(&stale_bmap)? {
-            anyhow::ensure!(
-                same_file(&image, output_image)?,
-                "{} is the bmap of {}, which stays, and would not match {}; choose another \
-                 output image with --output-image",
-                stale_bmap.display(),
-                image.display(),
-                output_image.display()
-            );
-        }
-    }
     Ok(Some(stale_bmap))
 }
 
@@ -947,7 +934,7 @@ mod tests {
 
         // -i image.wic -p xz: -b writes image.wic.xz.bmap, which bmaptool finds first
         let error = conflicts(&image, &image_xz, false, None, None).expect_err("without -b");
-        assert!(error.to_string().contains("pass -b"), "{error}");
+        assert!(error.to_string().contains("with -b"), "{error}");
         conflicts(
             &image,
             &image_xz,
@@ -959,18 +946,28 @@ mod tests {
     }
 
     #[test]
-    fn check_conflicts_points_to_output_image_for_the_stale_bmap_of_an_image_that_stays() {
+    fn check_conflicts_names_both_remedies_for_a_stale_bmap() {
         let dir = tempfile::tempdir().expect("create temp dir");
         let image_xz = dir.path().join(IMAGE_XZ);
         let image = dir.path().join(IMAGE);
+        let image_bmap = bmap::bmap_path(&image);
         touch(&image_xz);
-        touch(&bmap::bmap_path(&image));
+        touch(&image_bmap);
 
+        // -b alone would not help here: it would replace the bmap of image.wic.xz
         let error = conflicts(&image_xz, &image, false, None, None).expect_err("stale bmap");
-        assert!(error.to_string().contains(&format!(
-            "is the bmap of {}, which stays",
-            image_xz.display()
-        )));
+        let error = error.to_string();
+        for part in [
+            &format!(
+                "{} would not match {}",
+                image_bmap.display(),
+                image.display()
+            ),
+            "with -b",
+            "--output-image",
+        ] {
+            assert!(error.contains(part), "{error}");
+        }
     }
 
     #[test]
