@@ -49,17 +49,6 @@ where
 
     ensure_image_exists(&image_file)?;
 
-    let input_bmap = if output_bmap && !no_input_bmap {
-        bmap::find_input_bmap(&image_file, input_bmap.as_deref())?
-            .map(|path| {
-                Bmap::read(&path)
-                    .with_context(|| input_bmap_error(&path))
-                    .map(|bmap| (path, bmap))
-            })
-            .transpose()?
-    } else {
-        None
-    };
     let source_compression = Compression::from_file(&image_file)?;
     let dest_image_file = output_image(
         &image_file,
@@ -67,16 +56,31 @@ where
         target_compression.as_ref(),
         explicit_output.as_deref(),
     )?;
+    let in_place = output::same_file(&image_file, &dest_image_file)?;
+    let found_bmap = bmap::find_input_bmap(&image_file, None)?;
+    let input_bmap = match input_bmap {
+        _ if !output_bmap || no_input_bmap => None,
+        Some(path) => bmap::find_input_bmap(&image_file, Some(&path))?,
+        None => found_bmap.clone(),
+    };
     let dest_bmap_file = output_bmap
-        .then(|| output::output_bmap_path(&image_file, &dest_image_file))
-        .transpose()?;
+        .then(|| output::output_bmap_path(&dest_image_file, in_place, found_bmap.as_deref()));
     check_conflicts(
         &image_file,
         &dest_image_file,
+        in_place,
         explicit_output.is_some(),
         dest_bmap_file.as_deref(),
-        input_bmap.as_ref().map(|(path, _)| path.as_path()),
+        input_bmap.as_deref(),
     )?;
+    // read after the checks, which refuse e.g. an image that bmaptool would use as its own bmap
+    let input_bmap = input_bmap
+        .map(|path| {
+            Bmap::read(&path)
+                .with_context(|| input_bmap_error(&path))
+                .map(|bmap| (path, bmap))
+        })
+        .transpose()?;
 
     let verify_input_bmap = |image: &Path| -> Result<()> {
         let Some((path, bmap)) = &input_bmap else {
