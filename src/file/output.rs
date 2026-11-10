@@ -82,11 +82,11 @@ fn without_extension_of<C: Borrow<Compression>>(
 }
 
 /// Fails if writing `output_image` and its bmap would overwrite a file the user did not name,
-/// write a bmap over an image, write the output image over a bmap of an image that stays,
-/// replace the bmap of an image that stays, leave a bmap that `bmaptool` would use for the
-/// output image and that does not match it, or read the input image as its own bmap. The checks
-/// that `--output-image` fixes come first, so a hint does not name an option that a later check
-/// refuses.
+/// write a bmap over an image, write the output image over the input bmap or a bmap of an image
+/// that stays, replace the bmap of an image that stays, leave a bmap that `bmaptool` would use
+/// for the output image and that does not match it, write a file that cannot be replaced, or
+/// read the input image as its own bmap. The checks that `--output-image` fixes come first, so a
+/// hint does not name an option that a later check refuses.
 pub fn check_conflicts(
     input_image: &Path,
     output_image: &Path,
@@ -95,8 +95,9 @@ pub fn check_conflicts(
     output_bmap: Option<&Path>,
     input_bmap: Option<&Path>,
 ) -> Result<()> {
-    ensure_replaceable(output_image)?;
-
+    for path in iter::once(output_image).chain(output_bmap) {
+        ensure_regular_file(path)?;
+    }
     anyhow::ensure!(
         // a symlink counts also if its target does not exist yet
         explicit_output || in_place || output_image.symlink_metadata().is_err(),
@@ -104,7 +105,6 @@ pub fn check_conflicts(
         output_image.display()
     );
     if let Some(target_bmap) = output_bmap {
-        ensure_replaceable(target_bmap)?;
         // e.g. an image named `x.bmap`, for which `bmaptool` finds the image itself as its bmap
         for image in [input_image, output_image] {
             anyhow::ensure!(
@@ -119,25 +119,65 @@ pub fn check_conflicts(
     if !in_place {
         ensure_no_bmap_replaced(input_image, output_image, output_bmap, input_bmap)?;
     }
-    if let Some(target_bmap) = output_bmap {
-        ensure_bmap_next_to(output_image, target_bmap)?;
-        for image in images_using(target_bmap)? {
-            anyhow::ensure!(
-                same_file(&image, output_image)?,
-                "bmaptool would use {} also for {}, which stays and would not match it; choose \
-                 another output image with --output-image",
-                target_bmap.display(),
-                image.display()
-            );
+    let stale_bmap = match output_bmap {
+        Some(target_bmap) => {
+            ensure_bmap_next_to(output_image, target_bmap)?;
+            ensure_used_only_for(target_bmap, output_image)?;
+            None
         }
-    } else if let Some(stale_bmap) = bmap::find_input_bmap(output_image, None)? {
-        anyhow::ensure!(
-            !same_file(&stale_bmap, output_image)?,
-            "bmaptool would use {} as its own bmap; choose another output image with \
-             --output-image",
+        None => find_stale_bmap(output_image, in_place)?,
+    };
+    for path in iter::once(output_image).chain(output_bmap) {
+        ensure_replaceable(path)?;
+    }
+    if let Some(stale_bmap) = stale_bmap {
+        anyhow::bail!(
+            "{} would not match {}; pass -b to write a matching bmap",
+            stale_bmap.display(),
             output_image.display()
         );
-        // -b would not help, because the bmap of an image that stays is not replaced
+    }
+    if let Some(bmap) = input_bmap {
+        anyhow::ensure!(
+            !same_file(bmap, input_image)?,
+            "{} is both the input image and its input bmap; pass the right bmap with \
+             --input-bmap, or map the whole image with --no-input-bmap",
+            input_image.display()
+        );
+    }
+
+    Ok(())
+}
+
+/// Fails if `bmaptool` would use `target_bmap` also for an image other than `output_image`.
+fn ensure_used_only_for(target_bmap: &Path, output_image: &Path) -> Result<()> {
+    for image in images_using(target_bmap)? {
+        anyhow::ensure!(
+            same_file(&image, output_image)?,
+            "bmaptool would use {} also for {}, which stays and would not match it; choose \
+             another output image with --output-image",
+            target_bmap.display(),
+            image.display()
+        );
+    }
+    Ok(())
+}
+
+/// The bmap that `bmaptool` would use for `output_image` without `-b`, which would not match it.
+/// Fails if `-b` would not help either: the bmap is the image itself, or `-b` would replace it
+/// while it is also the bmap of an image that stays.
+fn find_stale_bmap(output_image: &Path, in_place: bool) -> Result<Option<PathBuf>> {
+    let Some(stale_bmap) = bmap::find_input_bmap(output_image, None)? else {
+        return Ok(None);
+    };
+    anyhow::ensure!(
+        !same_file(&stale_bmap, output_image)?,
+        "bmaptool would use {} as its own bmap; choose another output image with \
+         --output-image",
+        output_image.display()
+    );
+    // else -b writes `<output image>.bmap`, which comes first in the lookup of `bmaptool`
+    if in_place || same_file(&stale_bmap, &bmap::bmap_path(output_image))? {
         for image in images_using(&stale_bmap)? {
             anyhow::ensure!(
                 same_file(&image, output_image)?,
@@ -148,22 +188,8 @@ pub fn check_conflicts(
                 output_image.display()
             );
         }
-        anyhow::bail!(
-            "{} would not match {}; pass -b to write a matching bmap",
-            stale_bmap.display(),
-            output_image.display()
-        );
     }
-    if let Some(bmap) = input_bmap {
-        anyhow::ensure!(
-            !same_file(bmap, input_image)?,
-            "bmaptool would use {} as its own bmap; pass the bmap with --input-bmap, or map the \
-             whole image with --no-input-bmap",
-            input_image.display()
-        );
-    }
-
-    Ok(())
+    Ok(Some(stale_bmap))
 }
 
 /// Fails if the output image or its bmap would replace the input bmap, or if the output image
@@ -176,24 +202,24 @@ fn ensure_no_bmap_replaced(
 ) -> Result<()> {
     if let Some(bmap) = input_bmap {
         for output in iter::once(output_image).chain(output_bmap) {
-            if same_file(bmap, output)? {
-                return Err(bmap_of_image_that_stays(output, input_image));
-            }
+            anyhow::ensure!(
+                !same_file(bmap, output)?,
+                "{} would replace the input bmap of {}; choose another output image with \
+                 --output-image",
+                output.display(),
+                input_image.display()
+            );
         }
     }
-    match images_using(output_image)?.first() {
-        Some(image) => Err(bmap_of_image_that_stays(output_image, image)),
-        None => Ok(()),
+    if let Some(image) = images_using(output_image)?.first() {
+        anyhow::bail!(
+            "{} is or would become the bmap of {}, which stays; choose another output image \
+             with --output-image",
+            output_image.display(),
+            image.display()
+        );
     }
-}
-
-fn bmap_of_image_that_stays(output: &Path, image: &Path) -> anyhow::Error {
-    anyhow::anyhow!(
-        "{} is or would become the bmap of {}, which stays; choose another output image with \
-         --output-image",
-        output.display(),
-        image.display()
-    )
+    Ok(())
 }
 
 /// The existing images next to `bmap` for which `bmaptool` would use `bmap`: `<stem>` and
@@ -254,9 +280,9 @@ pub fn output_bmap_path(output_image: &Path, in_place: bool, found_bmap: Option<
     }
 }
 
-/// Fails if `Staged::write` and `commit` could not replace `path`.
+/// Fails if `Staged::write` and `commit` could not replace the regular file `path` for lack of
+/// permissions.
 fn ensure_replaceable(path: &Path) -> Result<()> {
-    ensure_regular_file(path)?;
     ensure_writable(path)?;
     ensure_staging_dir_writable(path)
 }
@@ -844,7 +870,11 @@ mod tests {
             Some(&input),
         )
         .expect_err("input bmap is the input image");
-        assert!(error.to_string().contains("as its own bmap; pass the bmap"));
+        assert!(
+            error
+                .to_string()
+                .contains("is both the input image and its input bmap")
+        );
     }
 
     #[test]
@@ -857,19 +887,74 @@ mod tests {
         let output_bmap = bmap_of(&image, &image_bmap);
 
         // -b, -b --no-input-bmap and no -b
-        for (output_bmap, input_bmap) in [
-            (Some(output_bmap.as_path()), Some(image_bmap.as_path())),
-            (Some(output_bmap.as_path()), None),
-            (None, None),
+        for (output_bmap, input_bmap, message) in [
+            (
+                Some(output_bmap.as_path()),
+                Some(image_bmap.as_path()),
+                format!("would replace the input bmap of {}", image.display()),
+            ),
+            (
+                Some(output_bmap.as_path()),
+                None,
+                format!("is or would become the bmap of {}", image.display()),
+            ),
+            (
+                None,
+                None,
+                format!("is or would become the bmap of {}", image.display()),
+            ),
         ] {
             let error = conflicts(&image, &image_bmap, true, output_bmap, input_bmap)
                 .expect_err("output image is the input bmap");
-            assert!(error.to_string().contains(&format!(
-                "{} is or would become the bmap of {}, which stays",
-                image_bmap.display(),
-                image.display()
-            )));
+            assert!(error.to_string().contains(&message), "{error}");
         }
+    }
+
+    #[test]
+    fn check_conflicts_names_a_bmap_conflict_before_a_read_only_bmap() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image_xz = dir.path().join(IMAGE_XZ);
+        let image = dir.path().join(IMAGE);
+        let image_bmap = bmap::bmap_path(&image);
+        touch(&image_xz);
+        touch(&image_bmap);
+        fs::set_permissions(&image_bmap, fs::Permissions::from_mode(READ_ONLY_MODE))
+            .expect("set permissions");
+
+        let error = conflicts(
+            &image_xz,
+            &image,
+            false,
+            Some(&bmap_of(&image_xz, &image)),
+            Some(&image_bmap),
+        )
+        .expect_err("input bmap would be replaced");
+        assert!(
+            error.to_string().contains("would replace the input bmap"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn check_conflicts_asks_for_b_when_the_new_bmap_comes_first() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join(IMAGE);
+        let image_xz = dir.path().join(IMAGE_XZ);
+        let image_bmap = bmap::bmap_path(&image);
+        touch(&image);
+        touch(&image_bmap);
+
+        // -i image.wic -p xz: -b writes image.wic.xz.bmap, which bmaptool finds first
+        let error = conflicts(&image, &image_xz, false, None, None).expect_err("without -b");
+        assert!(error.to_string().contains("pass -b"), "{error}");
+        conflicts(
+            &image,
+            &image_xz,
+            false,
+            Some(&bmap_of(&image, &image_xz)),
+            Some(&image_bmap),
+        )
+        .expect("with -b");
     }
 
     #[test]
