@@ -1199,6 +1199,45 @@ fn check_output_image_that_is_no_regular_file() {
 }
 
 #[test]
+fn check_tmpdir_with_colon_fails_first() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic.xz");
+    let written_image_path = image_path.with_extension("");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    create_dir_all(&written_image_path).expect("create directory");
+
+    // the output image is a directory, which check_conflicts refuses later
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .env("TMPDIR", image_path.with_file_name("ci:job1"))
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path)
+        .arg("-o")
+        .arg(&written_image_path)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("set TMPDIR"));
+
+    // the image does not exist, which the command checks later
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .env("TMPDIR", image_path.with_file_name("ci:job1"))
+        .arg("file")
+        .arg("copy-from-image")
+        .arg("-f")
+        .arg("boot:/boot.scr,out")
+        .arg("-i")
+        .arg(image_path.with_file_name("missing.wic"))
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("set TMPDIR"));
+}
+
+#[test]
 fn check_input_bmap_requires_output_bmap() {
     let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
     let image_path = tr.to_pathbuf("testfiles/image.wic");

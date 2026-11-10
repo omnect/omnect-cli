@@ -40,7 +40,7 @@ impl RegisteredTempDir {
     /// Creates the dir in TMPDIR.
     pub fn create() -> io::Result<Self> {
         let tmp_dir = env::temp_dir();
-        ensure_no_colon(&tmp_dir)?;
+        ensure_no_colon(&tmp_dir).map_err(io::Error::other)?;
         Self::create_in(&tmp_dir, DEFAULT_PREFIX)
     }
 
@@ -95,24 +95,29 @@ impl Drop for RegisteredTempDir {
     }
 }
 
+/// Starts the handler that removes the registered dirs on a stop signal. As PID 1, e.g. in a
+/// container, the process ignores a stop signal for which no handler is installed.
+pub fn handle_stop_signals() {
+    HANDLER.call_once(start_handler);
+}
+
 /// The partition files are in TMPDIR, and e2tools split their `<file>:<path>` argument at the
 /// first `:`.
-fn ensure_no_colon(tmp_dir: &Path) -> io::Result<()> {
-    if tmp_dir.as_os_str().as_bytes().contains(&b':') {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!(
-                "TMPDIR {} contains ':', which e2tools cannot read; set TMPDIR to a path without \
-                 ':'",
-                tmp_dir.display()
-            ),
-        ));
-    }
+pub fn ensure_tmp_dir_has_no_colon() -> anyhow::Result<()> {
+    ensure_no_colon(&env::temp_dir())
+}
+
+fn ensure_no_colon(tmp_dir: &Path) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        !tmp_dir.as_os_str().as_bytes().contains(&b':'),
+        "TMPDIR {} contains ':', which e2tools cannot read; set TMPDIR to a path without ':'",
+        tmp_dir.display()
+    );
     Ok(())
 }
 
 fn register(dir: &Path) {
-    HANDLER.call_once(start_handler);
+    handle_stop_signals();
     dirs().insert(dir.to_path_buf());
 }
 

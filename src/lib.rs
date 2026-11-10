@@ -26,7 +26,7 @@ use file::{
     compression::{self, Compression},
     functions::FileCopyToParams,
     output::{self, Staged, check_conflicts, output_image},
-    signal::RegisteredTempDir,
+    signal::{self, RegisteredTempDir},
     sparse,
 };
 use log::info;
@@ -47,7 +47,7 @@ where
         compress_image: target_compression,
     } = output;
 
-    ensure_image_exists(&image_file)?;
+    start_image_command(&image_file)?;
 
     let source_compression = Compression::from_file(&image_file)?;
     let dest_image_file = output_image(
@@ -138,7 +138,7 @@ fn run_read_only_image_command<F>(image_file: PathBuf, command: F) -> Result<()>
 where
     F: FnOnce(&PathBuf) -> Result<()>,
 {
-    ensure_image_exists(&image_file)?;
+    start_image_command(&image_file)?;
 
     match Compression::from_file(&image_file)? {
         Some(c) => {
@@ -147,6 +147,14 @@ where
         }
         None => command(&image_file),
     }
+}
+
+/// Runs before any long step, e.g. a checksum pass or a decompress, so that as PID 1 a stop
+/// signal ends it, and a TMPDIR that e2tools cannot read fails at once.
+fn start_image_command(image_file: &Path) -> Result<()> {
+    signal::handle_stop_signals();
+    signal::ensure_tmp_dir_has_no_colon()?;
+    ensure_image_exists(image_file)
 }
 
 fn ensure_image_exists(image_file: &Path) -> Result<()> {
