@@ -609,6 +609,26 @@ mod tests {
         )
     }
 
+    /// Makes a dir read-only until drop, also if the test panics, so the temp dir can be
+    /// removed.
+    struct ReadOnlyDir<'a>(&'a Path);
+
+    impl<'a> ReadOnlyDir<'a> {
+        fn new(dir: &'a Path) -> Self {
+            fs::set_permissions(dir, fs::Permissions::from_mode(READ_ONLY_DIR_MODE))
+                .expect("set permissions");
+            Self(dir)
+        }
+    }
+
+    impl Drop for ReadOnlyDir<'_> {
+        fn drop(&mut self) {
+            if let Err(e) = fs::set_permissions(self.0, fs::Permissions::from_mode(DIR_MODE)) {
+                eprintln!("cannot make {} writable: {e}", self.0.display());
+            }
+        }
+    }
+
     fn touch(path: &Path) {
         fs::write(path, []).expect("create file");
     }
@@ -899,15 +919,13 @@ mod tests {
         let dir = tempfile::tempdir().expect("create temp dir");
         let image = dir.path().join(IMAGE);
         touch(&image);
-        fs::set_permissions(dir.path(), fs::Permissions::from_mode(READ_ONLY_DIR_MODE))
-            .expect("set permissions");
+        let read_only = ReadOnlyDir::new(dir.path());
         // root can write a read-only directory
         let writable = rustix::fs::access(dir.path(), Access::WRITE_OK).is_ok();
 
         let in_place = conflicts(&image, &image, false, None, None);
         let new_file = conflicts(&image, &dir.path().join(OTHER_IMAGE), true, None, None);
-        fs::set_permissions(dir.path(), fs::Permissions::from_mode(DIR_MODE))
-            .expect("set permissions");
+        drop(read_only);
         in_place.expect("in place");
         assert_eq!(new_file.is_ok(), writable);
     }
@@ -917,15 +935,13 @@ mod tests {
         let dir = tempfile::tempdir().expect("create temp dir");
         let image = dir.path().join(IMAGE);
         fs::write(&image, OLD_CONTENT).expect("write image");
-        fs::set_permissions(dir.path(), fs::Permissions::from_mode(READ_ONLY_DIR_MODE))
-            .expect("set permissions");
+        let read_only = ReadOnlyDir::new(dir.path());
         let writable = rustix::fs::access(dir.path(), Access::WRITE_OK).is_ok();
 
         let staged = stage(&image, NEW_CONTENT);
         let in_tmpdir = staged.in_tmpdir;
         let result = commit(staged, None);
-        fs::set_permissions(dir.path(), fs::Permissions::from_mode(DIR_MODE))
-            .expect("set permissions");
+        drop(read_only);
         result.expect("commit");
         assert_eq!(in_tmpdir, !writable);
         assert_eq!(fs::read(&image).expect("read image"), NEW_CONTENT);

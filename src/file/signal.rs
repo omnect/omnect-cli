@@ -199,10 +199,13 @@ mod tests {
 
     #[test]
     fn is_ignored_reads_the_disposition() {
-        // SAFETY: SIGUSR2 is not used by the tests
-        unsafe { libc::signal(libc::SIGUSR2, libc::SIG_IGN) };
+        // SAFETY: SIGUSR2 is not used by the other tests
+        let old = unsafe { libc::signal(libc::SIGUSR2, libc::SIG_IGN) };
+        let ignored = is_ignored(libc::SIGUSR2);
+        // SAFETY: restores the disposition read above
+        unsafe { libc::signal(libc::SIGUSR2, old) };
 
-        assert!(is_ignored(libc::SIGUSR2));
+        assert!(ignored);
         assert!(!is_ignored(libc::SIGUSR1));
     }
 }
