@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use std::{
     fs,
-    io::Write,
+    io::{Read, Write},
     ops::{Range, RangeInclusive},
     os::unix::fs::FileExt,
     path::{Path, PathBuf},
@@ -15,6 +15,8 @@ const SHA256_HEX_LEN: usize = 64;
 const BMAP_VERSION: &str = "2.0";
 const BMAP_MAJOR_VERSION: u32 = 2;
 const BMAP_ROOT: &str = "bmap";
+// far above the bmap of a large image, so an image passed as bmap is not read into memory
+const MAX_BMAP_SIZE: u64 = 64 * 1024 * 1024;
 
 /// The block ranges of an image that a bmap file maps.
 #[derive(Debug)]
@@ -28,8 +30,15 @@ pub struct Bmap {
 
 impl Bmap {
     pub fn read(path: &Path) -> Result<Self> {
-        let text = fs::read_to_string(path)
+        let mut text = String::new();
+        fs::File::open(path)
+            .and_then(|file| file.take(MAX_BMAP_SIZE + 1).read_to_string(&mut text))
             .context(format!("Bmap::read: cannot read {}", path.display()))?;
+        anyhow::ensure!(
+            text.len() as u64 <= MAX_BMAP_SIZE,
+            "Bmap::read: {} is larger than {MAX_BMAP_SIZE} bytes, so it is not a bmap",
+            path.display()
+        );
         let doc = roxmltree::Document::parse(&text)
             .context(format!("Bmap::read: invalid xml in {}", path.display()))?;
         let root = doc.root_element();
@@ -378,6 +387,18 @@ mod tests {
             Some(bmap.ranges.len()),
             "one checksum per range"
         );
+    }
+
+    #[test]
+    fn read_rejects_a_file_larger_than_a_bmap() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let path = dir.path().join("image.wic.bmap");
+        fs::File::create(&path)
+            .and_then(|file| file.set_len(MAX_BMAP_SIZE + 1))
+            .expect("create sparse file");
+
+        let error = Bmap::read(&path).expect_err("too large");
+        assert!(error.to_string().contains("so it is not a bmap"));
     }
 
     #[test]
