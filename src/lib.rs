@@ -24,7 +24,7 @@ use cli::{
 use file::{
     bmap::{self, Bmap},
     compression::{self, Compression},
-    functions::FileCopyToParams,
+    functions::{FileCopyToParams, check_outputs},
     output::{self, Staged, check_conflicts, output_image},
     signal::{self, RegisteredTempDir},
     sparse,
@@ -133,12 +133,15 @@ fn input_bmap_error(path: &Path) -> String {
     )
 }
 
-/// Runs `command` on the image, or on a decompressed temp copy of a compressed image.
-fn run_read_only_image_command<F>(image_file: PathBuf, command: F) -> Result<()>
+/// Runs `check` on the image, then `command` on the image, or on a decompressed temp copy of a
+/// compressed image.
+fn run_read_only_image_command<C, F>(image_file: PathBuf, check: C, command: F) -> Result<()>
 where
-    F: FnOnce(&PathBuf) -> Result<()>,
+    C: FnOnce(&Path) -> Result<()>,
+    F: FnOnce(&Path) -> Result<()>,
 {
     start_image_command(&image_file)?;
+    check(&image_file)?;
 
     match Compression::from_file(&image_file)? {
         Some(c) => {
@@ -504,9 +507,11 @@ pub fn run() -> Result<()> {
         Command::File(CopyFromImage {
             file_copy_params,
             image,
-        }) => run_read_only_image_command(image, |img: &PathBuf| {
-            file::copy_from_image(&file_copy_params, img)
-        })?,
+        }) => run_read_only_image_command(
+            image,
+            |img| check_outputs(&file_copy_params, img),
+            |img| file::copy_from_image(&file_copy_params, img),
+        )?,
     }
 
     Ok(())

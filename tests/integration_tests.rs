@@ -1199,6 +1199,77 @@ fn check_output_image_that_is_no_regular_file() {
 }
 
 #[test]
+fn check_copy_from_image_keeps_the_image() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let image_xz_path = tr.to_pathbuf("testfiles/image.wic.xz");
+    let link_path = tr.pathbuf().join("link.wic");
+    let dir_path = tr.pathbuf().join("etc");
+    let hosts_image_path = dir_path.join("hosts");
+    fs::hard_link(&image_path, &link_path).expect("hard link");
+    create_dir_all(&dir_path).expect("create directory");
+    fs::copy(&image_path, &hosts_image_path).expect("copy image");
+
+    let copy_from_image = |image: &Path, file: &str| {
+        Command::cargo_bin("omnect-cli")
+            .expect("omnect-cli binary")
+            .arg("file")
+            .arg("copy-from-image")
+            .arg("-f")
+            .arg(file)
+            .arg("-i")
+            .arg(image)
+            .assert()
+    };
+
+    // e2cp writes etc/hosts for the output dir etc
+    for (image, file, written) in [
+        (&image_path, "factory:/etc/hosts", &image_path),
+        (&image_path, "boot:/boot.scr", &image_path),
+        (&image_path, "factory:/etc/hosts", &link_path),
+        (&image_xz_path, "factory:/etc/hosts", &image_xz_path),
+        (&hosts_image_path, "factory:/etc/hosts", &hosts_image_path),
+    ] {
+        let output = if written == &hosts_image_path {
+            &dir_path
+        } else {
+            written
+        };
+        let hash = Testrunner::file_hash(image);
+        copy_from_image(image, &format!("{file},{}", output.to_string_lossy()))
+            .failure()
+            .stderr(predicate::str::contains(format!(
+                "{} is the input image",
+                written.display()
+            )));
+        assert_eq!(Testrunner::file_hash(image), hash, "{}", output.display());
+    }
+
+    // out/hosts is not the image
+    let out_dir_path = tr.pathbuf().join("out");
+    create_dir_all(&out_dir_path).expect("create directory");
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!(
+            "{},factory:/etc/hosts",
+            tr.to_pathbuf("testfiles/boot.scr").to_string_lossy()
+        ))
+        .arg("-i")
+        .arg(&image_path)
+        .assert()
+        .success();
+    copy_from_image(
+        &image_path,
+        &format!("factory:/etc/hosts,{}", out_dir_path.to_string_lossy()),
+    )
+    .success();
+    assert!(out_dir_path.join("hosts").is_file());
+}
+
+#[test]
 fn check_tmpdir_with_colon_fails_first() {
     let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
     let image_path = tr.to_pathbuf("testfiles/image.wic.xz");

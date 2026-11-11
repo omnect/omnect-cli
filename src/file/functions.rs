@@ -7,9 +7,9 @@ use log::{debug, warn};
 use std::{
     collections::HashMap,
     fmt::{self, Display},
-    fs,
+    fs, io,
     ops::Range,
-    os::unix::fs::FileExt,
+    os::unix::fs::{FileExt, MetadataExt},
     path::{Path, PathBuf},
     process::Command,
     str::FromStr,
@@ -134,6 +134,17 @@ impl FileCopyFromParams {
             in_file: in_file.to_path_buf(),
             partition,
             out_file: out_file.to_path_buf(),
+        }
+    }
+
+    /// The file that the copy writes: e2cp writes into an existing dir, under the source file
+    /// name.
+    fn written_file(&self) -> PathBuf {
+        match self.in_file.file_name() {
+            Some(name) if self.partition != Partition::boot && self.out_file.is_dir() => {
+                self.out_file.join(name)
+            }
+            _ => self.out_file.clone(),
         }
     }
 }
@@ -282,6 +293,31 @@ fn ensure_output_dir_exists(out_file: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Fails if an output dir does not exist, or if an output file is the input image, also through
+/// another path such as a hard link, because writing it would destroy the image.
+pub(crate) fn check_outputs(
+    file_copy_params: &[FileCopyFromParams],
+    image_file: &Path,
+) -> Result<()> {
+    let image =
+        fs::metadata(image_file).context(format!("cannot read {}", image_file.display()))?;
+    for param in file_copy_params {
+        ensure_output_dir_exists(&param.out_file)?;
+        let written_file = param.written_file();
+        let output = match fs::metadata(&written_file) {
+            Ok(output) => output,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(e).context(format!("cannot read {}", written_file.display())),
+        };
+        anyhow::ensure!(
+            (output.dev(), output.ino()) != (image.dev(), image.ino()),
+            "{} is the input image; choose another output file",
+            written_file.display()
+        );
+    }
+    Ok(())
+}
+
 pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Path) -> Result<()> {
     for param in file_copy_params {
         ensure_output_dir_exists(&param.out_file)?;
@@ -341,7 +377,7 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
             exec_cmd!(e2cp);
             // since e2cp doesn't return errors in any case we check if output file exists
             anyhow::ensure!(
-                param.out_file.try_exists().is_ok_and(|exists| exists),
+                param.written_file().try_exists().is_ok_and(|exists| exists),
                 format!("copy_from_image: cmd failed: {:?}", e2cp)
             )
         }
