@@ -1,6 +1,11 @@
+pub mod bmap;
 pub mod compression;
 pub mod functions;
+pub(crate) mod output;
 mod partition;
+pub(crate) mod signal;
+pub(crate) mod sparse;
+
 use super::validators::{
     device_update,
     identity::{IdentityConfig, IdentityType, validate_identity},
@@ -14,6 +19,27 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+
+/// Granularity at which zero data in an image file is kept as a hole.
+const IMAGE_BLOCK_SIZE: usize = 4096;
+const COPY_CHUNK_SIZE: usize = 1024 * 1024;
+
+static ZERO_BLOCK: [u8; IMAGE_BLOCK_SIZE] = [0; IMAGE_BLOCK_SIZE];
+
+/// The directory of `path`; `.` for a path without one.
+fn dir_of(path: &Path) -> &Path {
+    match path.parent() {
+        Some(dir) if !dir.as_os_str().is_empty() => dir,
+        _ => Path::new("."),
+    }
+}
+
+/// A slice compare compiles to `memcmp`, which is many times faster than a byte loop with an
+/// early exit.
+fn is_zero(data: &[u8]) -> bool {
+    data.chunks(IMAGE_BLOCK_SIZE)
+        .all(|chunk| chunk == &ZERO_BLOCK[..chunk.len()])
+}
 
 pub fn set_iotedge_gateway_config(
     config_file: &Path,
@@ -292,4 +318,28 @@ pub(crate) fn get_file_path(image_path: &Path, file_name: &str) -> Result<PathBu
         .to_path_buf();
     file_path.push(file_name);
     Ok(file_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::file::*;
+
+    #[test]
+    fn dir_of_a_bare_name_is_the_current_dir() {
+        assert_eq!(dir_of(Path::new("out.txt")), Path::new("."));
+        assert_eq!(dir_of(Path::new("dir/out.txt")), Path::new("dir"));
+    }
+
+    #[test]
+    fn is_zero_checks_every_byte() {
+        let mut data = vec![0u8; 2 * IMAGE_BLOCK_SIZE + 1];
+
+        assert!(is_zero(&[]));
+        assert!(is_zero(&data));
+        for byte in [0, IMAGE_BLOCK_SIZE, data.len() - 1] {
+            data[byte] = 1;
+            assert!(!is_zero(&data), "byte {byte} is not zero");
+            data[byte] = 0;
+        }
+    }
 }

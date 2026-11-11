@@ -1,11 +1,19 @@
+use crate::file::{
+    COPY_CHUNK_SIZE, IMAGE_BLOCK_SIZE, dir_of, partition::SECTOR_SIZE, signal::RegisteredTempDir,
+    sparse,
+};
 use anyhow::{Context, Result};
 use log::{debug, warn};
-use std::collections::HashMap;
-use std::fmt::{self, Display};
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::str::FromStr;
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+    fs, io,
+    ops::Range,
+    os::unix::fs::{FileExt, MetadataExt},
+    path::{Path, PathBuf},
+    process::Command,
+    str::FromStr,
+};
 use stdext::function_name;
 use uuid::Uuid;
 
@@ -128,6 +136,17 @@ impl FileCopyFromParams {
             out_file: out_file.to_path_buf(),
         }
     }
+
+    /// The file that the copy writes: e2cp writes into an existing dir, under the source file
+    /// name.
+    fn written_file(&self) -> PathBuf {
+        match self.in_file.file_name() {
+            Some(name) if self.partition != Partition::boot && self.out_file.is_dir() => {
+                self.out_file.join(name)
+            }
+            _ => self.out_file.clone(),
+        }
+    }
 }
 
 impl FromStr for FileCopyFromParams {
@@ -184,12 +203,9 @@ macro_rules! try_exec_cmd {
 }
 
 pub fn copy_to_image(file_copy_params: &[FileCopyToParams], image_file: &Path) -> Result<()> {
-    // we use the folder the image is located in
-    // the caller is responsible to create a /tmp/ directory if needed
-    let working_dir = image_file
-        .parent()
-        .context("copy_to_image: cannot get directory of image")?
-        .to_path_buf();
+    // the partition files get their own dir, so they never collide with the image
+    let working_dir =
+        RegisteredTempDir::create().context("copy_to_image: cannot create a temp dir")?;
     let image_file = image_file.to_str().unwrap();
     let mut partition_map: HashMap<&Partition, Vec<(&PathBuf, &PathBuf)>> = HashMap::new();
 
@@ -204,7 +220,7 @@ pub fn copy_to_image(file_copy_params: &[FileCopyToParams], image_file: &Path) -
 
     // 1. for each involved partition
     for partition in partition_map.keys() {
-        let mut partition_file = working_dir.clone();
+        let mut partition_file = working_dir.path().to_path_buf();
         let partition_info = get_partition_info(image_file, partition)?;
 
         partition_file.push(Path::new(&format!("{}.img", partition_info.num)));
@@ -265,17 +281,54 @@ pub fn copy_to_image(file_copy_params: &[FileCopyToParams], image_file: &Path) -
     Ok(())
 }
 
+/// Fails if the directory of `out_file` does not exist. A path without a directory is in the
+/// current directory.
+fn ensure_output_dir_exists(out_file: &Path) -> Result<()> {
+    let dir = dir_of(out_file);
+    anyhow::ensure!(
+        dir.is_dir(),
+        "copy_from_image: output dir {} does not exist",
+        dir.display()
+    );
+    Ok(())
+}
+
+/// Fails if an output dir does not exist, or if an output file is the input image, also through
+/// another path such as a hard link, because writing it would destroy the image.
+pub(crate) fn check_outputs(
+    file_copy_params: &[FileCopyFromParams],
+    image_file: &Path,
+) -> Result<()> {
+    let image =
+        fs::metadata(image_file).context(format!("cannot read {}", image_file.display()))?;
+    for param in file_copy_params {
+        ensure_output_dir_exists(&param.out_file)?;
+        let written_file = param.written_file();
+        let output = match fs::metadata(&written_file) {
+            Ok(output) => output,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(e).context(format!("cannot read {}", written_file.display())),
+        };
+        anyhow::ensure!(
+            (output.dev(), output.ino()) != (image.dev(), image.ino()),
+            "{} is the input image; choose another output file",
+            written_file.display()
+        );
+    }
+    Ok(())
+}
+
 pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Path) -> Result<()> {
-    // we use the folder the image is located in
-    // the caller is responsible to create a /tmp/ directory if needed
-    let working_dir = image_file
-        .parent()
-        .context("copy_to_image: cannot get directory of image")?
-        .to_path_buf();
+    for param in file_copy_params {
+        ensure_output_dir_exists(&param.out_file)?;
+    }
+    // the partition files get their own dir, so they never collide with the image
+    let working_dir =
+        RegisteredTempDir::create().context("copy_from_image: cannot create a temp dir")?;
     let image_file = image_file.to_str().unwrap();
 
     for param in file_copy_params.iter() {
-        let mut partition_file = working_dir.clone();
+        let mut partition_file = working_dir.path().to_path_buf();
 
         let partition_info = get_partition_info(image_file, &param.partition)?;
         let in_file = param.in_file.to_str().unwrap();
@@ -285,19 +338,9 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
 
         read_partition(image_file, partition_file, &partition_info)?;
 
-        anyhow::ensure!(
-            param
-                .out_file
-                .parent()
-                .unwrap()
-                .try_exists()
-                .is_ok_and(|exists| exists),
-            "copy_from_image: output dir does not exist."
-        );
-
         // copy
         if param.partition == Partition::boot {
-            let mut tmp_out_file = working_dir.clone();
+            let mut tmp_out_file = working_dir.path().to_path_buf();
             // mcopy deadlocks when target file is not residing in workingdir so we copy to a temp file
             tmp_out_file.push(format!(
                 "{}-{}",
@@ -334,7 +377,7 @@ pub fn copy_from_image(file_copy_params: &[FileCopyFromParams], image_file: &Pat
             exec_cmd!(e2cp);
             // since e2cp doesn't return errors in any case we check if output file exists
             anyhow::ensure!(
-                param.out_file.try_exists().is_ok_and(|exists| exists),
+                param.written_file().try_exists().is_ok_and(|exists| exists),
                 format!("copy_from_image: cmd failed: {:?}", e2cp)
             )
         }
@@ -412,20 +455,15 @@ fn read_partition(
         return Ok(());
     }
 
-    let mut dd = Command::new("dd");
-    dd.arg(format!("if={image_file}"))
-        .arg(format!("of={partition_file}"))
-        .arg("bs=512")
-        .arg(format!("skip={}", partition_info.start))
-        .arg(format!("count={}", partition_info.count))
-        .arg("conv=sparse")
-        .arg("status=none");
-    exec_cmd!(dd);
+    let image =
+        fs::File::open(image_file).context(format!("read_partition: cannot open {image_file}"))?;
 
-    let mut sync = Command::new("sync");
-    exec_cmd!(sync);
-
-    Ok(())
+    sparse::copy_to_new_file(
+        &image,
+        partition_info.start * SECTOR_SIZE,
+        Path::new(partition_file),
+        partition_info.count * SECTOR_SIZE,
+    )
 }
 
 fn write_partition(
@@ -433,34 +471,277 @@ fn write_partition(
     partition_file: &str,
     partition_info: &PartitionInfo,
 ) -> Result<()> {
-    let mut dd = Command::new("dd");
-    dd.arg(format!("if={partition_file}"))
-        .arg(format!("of={image_file}"))
-        .arg("bs=512")
-        .arg(format!("seek={}", partition_info.start))
-        .arg(format!("count={}", partition_info.count))
-        .arg("conv=notrunc,sparse")
-        .arg("status=none");
-    exec_cmd!(dd);
+    let partition = fs::File::open(partition_file)
+        .context(format!("write_partition: cannot open {partition_file}"))?;
+    let image = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(image_file)
+        .context(format!("write_partition: cannot open {image_file}"))?;
 
-    let mut fallocate = Command::new("fallocate");
-    fallocate.arg("-d").arg(image_file);
-    exec_cmd!(fallocate);
+    let image_offset = partition_info.start * SECTOR_SIZE;
+    let len = partition
+        .metadata()
+        .context("write_partition: cannot get partition file size")?
+        .len()
+        .min(partition_info.count * SECTOR_SIZE);
 
-    let mut sync = Command::new("sync");
-    exec_cmd!(sync);
+    // Only write blocks that differ: unchanged blocks keep their allocation, so a bmap
+    // created from the result still maps every block the source image mapped. A zero block
+    // that a tool wrote into a hole is data in the partition file and must become data in the
+    // image too, else a bmap flash keeps the old content there.
+    let partition_data = sparse::data_ranges(&partition, 0, len)?;
+    let image_data = sparse::data_ranges(&image, image_offset, image_offset + len)?;
+    // a block that is a hole in both files is zero in both, so it never needs a write
+    let block_size = IMAGE_BLOCK_SIZE as u64;
+    let spans = sparse::merge(
+        partition_data
+            .iter()
+            .cloned()
+            .chain(
+                image_data
+                    .iter()
+                    .map(|r| r.start - image_offset..r.end - image_offset),
+            )
+            .map(|r| r.start / block_size * block_size..r.end.next_multiple_of(block_size).min(len))
+            .collect(),
+    );
+    let mut src = vec![0u8; COPY_CHUNK_SIZE];
+    let mut dst = vec![0u8; COPY_CHUNK_SIZE];
+    for span in spans {
+        write_changed_blocks(
+            &partition,
+            &image,
+            image_offset,
+            span,
+            (&partition_data, &image_data),
+            (&mut src, &mut dst),
+        )?;
+    }
 
     Ok(())
 }
 
-pub fn generate_bmap_file(image_file: &str) -> Result<()> {
-    let mut bmaptool = Command::new("bmaptool");
-    bmaptool
-        .arg("create")
-        .arg("-o")
-        .arg(format!("{image_file}.bmap"))
-        .arg(image_file);
-    exec_cmd!(bmaptool);
+fn write_changed_blocks(
+    partition: &fs::File,
+    image: &fs::File,
+    image_offset: u64,
+    span: Range<u64>,
+    (partition_data, image_data): (&[Range<u64>], &[Range<u64>]),
+    (src, dst): (&mut [u8], &mut [u8]),
+) -> Result<()> {
+    let mut pos = span.start;
+    while pos < span.end {
+        let n = usize::try_from((span.end - pos).min(COPY_CHUNK_SIZE as u64))?;
+        partition
+            .read_exact_at(&mut src[..n], pos)
+            .context("write_partition: cannot read partition file")?;
+        image
+            .read_exact_at(&mut dst[..n], image_offset + pos)
+            .context("write_partition: cannot read image")?;
+
+        let blocks = src[..n]
+            .chunks(IMAGE_BLOCK_SIZE)
+            .zip(dst[..n].chunks(IMAGE_BLOCK_SIZE));
+        for (i, (s, d)) in blocks.enumerate() {
+            let block_pos = pos + (i * IMAGE_BLOCK_SIZE) as u64;
+            let block = block_pos..block_pos + s.len() as u64;
+            let image_block = image_offset + block.start..image_offset + block.end;
+            if s != d || (has_data(partition_data, &block) && has_hole(image_data, &image_block)) {
+                image
+                    .write_all_at(s, image_block.start)
+                    .context("write_partition: cannot write image")?;
+            }
+        }
+        pos += n as u64;
+    }
 
     Ok(())
+}
+
+fn has_data(data_ranges: &[Range<u64>], block: &Range<u64>) -> bool {
+    let i = data_ranges.partition_point(|r| r.end <= block.start);
+    data_ranges.get(i).is_some_and(|r| r.start < block.end)
+}
+
+fn has_hole(data_ranges: &[Range<u64>], block: &Range<u64>) -> bool {
+    let i = data_ranges.partition_point(|r| r.end <= block.start);
+    !data_ranges
+        .get(i)
+        .is_some_and(|r| r.start <= block.start && block.end <= r.end)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::file::functions::*;
+    use std::os::unix::fs::MetadataExt;
+
+    const PART_NUM: u32 = 1;
+    const PART_START: u64 = 8;
+    const PART_SECTORS: u64 = 64;
+    const OLD_CONTENT_BYTE: u8 = 0xa5;
+    const ZEROED_BLOCK: usize = 2;
+    // the first partition of an old MBR layout
+    const UNALIGNED_PART_START: u64 = 63;
+
+    fn partition_info() -> PartitionInfo {
+        PartitionInfo {
+            num: PART_NUM,
+            start: PART_START,
+            count: PART_SECTORS,
+        }
+    }
+
+    #[test]
+    fn ensure_output_dir_exists_takes_a_bare_name() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+
+        ensure_output_dir_exists(Path::new("out.txt")).expect("current dir");
+        ensure_output_dir_exists(&dir.path().join("out.txt")).expect("existing dir");
+        assert!(ensure_output_dir_exists(&dir.path().join("missing/out.txt")).is_err());
+    }
+
+    #[test]
+    fn read_partition_fails_for_partition_past_the_image_end() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join("image.wic");
+        let partition = dir.path().join("partition.img");
+        fs::File::create(&image)
+            .expect("create image")
+            .set_len((PART_START + PART_SECTORS - 1) * SECTOR_SIZE)
+            .expect("set image size");
+
+        assert!(
+            read_partition(
+                image.to_str().expect("image path"),
+                partition.to_str().expect("partition path"),
+                &partition_info(),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn write_partition_writes_block_changed_to_zeros() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join("image.wic");
+        let partition = dir.path().join("partition.img");
+        let image_len = usize::try_from((PART_START + PART_SECTORS) * SECTOR_SIZE).expect("size");
+        let part_offset = usize::try_from(PART_START * SECTOR_SIZE).expect("offset");
+
+        fs::write(&image, vec![OLD_CONTENT_BYTE; image_len]).expect("write image");
+        let mut content = vec![OLD_CONTENT_BYTE; image_len - part_offset];
+        content[ZEROED_BLOCK * IMAGE_BLOCK_SIZE..(ZEROED_BLOCK + 1) * IMAGE_BLOCK_SIZE].fill(0);
+        fs::write(&partition, &content).expect("write partition");
+
+        write_partition(
+            image.to_str().expect("image path"),
+            partition.to_str().expect("partition path"),
+            &partition_info(),
+        )
+        .expect("write partition");
+
+        let written = fs::read(&image).expect("read image");
+        assert!(written[part_offset..] == content[..], "partition differs");
+    }
+
+    #[test]
+    fn write_partition_keeps_holes_of_unchanged_blocks() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join("image.wic");
+        let partition = dir.path().join("partition.img");
+        fs::File::create(&image)
+            .expect("create image")
+            .set_len((PART_START + PART_SECTORS) * SECTOR_SIZE)
+            .expect("set image size");
+        fs::File::create(&partition)
+            .expect("create partition")
+            .set_len(PART_SECTORS * SECTOR_SIZE)
+            .expect("set partition size");
+        let allocated = || fs::metadata(&image).expect("image metadata").blocks();
+        let before = allocated();
+
+        write_partition(
+            image.to_str().expect("image path"),
+            partition.to_str().expect("partition path"),
+            &partition_info(),
+        )
+        .expect("write partition");
+
+        assert_eq!(allocated(), before, "unchanged zero blocks were written");
+    }
+
+    #[test]
+    fn write_partition_maps_zero_block_of_an_unaligned_partition() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join("image.wic");
+        let partition = dir.path().join("partition.img");
+        let info = PartitionInfo {
+            num: PART_NUM,
+            start: UNALIGNED_PART_START,
+            count: PART_SECTORS,
+        };
+        let image_file = fs::File::create(&image).expect("create image");
+        image_file
+            .set_len((UNALIGNED_PART_START + PART_SECTORS) * SECTOR_SIZE)
+            .expect("set image size");
+        let partition_file = fs::File::create(&partition).expect("create partition");
+        partition_file
+            .set_len(PART_SECTORS * SECTOR_SIZE)
+            .expect("set partition size");
+        let block = (ZEROED_BLOCK * IMAGE_BLOCK_SIZE) as u64;
+        partition_file
+            .write_all_at(&[0; IMAGE_BLOCK_SIZE], block)
+            .expect("write zero block");
+
+        write_partition(
+            image.to_str().expect("image path"),
+            partition.to_str().expect("partition path"),
+            &info,
+        )
+        .expect("write partition");
+
+        let block = UNALIGNED_PART_START * SECTOR_SIZE + block;
+        let block = block..block + IMAGE_BLOCK_SIZE as u64;
+        let image_data =
+            sparse::data_ranges(&image_file, block.start, block.end).expect("data ranges");
+        assert_eq!(image_data, vec![block], "zero block is still a hole");
+    }
+
+    #[test]
+    fn write_partition_maps_zero_block_written_into_a_hole() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let image = dir.path().join("image.wic");
+        let partition = dir.path().join("partition.img");
+        let image_file = fs::File::create(&image).expect("create image");
+        image_file
+            .set_len((PART_START + PART_SECTORS) * SECTOR_SIZE)
+            .expect("set image size");
+        let partition_file = fs::File::create(&partition).expect("create partition");
+        partition_file
+            .set_len(PART_SECTORS * SECTOR_SIZE)
+            .expect("set partition size");
+        let block = (ZEROED_BLOCK * IMAGE_BLOCK_SIZE) as u64;
+        partition_file
+            .write_all_at(&[0; IMAGE_BLOCK_SIZE], block)
+            .expect("write zero block");
+
+        write_partition(
+            image.to_str().expect("image path"),
+            partition.to_str().expect("partition path"),
+            &partition_info(),
+        )
+        .expect("write partition");
+
+        let block = PART_START * SECTOR_SIZE + block;
+        assert_eq!(
+            sparse::data_ranges(
+                &image_file,
+                0,
+                image_file.metadata().expect("metadata").len()
+            )
+            .expect("data ranges"),
+            vec![block..block + IMAGE_BLOCK_SIZE as u64]
+        );
+    }
 }

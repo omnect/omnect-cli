@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 name = "omnect-cli"
 readme = "README.md"
 repository = "https://github.com/omnect/omnect-cli"
-version = "0.28.5"
+version = "0.29.0"
 
 [dependencies]
 actix-web = { version = "4.17", default-features = false, features = ["macros"] }
@@ -31,7 +31,7 @@ hmac = { version = "0.13", default-features = false }
 mbrman = { version = "0.6", default-features = false }
 omnect-crypto = { git = "https://github.com/omnect/omnect-crypto.git", tag = "0.5.0" }
 keyring-core = { version = "1.0", default-features = false }
-libfs = { version = "0.9", default-features = false }
+libc = { version = "0.2", default-features = false }
 log = { version = "0.4", default-features = false }
 num_cpus = { version = "1.17", default-features = false }
 oauth2 = { version = "5.0", default-features = false, features = [
@@ -44,10 +44,13 @@ reqwest = { version = "0.13", default-features = false, features = [
     "json",
     "native-tls",
 ] }
+roxmltree = { version = "0.21", default-features = false, features = ["std"] }
+rustix = { version = "1.1", default-features = false, features = ["fs", "std"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false }
 serde_path_to_error = { version = "0.1", default-features = false }
 sha2 = { version = "0.11", default-features = false }
+signal-hook = { version = "0.4", default-features = false, features = ["iterator"] }
 stdext = { version = "0.3", default-features = false }
 strum = { version = "0.28", default-features = false }
 strum_macros = { version = "0.28", default-features = false }
@@ -81,5 +84,5 @@ tar = "0.4"
 
 # metadata for building with cargo-deb (https://crates.io/crates/cargo-deb)
 [package.metadata.deb]
-depends = "bmap-tools, e2tools, keychain, libc6 (>= 2.39), libmagic1, libssl3 (>= 3.0.0), mtools"
+depends = "e2tools, keychain, libc6 (>= 2.39), libmagic1, libssl3 (>= 3.0.0), mtools"
 revision = ""

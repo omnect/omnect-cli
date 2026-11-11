@@ -3,9 +3,17 @@ use assert_cmd::Command;
 use assert_json_diff::assert_json_eq;
 use common::Testrunner;
 use httpmock::prelude::*;
-use omnect_cli::ssh;
+use omnect_cli::{
+    file::bmap::{Bmap, bmap_path},
+    ssh,
+};
 use predicates::prelude::*;
-use std::{fs::create_dir_all, path::PathBuf};
+use std::{
+    ffi::OsStr,
+    fs::{self, create_dir_all},
+    os::unix::fs::MetadataExt,
+    path::{Path, PathBuf},
+};
 use stdext::function_name;
 
 #[test]
@@ -476,6 +484,14 @@ fn check_set_identity_config_tpm_template() {
     );
 }
 
+/// Fails if a file with one of `names` is in the directory of `image`.
+fn assert_no_files_next_to(image: &Path, names: &[&str]) {
+    for name in names {
+        let path = image.with_file_name(name);
+        assert!(!path.exists(), "{} was left behind", path.display());
+    }
+}
+
 #[test]
 fn check_set_device_cert_est() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
@@ -499,6 +515,10 @@ fn check_set_device_cert_est() {
         .arg("1")
         .assert();
     assert.success();
+    assert_no_files_next_to(
+        &image_path,
+        &["device_cert_path.pem", "device_key_path.key.pem"],
+    );
 
     let mut device_id_cert_out_path = tr.pathbuf();
     device_id_cert_out_path.push("dir1");
@@ -630,6 +650,10 @@ fn check_set_edge_ca_cert() {
         .arg("1")
         .assert();
     assert.success();
+    assert_no_files_next_to(
+        &image_path,
+        &["edge_ca_cert_path.pem", "edge_ca_key_path.key.pem"],
+    );
 
     let mut edge_ca_cert_out_path = tr.pathbuf();
     edge_ca_cert_out_path.push("dir1");
@@ -895,12 +919,590 @@ fn check_file_copy(tr: Testrunner, partition: &str) {
     assert!(file_diff::diff(in_file4, out_file4));
 }
 
+// unit of `st_blocks`
+const STAT_BLOCK_SIZE: u64 = 512;
+// content an earlier installation left on the device
+const OLD_CONTENT_BYTE: u8 = 0xa5;
+// a file with a zero range that spans whole image blocks
+const ZERO_BLOCKS_FILE_EDGE: usize = 4096;
+const ZERO_BLOCKS_FILE_ZEROS: usize = 64 * 1024;
+// a valid bmap of a one-block image, so only the image size check rejects it
+const OTHER_IMAGE_BMAP: &str = "<bmap version=\"2.0\"><ImageSize>4096</ImageSize>\
+    <BlockSize>4096</BlockSize><ChecksumType>sha256</ChecksumType><BlockMap>\
+    <Range chksum=\"ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7\">0</Range>\
+    </BlockMap></bmap>";
+const OTHER_IMAGE_SIZE_ERROR: &str = "bmap is for an image of 4096 bytes";
+
+fn read_bmap(path: &Path) -> Bmap {
+    Bmap::read(path).expect("read bmap")
+}
+
+fn mapped_blocks(bmap: &Bmap) -> u64 {
+    bmap.ranges.iter().map(|r| r.end() - r.start() + 1).sum()
+}
+
+fn maps_whole_image(bmap: &Bmap) -> bool {
+    mapped_blocks(bmap) == bmap.image_size.div_ceil(bmap.block_size)
+}
+
+fn maps_all_ranges_of(bmap: &Bmap, input: &Bmap) -> bool {
+    input
+        .ranges
+        .iter()
+        .flat_map(|r| r.clone())
+        .all(|b| bmap.ranges.iter().any(|r| r.contains(&b)))
+}
+
+/// Writes the blocks `bmap` maps onto a device that still holds old content, as a bmap flash
+/// does.
+fn bmap_flash(image: &[u8], bmap: &Bmap) -> Vec<u8> {
+    let mut device = vec![OLD_CONTENT_BYTE; image.len()];
+    for range in &bmap.ranges {
+        let start = usize::try_from(range.start() * bmap.block_size).expect("start");
+        let end = usize::try_from((range.end() + 1) * bmap.block_size).expect("end");
+        let end = end.min(image.len());
+        device[start..end].copy_from_slice(&image[start..end]);
+    }
+    device
+}
+
+fn sparse_copy(from: &Path, to: &Path) {
+    let status = std::process::Command::new("cp")
+        .arg("--sparse=always")
+        .arg(from)
+        .arg(to)
+        .status()
+        .expect("run cp");
+    assert!(status.success(), "sparse copy of the test image failed");
+}
+
+#[test]
+fn check_file_copy_without_input_bmap_maps_whole_image() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let bmap_path = bmap_path(&image_path);
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},factory:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path)
+        .arg("-b")
+        .assert()
+        .success();
+
+    assert!(maps_whole_image(&read_bmap(&bmap_path)));
+}
+
+#[test]
+fn check_file_copy_keeps_holes() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let input_bmap_path = tr.to_pathbuf("testfiles/image.wic.bmap");
+    let sparse_path = image_path.with_file_name("sparse.wic");
+    let bmap_path = bmap_path(&sparse_path);
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+
+    sparse_copy(&image_path, &sparse_path);
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},factory:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&sparse_path)
+        .arg("--input-bmap")
+        .arg(&input_bmap_path)
+        .arg("-b")
+        .assert()
+        .success();
+
+    let meta = sparse_path.metadata().expect("image metadata");
+    assert!(meta.blocks() * STAT_BLOCK_SIZE < meta.len());
+    let bmap = read_bmap(&bmap_path);
+    let input_bmap = read_bmap(&input_bmap_path);
+    assert!(!maps_whole_image(&bmap));
+    assert!(maps_all_ranges_of(&bmap, &input_bmap));
+
+    // every data block and every block of the input bmap must replace the old content
+    let image = fs::read(&sparse_path).expect("read image");
+    let device = bmap_flash(&image, &bmap);
+    let block_size = usize::try_from(input_bmap.block_size).expect("block size");
+    let blocks = image.chunks(block_size).zip(device.chunks(block_size));
+    for (block, (image_block, device_block)) in (0u64..).zip(blocks) {
+        let needed = image_block.iter().any(|b| *b != 0)
+            || input_bmap.ranges.iter().any(|r| r.contains(&block));
+        assert!(
+            !needed || image_block == device_block,
+            "block {block} keeps old content"
+        );
+    }
+}
+
+#[test]
+fn check_file_copy_maps_zero_blocks_of_copied_files() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let input_bmap_path = tr.to_pathbuf("testfiles/image.wic.bmap");
+    let sparse_path = image_path.with_file_name("sparse.wic");
+    let bmap_path = bmap_path(&sparse_path);
+    let device_path = tr.pathbuf().join("device.wic");
+    let in_file = tr.pathbuf().join("zero-blocks.bin");
+    let in_content = [
+        vec![0x11; ZERO_BLOCKS_FILE_EDGE],
+        vec![0; ZERO_BLOCKS_FILE_ZEROS],
+        vec![0x22; ZERO_BLOCKS_FILE_EDGE],
+    ]
+    .concat();
+    fs::write(&in_file, &in_content).expect("write input file");
+    sparse_copy(&image_path, &sparse_path);
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},factory:/my-file", in_file.to_string_lossy()))
+        .arg("-f")
+        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&sparse_path)
+        .arg("--input-bmap")
+        .arg(&input_bmap_path)
+        .arg("-b")
+        .assert()
+        .success();
+
+    let image = fs::read(&sparse_path).expect("read image");
+    fs::write(&device_path, bmap_flash(&image, &read_bmap(&bmap_path))).expect("write device");
+
+    for partition in ["factory", "boot"] {
+        let out_file = tr.pathbuf().join(format!("{partition}-out.bin"));
+        Command::cargo_bin("omnect-cli")
+            .expect("omnect-cli binary")
+            .arg("file")
+            .arg("copy-from-image")
+            .arg("-f")
+            .arg(format!(
+                "{partition}:/my-file,{}",
+                out_file.to_string_lossy()
+            ))
+            .arg("-i")
+            .arg(&device_path)
+            .assert()
+            .success();
+        assert!(
+            fs::read(&out_file).expect("read output file") == in_content,
+            "{partition}: file differs after a bmap flash"
+        );
+    }
+}
+
+#[test]
+fn check_input_bmap_of_another_image() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let bmap_path = bmap_path(&image_path);
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    let out_file = tr.pathbuf().join("hosts");
+    fs::write(&bmap_path, OTHER_IMAGE_BMAP).expect("write bmap");
+    let image_hash = Testrunner::file_hash(&image_path);
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path)
+        .arg("-b")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("cannot use input bmap"))
+        .stderr(predicate::str::contains(OTHER_IMAGE_SIZE_ERROR));
+    assert_eq!(Testrunner::file_hash(&image_path), image_hash);
+
+    // reading from the image does not use the bmap
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-from-image")
+        .arg("-f")
+        .arg(format!("rootA:/etc/hosts,{}", out_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path)
+        .assert()
+        .success();
+}
+
+#[test]
+fn check_file_copy_without_output_bmap_keeps_image_sparse() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let sparse_path = image_path.with_file_name("sparse.wic");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    sparse_copy(&image_path, &sparse_path);
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},factory:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&sparse_path)
+        .assert()
+        .success();
+
+    let meta = sparse_path.metadata().expect("image metadata");
+    assert!(
+        meta.blocks() * STAT_BLOCK_SIZE < meta.len(),
+        "image is not sparse"
+    );
+}
+
+#[test]
+fn check_output_image_that_is_no_regular_file() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic.xz");
+    let written_image_path = image_path.with_extension("");
+    let bmap_path = bmap_path(&written_image_path);
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    create_dir_all(&written_image_path).expect("create directory");
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path)
+        .arg("-b")
+        .arg("-o")
+        .arg(&written_image_path)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("is not a regular file"));
+    assert!(written_image_path.is_dir(), "the directory was replaced");
+    assert!(
+        !bmap_path.exists(),
+        "bmap written for an image that was not written back"
+    );
+}
+
+#[test]
+fn check_copy_from_image_keeps_the_image() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let image_xz_path = tr.to_pathbuf("testfiles/image.wic.xz");
+    let link_path = tr.pathbuf().join("link.wic");
+    let dir_path = tr.pathbuf().join("etc");
+    let hosts_image_path = dir_path.join("hosts");
+    fs::hard_link(&image_path, &link_path).expect("hard link");
+    create_dir_all(&dir_path).expect("create directory");
+    fs::copy(&image_path, &hosts_image_path).expect("copy image");
+
+    let copy_from_image = |image: &Path, file: &str| {
+        Command::cargo_bin("omnect-cli")
+            .expect("omnect-cli binary")
+            .arg("file")
+            .arg("copy-from-image")
+            .arg("-f")
+            .arg(file)
+            .arg("-i")
+            .arg(image)
+            .assert()
+    };
+
+    // e2cp writes etc/hosts for the output dir etc
+    for (image, file, written) in [
+        (&image_path, "factory:/etc/hosts", &image_path),
+        (&image_path, "boot:/boot.scr", &image_path),
+        (&image_path, "factory:/etc/hosts", &link_path),
+        (&image_xz_path, "factory:/etc/hosts", &image_xz_path),
+        (&hosts_image_path, "factory:/etc/hosts", &hosts_image_path),
+    ] {
+        let output = if written == &hosts_image_path {
+            &dir_path
+        } else {
+            written
+        };
+        let hash = Testrunner::file_hash(image);
+        copy_from_image(image, &format!("{file},{}", output.to_string_lossy()))
+            .failure()
+            .stderr(predicate::str::contains(format!(
+                "{} is the input image",
+                written.display()
+            )));
+        assert_eq!(Testrunner::file_hash(image), hash, "{}", output.display());
+    }
+
+    // out/hosts is not the image
+    let out_dir_path = tr.pathbuf().join("out");
+    create_dir_all(&out_dir_path).expect("create directory");
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!(
+            "{},factory:/etc/hosts",
+            tr.to_pathbuf("testfiles/boot.scr").to_string_lossy()
+        ))
+        .arg("-i")
+        .arg(&image_path)
+        .assert()
+        .success();
+    copy_from_image(
+        &image_path,
+        &format!("factory:/etc/hosts,{}", out_dir_path.to_string_lossy()),
+    )
+    .success();
+    assert!(out_dir_path.join("hosts").is_file());
+}
+
+#[test]
+fn check_tmpdir_with_colon_fails_first() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic.xz");
+    let written_image_path = image_path.with_extension("");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    create_dir_all(&written_image_path).expect("create directory");
+
+    // the output image is a directory, which check_conflicts refuses later
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .env("TMPDIR", image_path.with_file_name("ci:job1"))
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path)
+        .arg("-o")
+        .arg(&written_image_path)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("set TMPDIR"));
+
+    // the image does not exist, which the command checks later
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .env("TMPDIR", image_path.with_file_name("ci:job1"))
+        .arg("file")
+        .arg("copy-from-image")
+        .arg("-f")
+        .arg("boot:/boot.scr,out")
+        .arg("-i")
+        .arg(image_path.with_file_name("missing.wic"))
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("set TMPDIR"));
+}
+
+#[test]
+fn check_input_bmap_requires_output_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let bmap_path = tr.to_pathbuf("testfiles/image.wic.bmap");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    let image_hash = Testrunner::file_hash(&image_path);
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path)
+        .arg("--input-bmap")
+        .arg(&bmap_path)
+        .assert()
+        .failure();
+    assert_eq!(Testrunner::file_hash(&image_path), image_hash);
+}
+
+#[test]
+fn check_input_bmap_of_another_image_with_the_same_size() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let bmap_path = tr.to_pathbuf("testfiles/image.wic.bmap");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    let bmap = read_bmap(&bmap_path);
+    // another build: one byte differs in a block the bmap maps
+    let mapped_byte = usize::try_from(bmap.ranges[0].start() * bmap.block_size).expect("offset");
+    let mut image = fs::read(&image_path).expect("read image");
+    image[mapped_byte] = !image[mapped_byte];
+    fs::write(&image_path, image).expect("write image");
+    let image_hash = Testrunner::file_hash(&image_path);
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path)
+        .arg("-b")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("cannot use input bmap"))
+        .stderr(predicate::str::contains("--input-bmap"));
+    assert_eq!(Testrunner::file_hash(&image_path), image_hash);
+}
+
+#[test]
+fn check_chained_commands_with_input_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_xz_path = tr.to_pathbuf("testfiles/image.wic.xz");
+    let image_xz_hash = Testrunner::file_hash(&image_xz_path);
+    let input_bmap_path = tr.to_pathbuf("testfiles/image.wic.bmap");
+    let input_bmap_hash = Testrunner::file_hash(&input_bmap_path);
+    let device_path = tr.pathbuf().join("device.wic");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    let copy_to_image = |image: &Path, args: &[&OsStr]| {
+        Command::cargo_bin("omnect-cli")
+            .expect("omnect-cli binary")
+            .arg("file")
+            .arg("copy-to-image")
+            .arg("-f")
+            .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+            .arg("-i")
+            .arg(image)
+            .args(args)
+            .assert()
+    };
+
+    // image.wic would be written next to image.wic.bmap, which would not match it
+    copy_to_image(&image_xz_path, &[]).failure().stderr(
+        predicate::str::contains("would not match").and(predicate::str::contains("--output-image")),
+    );
+    // bmaptool would use image.wic.bmap for the changed image.wic.xz
+    copy_to_image(&image_xz_path, &["-p".as_ref(), "xz".as_ref()])
+        .failure()
+        .stderr(predicate::str::contains("write a matching bmap with -b"));
+    // the bmap of image.wic would replace the bmap of image.wic.xz
+    copy_to_image(&image_xz_path, &["-b".as_ref()])
+        .failure()
+        .stderr(predicate::str::contains("--output-image"));
+    copy_to_image(&image_xz_path, &["-b".as_ref(), "--no-input-bmap".as_ref()])
+        .failure()
+        .stderr(predicate::str::contains("--output-image"));
+
+    copy_to_image(
+        &image_xz_path,
+        &["-b".as_ref(), "-o".as_ref(), device_path.as_os_str()],
+    )
+    .success();
+    copy_to_image(&device_path, &["-b".as_ref()]).success();
+    copy_to_image(&device_path, &[])
+        .failure()
+        .stderr(predicate::str::contains("write a matching bmap with -b"));
+
+    assert_eq!(Testrunner::file_hash(&image_xz_path), image_xz_hash);
+    assert_eq!(Testrunner::file_hash(&input_bmap_path), input_bmap_hash);
+    assert!(maps_all_ranges_of(
+        &read_bmap(&bmap_path(&device_path)),
+        &read_bmap(&input_bmap_path)
+    ));
+}
+
+#[test]
+fn check_derived_output_image_exists() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_xz_path = tr.to_pathbuf("testfiles/image.wic.xz");
+    let image_path = image_xz_path.with_extension("");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    fs::write(&image_path, "an older image").expect("write image");
+    let copy_to_image = |args: &[&OsStr]| {
+        Command::cargo_bin("omnect-cli")
+            .expect("omnect-cli binary")
+            .arg("file")
+            .arg("copy-to-image")
+            .arg("-f")
+            .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+            .arg("-i")
+            .arg(&image_xz_path)
+            .args(args)
+            .assert()
+    };
+
+    copy_to_image(&[])
+        .failure()
+        .stderr(predicate::str::contains("--output-image"));
+    copy_to_image(&[
+        "-o".as_ref(),
+        image_path.as_os_str(),
+        "-p".as_ref(),
+        "xz".as_ref(),
+    ])
+    .failure()
+    .stderr(predicate::str::contains(
+        "does not end in an extension of the -p compression that bmaptool reads; name it e.g. ",
+    ));
+    // a path given with -o is overwritten
+    copy_to_image(&["-o".as_ref(), image_path.as_os_str()]).success();
+    assert_ne!(
+        fs::read(&image_path).expect("read image"),
+        b"an older image"
+    );
+}
+
+#[test]
+fn check_no_input_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let bmap_path = bmap_path(&image_path);
+    let other_bmap_path = tr.pathbuf().join("other.bmap");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    fs::write(&bmap_path, OTHER_IMAGE_BMAP).expect("write bmap");
+    fs::write(&other_bmap_path, OTHER_IMAGE_BMAP).expect("write bmap");
+    let copy_to_image = |args: &[&OsStr]| {
+        Command::cargo_bin("omnect-cli")
+            .expect("omnect-cli binary")
+            .arg("file")
+            .arg("copy-to-image")
+            .arg("-f")
+            .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+            .arg("-i")
+            .arg(&image_path)
+            .args(args)
+            .assert()
+    };
+
+    copy_to_image(&["--no-input-bmap".as_ref()]).failure();
+    copy_to_image(&[
+        "-b".as_ref(),
+        "--no-input-bmap".as_ref(),
+        "--input-bmap".as_ref(),
+        other_bmap_path.as_os_str(),
+    ])
+    .failure();
+    copy_to_image(&["-b".as_ref()])
+        .failure()
+        .stderr(predicate::str::contains("--no-input-bmap"))
+        .stderr(predicate::str::contains(OTHER_IMAGE_SIZE_ERROR));
+
+    copy_to_image(&["-b".as_ref(), "--no-input-bmap".as_ref()]).success();
+    assert!(maps_whole_image(&read_bmap(&bmap_path)));
+}
+
 #[test]
 fn check_bmap_generation_wic() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
     let image_path = tr.to_pathbuf("testfiles/image.wic");
     let image_path_copy = PathBuf::from(format!("{}.copy", image_path.to_str().unwrap()));
-    let bmap_path = PathBuf::from(format!("{}.bmap", image_path.to_str().unwrap()));
+    let bmap_path = bmap_path(&image_path);
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
     let in_file = in_file.to_str().unwrap();
 
@@ -947,9 +1549,10 @@ fn check_bmap_generation_wic() {
 fn check_bmap_generation_wic_xz() {
     let tr = Testrunner::new(function_name!().split("::").last().unwrap());
     let image_path_wic_xz = tr.to_pathbuf("testfiles/image.wic.xz");
-    let image_path_wic = image_path_wic_xz.with_extension("");
+    let image_path_wic = tr.pathbuf().join("device.wic");
     let image_path_wic_copy = image_path_wic_xz.with_extension("copy");
-    let image_path_bmap = image_path_wic_xz.with_extension("bmap");
+    let image_path_bmap = bmap_path(&image_path_wic);
+    let input_bmap = read_bmap(&tr.to_pathbuf("testfiles/image.wic.bmap"));
     let in_file = tr.to_pathbuf("testfiles/boot.scr");
     let in_file = in_file.to_str().unwrap();
 
@@ -962,8 +1565,14 @@ fn check_bmap_generation_wic_xz() {
         .arg("-i")
         .arg(&image_path_wic_xz)
         .arg("-b")
+        .arg("-o")
+        .arg(&image_path_wic)
         .assert();
     assert.success();
+
+    let bmap = read_bmap(&image_path_bmap);
+    assert!(!maps_whole_image(&bmap));
+    assert!(maps_all_ranges_of(&bmap, &input_bmap));
 
     // use bmaptool to verify that the checksum of the bmap file and the image
     // still match after the copy operations
@@ -974,6 +1583,147 @@ fn check_bmap_generation_wic_xz() {
         .arg(&image_path_wic_copy)
         .assert();
     assert.success();
+}
+
+#[test]
+fn check_bmap_generation_wic_xz_without_input_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path_wic_xz = tr.to_pathbuf("testfiles/image.wic.xz");
+    let image_path_wic = tr.pathbuf().join("device.wic");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    let copy_to_image = |output: Option<&Path>| {
+        let mut command = Command::cargo_bin("omnect-cli").expect("omnect-cli binary");
+        command
+            .arg("file")
+            .arg("copy-to-image")
+            .arg("-f")
+            .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+            .arg("-i")
+            .arg(&image_path_wic_xz)
+            .arg("-b");
+        if let Some(output) = output {
+            command.arg("-o").arg(output);
+        }
+        command.assert()
+    };
+
+    // bmaptool would use the new image.wic.bmap also for image.wic.xz, which stays
+    copy_to_image(None)
+        .failure()
+        .stderr(predicate::str::contains("which stays"));
+    copy_to_image(Some(&image_path_wic)).success();
+
+    assert!(maps_whole_image(&read_bmap(&bmap_path(&image_path_wic))));
+}
+
+#[test]
+fn check_bmap_of_compressed_output_keeps_input_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let input_bmap_path = tr.to_pathbuf("testfiles/image.wic.bmap");
+    let input_bmap_hash = Testrunner::file_hash(&input_bmap_path);
+    let image_path_xz = image_path.with_extension("wic.xz");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path)
+        .arg("-b")
+        .arg("-p")
+        .arg("xz")
+        .assert()
+        .success();
+
+    assert_eq!(
+        Testrunner::file_hash(&input_bmap_path),
+        input_bmap_hash,
+        "bmap of the unchanged input image was replaced"
+    );
+    // bmaptool finds <image>.bmap without --bmap and checks the image against it
+    Command::new("bmaptool")
+        .arg("copy")
+        .arg(&image_path_xz)
+        .arg(image_path.with_extension("copy"))
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("image.wic.xz.bmap"));
+}
+
+#[test]
+fn check_bmap_of_compressed_image_changed_in_place_replaces_the_input_bmap() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path_xz = tr.to_pathbuf("testfiles/image.wic.xz");
+    let input_bmap_path = tr.to_pathbuf("testfiles/image.wic.bmap");
+    let input_bmap_hash = Testrunner::file_hash(&input_bmap_path);
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path_xz)
+        .arg("-b")
+        .arg("-p")
+        .arg("xz")
+        .assert()
+        .success();
+
+    assert_ne!(
+        Testrunner::file_hash(&input_bmap_path),
+        input_bmap_hash,
+        "bmap of the replaced image stayed"
+    );
+    assert!(!bmap_path(&image_path_xz).exists());
+    Command::new("bmaptool")
+        .arg("copy")
+        .args(["--bmap", &input_bmap_path.to_string_lossy()])
+        .arg(&image_path_xz)
+        .arg(image_path_xz.with_extension("copy"))
+        .assert()
+        .success();
+}
+
+#[test]
+fn check_copy_from_image_to_a_file_in_the_current_dir() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path = tr.to_pathbuf("testfiles/image.wic");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    let out_file = "boot.out";
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-to-image")
+        .arg("-f")
+        .arg(format!("{},boot:/my-file", in_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path)
+        .assert()
+        .success();
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .current_dir(tr.pathbuf())
+        .arg("file")
+        .arg("copy-from-image")
+        .arg("-f")
+        .arg(format!("boot:/my-file,{out_file}"))
+        .arg("-i")
+        .arg(&image_path)
+        .assert()
+        .success();
+
+    assert_eq!(
+        Testrunner::file_hash(&tr.pathbuf().join(out_file)),
+        Testrunner::file_hash(&in_file)
+    );
 }
 
 #[test]
@@ -1055,6 +1805,78 @@ fn check_image_decompression() {
     let image_path_wic_xz_hash2 = Testrunner::file_hash(&image_path_wic_xz);
 
     assert_eq!(image_path_wic_xz_hash1, image_path_wic_xz_hash2);
+}
+
+#[test]
+fn check_copy_from_image_writes_no_image() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    let image_path_wic_xz = tr.to_pathbuf("testfiles/image.wic.xz");
+    let image_hash = Testrunner::file_hash(&image_path_wic_xz);
+    let out_file = tr.pathbuf().join("hosts");
+
+    Command::cargo_bin("omnect-cli")
+        .expect("omnect-cli binary")
+        .arg("file")
+        .arg("copy-from-image")
+        .arg("-f")
+        .arg(format!("rootA:/etc/hosts,{}", out_file.to_string_lossy()))
+        .arg("-i")
+        .arg(&image_path_wic_xz)
+        .assert()
+        .success();
+
+    assert!(out_file.exists());
+    assert!(!image_path_wic_xz.with_extension("").exists());
+    assert_eq!(Testrunner::file_hash(&image_path_wic_xz), image_hash);
+}
+
+#[test]
+fn check_partition_files_stay_out_of_the_image_dir() {
+    let tr = Testrunner::new(function_name!().split("::").last().expect("test name"));
+    // the name of the file that holds partition 1
+    let image_path = tr.pathbuf().join("1.img");
+    fs::rename(tr.to_pathbuf("testfiles/image.wic"), &image_path).expect("rename image");
+    let in_file = tr.to_pathbuf("testfiles/boot.scr");
+    let out_file = tr.pathbuf().join("my-file");
+    let file_image = |command: &str, files: String| {
+        Command::cargo_bin("omnect-cli")
+            .expect("omnect-cli binary")
+            .arg("file")
+            .arg(command)
+            .arg("-f")
+            .arg(files)
+            .arg("-i")
+            .arg(&image_path)
+            .assert()
+            .success();
+    };
+    let dir_entries = || {
+        let mut entries = fs::read_dir(tr.pathbuf())
+            .expect("read test dir")
+            .map(|entry| entry.expect("dir entry").file_name())
+            .collect::<Vec<_>>();
+        entries.sort();
+        entries
+    };
+
+    file_image(
+        "copy-to-image",
+        format!("{},boot:/my-file", in_file.to_string_lossy()),
+    );
+    let entries = dir_entries();
+    file_image(
+        "copy-from-image",
+        format!("boot:/my-file,{}", out_file.to_string_lossy()),
+    );
+
+    assert_eq!(
+        fs::read(&out_file).expect("read out file"),
+        fs::read(&in_file).expect("read in file")
+    );
+    let mut expected = entries;
+    expected.push(out_file.file_name().expect("file name").to_owned());
+    expected.sort();
+    assert_eq!(dir_entries(), expected);
 }
 
 #[tokio::test]

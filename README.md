@@ -48,9 +48,8 @@ docker run --rm -it \
   omnect/omnect-cli:latest file copy-to-image --files /source/my-source-file,boot:/my-dest-file -i /source/my-image.wic
   ```
 
-  **Note1**: `-b` option to create bmap file is not supported by omnect-cli docker image.<br>
-  **Note2**: The ssh tunnel option requires some additional settings. See [here](Usage-with-docker) for more details.<br>
-  **Note3**: The docker inject command is not supported by omnect-cli docker image.<br>.
+  **Note1**: The ssh tunnel option requires some additional settings. See [here](Usage-with-docker) for more details.<br>
+  **Note2**: The docker inject command is not supported by omnect-cli docker image.<br>.
 
 # Build from sources
 
@@ -183,6 +182,22 @@ omnect-cli file copy-to-image --help
 - Firewall: inject `iptables.rules`
 - File permissions: inject `systemd-tmpfiles.d`
 - Wifi: inject `wpa_supplicant-wlan0.conf`
+
+## Output image
+
+A command that changes an image writes the result to the input image. For a compressed image it writes the uncompressed image next to it, e.g. `my-image.wic` for `my-image.wic.xz`. With `-p` (`--pack-image`) it adds the extension of the compression (`.xz`, `.bz2` or `.gzip`), e.g. `my-image.wic.xz` for `my-image.wic`. An image that already has an extension of the compression keeps its name, except that `.bzip2` becomes `.bz2`, because `bmaptool` does not read `.bzip2`. `-o` (`--output-image`) writes the result to the given path instead, and the input image stays unchanged. With `-p` its name must end in an extension of the compression that `bmaptool` reads (`.xz`, `.bz2`, `.gzip` or `.gz`), and without `-p` it must not have a compression extension.
+
+The command fails instead of overwriting an existing file that is not the input image. To overwrite it, name it with `-o`. `-o` cannot name the input bmap, or a path that `bmaptool` reads as the bmap of an image that stays, also if it does not exist yet, e.g. `my-image.bmap` next to `my-image.xz`. An existing output image must be a regular file, so `-o` cannot name a device or a directory; to write a device, flash the image with `bmaptool copy`. It also fails before it starts if the output image or its bmap exists and is not writable for the user, or if the directory of the new file is not writable. The output image is written to a new file in its directory and then renamed, so the directory needs write access and space for one more image. An existing output image in a directory you cannot write is staged in `TMPDIR` instead and copied into it. Until the rename, the new file is in a hidden `.omnect-cli-*` directory. The command removes it when it ends or is stopped with Ctrl-C, `SIGTERM` or `SIGHUP`. It stays after a `SIGKILL` or a power loss, and you can delete it. A rename cannot replace a mount point, e.g. an image mounted with `docker run -v "$(pwd)/my-image.wic":/source/my-image.wic`, so the new image is staged in `TMPDIR` and copied into it. If this copy fails or is stopped, the new image stays, and the log names it. If the copy fails, the new bmap of `-b` stays next to it. With `-b` the command fails for such a mounted image, because the bmap would be written next to the mount point and not next to the image. Mount the directory instead. The new file belongs to the user who runs `omnect-cli`. `copy-from-image` only reads the image and writes nothing to it. An output file of `-f` must not be the image, also not through a link, or as the file of the same name in an output directory.
+
+A command copies each partition it reads or changes to `TMPDIR` (default `/tmp`). A command that changes an image, or reads a compressed one, also copies the uncompressed image there, and for an output image that is a mount point or in a directory you cannot write also the new image. So `TMPDIR` needs space for all of them. Ctrl-C, `SIGTERM` or `SIGHUP` removes them too. If `/tmp` is a small tmpfs, set `TMPDIR` to a directory with more space. If the copy into a mount point or into a directory you cannot write fails, a container started with `--rm` removes the new image kept in its `TMPDIR`. To keep it, set `TMPDIR` to a host directory that is mounted and writable for the container user. Its path must not contain `:`, because e2tools split their file arguments there.
+
+## bmap files
+
+Commands that change an image create a bmap file with `-b` (`--output-bmap`). It is written next to the output image as `<output image>.bmap`, e.g. `my-image.wic.bmap` for `my-image.wic` and `my-image.wic.xz.bmap` for `my-image.wic.xz`, and replaces a file with this name. An image changed in place keeps the name of its bmap: the command replaces the bmap that `bmaptool` finds for it, e.g. `my-image.wic.bmap` for `-i my-image.wic.xz -p xz`. `bmaptool` finds the bmap there without `--bmap`. The command fails if `bmaptool` would use this file also for an image that stays (`<name>` or `<name>.<compression>` next to it, for which no other bmap comes first), because it would not match that image. E.g. `my-image.wic.bmap` when `-i my-image.wic.xz` writes `my-image.wic`, also if the bmap does not exist yet, or when `-i my-image.wic` changes the image in place and `my-image.wic.xz` without its own bmap is next to it. Choose another output with `-o` then.
+
+The bmap of the input image is the base for it: `omnect-cli` takes the file given with `--input-bmap`, else the bmap next to the image that `bmaptool` would use: `<image>.bmap`, else the same with one extension of the image removed at a time, e.g. `my-image.wic.bmap` for `my-image.wic.xz` as the Yocto build creates it. The input bmap must have the size of the image and sha256 range checksums that match it, otherwise the command fails. For an image named e.g. `my-image.bmap`, `bmaptool` would find the image itself as its bmap. Write the output image with `-o` then, and with `-b` also pass `--input-bmap` or `--no-input-bmap`. A command without `-b` fails if such a bmap exists for the output image (e.g. `my-image.wic.bmap` for `my-image.wic.xz`), because `bmaptool` would use it and it would not match the image. So when you run several commands on one image, use `-b` on each of them. `--no-input-bmap` skips a bmap next to the image that does not match, and the created bmap then maps the whole image. The created bmap maps every range of the input bmap, also when it holds only zeros, so a bmap-based flash overwrites what an earlier installation left there (partition table entries, FAT, ext4 journals). It also maps every block that the image file stores as data, which includes the blocks `omnect-cli` changed. The image file itself stays sparse.
+
+Without an input bmap, the created bmap maps the whole image, and a flash writes every block.
 
 ## ssh tunnel
 

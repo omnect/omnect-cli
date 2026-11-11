@@ -50,7 +50,11 @@
 - `src/docker.rs` — `docker pull --platform` + `docker save` for multi-arch images
 - `src/image.rs` — firmware image architecture detection (ARM32/ARM64/x86_64)
 - `src/file/mod.rs` — high-level image operations: identity config, certs, hostname patching
-- `src/file/functions.rs` — partition read/modify/write via dd + e2cp/mcopy
+- `src/file/functions.rs` — sparse partition read, modify via e2cp/mcopy, write back of changed blocks only
+- `src/file/bmap.rs` — input bmap lookup and checksum check; writes the output bmap: input ranges (or the whole image) plus data blocks
+- `src/file/output.rs` — output image name, conflict checks, staged write and commit of the output image and bmap
+- `src/file/sparse.rs` — data/hole ranges via `SEEK_DATA`/`SEEK_HOLE`, sparse range copy
+- `src/file/signal.rs` — `RegisteredTempDir`: a temp dir that SIGINT/SIGTERM/SIGHUP (unless ignored) also removes
 - `src/file/partition.rs` — GPT/MBR partition table parsing
 - `src/file/compression.rs` — xz/bzip2/gzip compress/decompress with auto-detection
 - `src/validators/` — validation for identity config (TOML), device-update config (JSON), SSH keys
@@ -58,7 +62,7 @@
 
 ## 4. Repository-Specific Constraints
 
-- External tools `e2cp`, `e2mkdir`, `mcopy`, `mmd`, `dd`, `fallocate`, `ssh-keygen`, `fdisk` must be available at runtime (Dockerfile copies them explicitly).
+- External tools `e2cp`, `e2mkdir`, `mcopy`, `mmd`, `ssh-keygen`, `fdisk` must be available at runtime (Dockerfile copies them explicitly).
 - Partition enum maps partition names to numbers differently for GPT vs MBR — see `file/functions.rs`.
 - OAuth2 callback binds to `127.0.0.1:4000` and `[::1]:4000`; container mode overrides to `0.0.0.0`.
 - `conf/` directory uses `.gitignore` to track only `*.template` files — actual configs are generated, never committed.

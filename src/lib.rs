@@ -17,140 +17,184 @@ use cli::{
         SetConfig, SetDeviceCertificate, SetDeviceCertificateNoEst, SetEdgeCaCertificate,
         SetIotLeafSasConfig, SetIotedgeGatewayConfig,
     },
+    ImageOutput,
     IotHubDeviceUpdate::{self, SetDeviceConfig as IotHubDeviceUpdateSet},
     SshConfig::{SetCertificate, SetConnection},
 };
-use file::{compression::Compression, functions::FileCopyToParams};
-use log::error;
-use std::{fs, path::Path, path::PathBuf};
-use tokio::fs::remove_dir_all;
-use uuid::Uuid;
+use file::{
+    bmap::{self, Bmap},
+    compression::{self, Compression},
+    functions::{FileCopyToParams, check_outputs},
+    output::{self, Staged, check_conflicts, output_image},
+    signal::{self, RegisteredTempDir},
+    sparse,
+};
+use log::info;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
-use crate::file::compression;
-
-struct TempDirGuard(PathBuf);
-
-impl Drop for TempDirGuard {
-    fn drop(&mut self) {
-        let Ok(rt) = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-        else {
-            error!("cannot create tokio runtime");
-            return;
-        };
-
-        rt.block_on(async {
-            if let Err(e) = remove_dir_all(self.0.clone()).await {
-                error!("cannot remove tmp dir: {e}")
-            }
-        })
-    }
-}
-
-fn run_image_command<F>(
-    image_file: PathBuf,
-    generate_bmap: bool,
-    target_compression: Option<Compression>,
-    command: F,
-) -> Result<()>
+fn run_image_command<F>(image_file: PathBuf, output: ImageOutput, command: F) -> Result<()>
 where
     F: FnOnce(&PathBuf) -> Result<()>,
 {
-    if let Ok("true") | Ok("1") = std::env::var("CONTAINERIZED").as_deref() {
-        anyhow::ensure!(
-            !generate_bmap,
-            "run_image_command: generating bmap file is not supported in containerized environments."
-        );
+    let ImageOutput {
+        output_bmap,
+        input_bmap,
+        no_input_bmap,
+        output_image: explicit_output,
+        compress_image: target_compression,
+    } = output;
+
+    start_image_command(&image_file)?;
+
+    let source_compression = Compression::from_file(&image_file)?;
+    let dest_image_file = output_image(
+        &image_file,
+        source_compression.as_ref(),
+        target_compression.as_ref(),
+        explicit_output.as_deref(),
+    )?;
+    let in_place = output::same_file(&image_file, &dest_image_file)?;
+    let found_bmap = bmap::find_input_bmap(&image_file, None)?;
+    let input_bmap = match input_bmap {
+        _ if !output_bmap || no_input_bmap => None,
+        Some(path) => bmap::find_input_bmap(&image_file, Some(&path))?,
+        None => found_bmap.clone(),
+    };
+    let dest_bmap_file = output_bmap
+        .then(|| output::output_bmap_path(&dest_image_file, in_place, found_bmap.as_deref()));
+    check_conflicts(
+        &image_file,
+        &dest_image_file,
+        in_place,
+        explicit_output.is_some(),
+        dest_bmap_file.as_deref(),
+        input_bmap.as_deref(),
+    )?;
+    // read after the checks, which refuse e.g. an image that bmaptool would use as its own bmap
+    let input_bmap = input_bmap
+        .map(|path| {
+            Bmap::read(&path)
+                .with_context(|| input_bmap_error(&path))
+                .map(|bmap| (path, bmap))
+        })
+        .transpose()?;
+
+    let verify_input_bmap = |image: &Path| -> Result<()> {
+        let Some((path, bmap)) = &input_bmap else {
+            return Ok(());
+        };
+        bmap::verify_checksums(image, bmap).with_context(|| input_bmap_error(path))
+    };
+
+    // a wrong bmap of an uncompressed image fails before the copy
+    if source_compression.is_none() {
+        verify_input_bmap(&image_file)?;
     }
-
-    anyhow::ensure!(
-        image_file.try_exists().is_ok_and(|exists| exists),
-        "run_image_command: image doesn't exist {}",
-        image_file.to_str().context("cannot get image file path")?
-    );
-
-    let mut dest_image_file = image_file.clone();
-
-    // create /tmp/{uuid}/ and copy image into
-    let tmp_dir = PathBuf::from(format!("/tmp/{}", Uuid::new_v4()));
-    fs::create_dir_all(tmp_dir.clone()).context(format!(
-        "run_image_command: couldn't create destination path {}",
-        tmp_dir.to_str().context("cannot get tmp dir name")?
-    ))?;
-
-    let _guard = TempDirGuard(tmp_dir.clone());
-
-    let mut tmp_image_file = tmp_dir.join(
-        image_file
-            .file_name()
-            .context("cannot get image file name")?,
-    );
-
-    // if applicable decompress image to *.wic
-    if let Some(source_compression) = Compression::from_file(&image_file)? {
-        std::fs::copy(&image_file, &tmp_image_file)?;
-        tmp_image_file = compression::decompress(&tmp_image_file, &source_compression)?;
-        dest_image_file.set_extension("");
-    } else {
-        // copy sparse file (std::fs::copy isn't able)
-        libfs::copy_file(&image_file, &tmp_image_file).context(format!(
-            "error: libfs::copy_file({:?}, {:?})",
-            image_file, tmp_image_file
-        ))?;
+    let tmp_dir = RegisteredTempDir::create().context("cannot create a temp dir")?;
+    let tmp_image_file = temp_image(&image_file, source_compression.as_ref(), tmp_dir.path())?;
+    if source_compression.is_some() {
+        verify_input_bmap(&tmp_image_file)?;
     }
 
     // run command
     command(&tmp_image_file)?;
 
-    // create and copy back bmap file if one was created
-    if generate_bmap {
-        let mut target_bmap = image_file
-            .parent()
-            .context("cannot get parent dir of image path")?
-            .to_path_buf();
-        let tmp_bmap = PathBuf::from(format!(
-            "{}.bmap",
-            tmp_image_file
-                .to_str()
-                .context("cannot get image file path")?
-        ));
-        file::functions::generate_bmap_file(
-            tmp_image_file
-                .to_str()
-                .context("cannot get image file path")?,
-        )?;
-        target_bmap.push(tmp_bmap.file_name().context("cannot get bmap file name")?);
-        std::fs::copy(&tmp_bmap, &target_bmap).context(format!(
-            "error: std::fs::copy({:?}, {:?})",
-            tmp_bmap, target_bmap
-        ))?;
-    }
+    let image = Staged::write(&dest_image_file, |dest| match &target_compression {
+        Some(c) => compression::compress(&tmp_image_file, c, dest),
+        None => sparse::copy_file(&tmp_image_file, dest),
+    })?;
+    let bmap = dest_bmap_file
+        .map(|dest_bmap_file| {
+            match &input_bmap {
+                Some((path, _)) => info!("the bmap maps the ranges of {}", path.display()),
+                None => info!("no input bmap, so the bmap maps the whole image"),
+            }
+            Staged::write(&dest_bmap_file, |dest| {
+                bmap::write_bmap(
+                    &tmp_image_file,
+                    input_bmap.as_ref().map(|(_, bmap)| bmap),
+                    dest,
+                )
+            })
+        })
+        .transpose()?;
 
-    // if applicable compress image
-    if let Some(c) = target_compression {
-        tmp_image_file = compression::compress(&tmp_image_file, &c)?;
-        dest_image_file.set_file_name(
-            tmp_image_file
-                .file_name()
-                .context("cannot get image file name")?,
-        );
-        std::fs::copy(&tmp_image_file, &dest_image_file).context(format!(
-            "error: std::fs::copy({:?}, {:?})",
-            tmp_image_file, dest_image_file
-        ))?;
-    } else {
-        // copy sparse file (std::fs::copy isn't able)
-        libfs::copy_file(&tmp_image_file, &dest_image_file).context(format!(
-            "error: libfs::copy_file({:?}, {:?})",
-            tmp_image_file, dest_image_file
-        ))?;
-    }
+    output::commit(image, bmap)
+}
 
+fn input_bmap_error(path: &Path) -> String {
+    format!(
+        "cannot use input bmap {}; pass the right one with --input-bmap, or map the whole \
+         image with --no-input-bmap",
+        path.display()
+    )
+}
+
+/// Runs `check` on the image, then `command` on the image, or on a decompressed temp copy of a
+/// compressed image.
+fn run_read_only_image_command<C, F>(image_file: PathBuf, check: C, command: F) -> Result<()>
+where
+    C: FnOnce(&Path) -> Result<()>,
+    F: FnOnce(&Path) -> Result<()>,
+{
+    start_image_command(&image_file)?;
+    check(&image_file)?;
+
+    match Compression::from_file(&image_file)? {
+        Some(c) => {
+            let tmp_dir = RegisteredTempDir::create().context("cannot create a temp dir")?;
+            command(&compression::decompress(&image_file, &c, tmp_dir.path())?)
+        }
+        None => command(&image_file),
+    }
+}
+
+/// Runs before any long step, e.g. a checksum pass or a decompress, so that as PID 1 a stop
+/// signal ends it, and a TMPDIR that e2tools cannot read fails at once.
+fn start_image_command(image_file: &Path) -> Result<()> {
+    signal::handle_stop_signals();
+    signal::ensure_tmp_dir_has_no_colon()?;
+    ensure_image_exists(image_file)
+}
+
+fn ensure_image_exists(image_file: &Path) -> Result<()> {
+    anyhow::ensure!(
+        image_file.try_exists().is_ok_and(|exists| exists),
+        "image doesn't exist {}",
+        image_file.display()
+    );
     Ok(())
 }
 
+/// Copies `image_file` into `tmp_dir`, decompressed if it is compressed, and returns the copy.
+fn temp_image(
+    image_file: &Path,
+    source_compression: Option<&Compression>,
+    tmp_dir: &Path,
+) -> Result<PathBuf> {
+    match source_compression {
+        Some(c) => compression::decompress(image_file, c, tmp_dir),
+        None => {
+            let tmp_image_file = tmp_dir.join(
+                image_file
+                    .file_name()
+                    .context("cannot get image file name")?,
+            );
+            let tmp_image = fs::File::create(&tmp_image_file)
+                .context(format!("cannot create {}", tmp_image_file.display()))?;
+            sparse::copy_file(image_file, &tmp_image)?;
+            Ok(tmp_image_file)
+        }
+    }
+}
+
+/// A new device certificate and key in a temp dir, so parallel runs do not share them and no
+/// private key is left behind, also not after a stop signal.
 struct CertInfo {
+    _dir: RegisteredTempDir,
     cert_path: PathBuf,
     key_path: PathBuf,
 }
@@ -164,7 +208,7 @@ struct CertificateOptions<'a> {
     validity_days: u32,
 }
 
-fn create_image_cert(image: &Path, cert_opts: CertificateOptions) -> Result<CertInfo> {
+fn create_image_cert(cert_opts: CertificateOptions) -> Result<CertInfo> {
     let intermediate_full_chain_cert_str =
         std::fs::read_to_string(cert_opts.intermediate_full_chain_cert)
             .context("create_and_set_image_cert: couldn't read intermediate fullchain cert")?;
@@ -178,16 +222,20 @@ fn create_image_cert(image: &Path, cert_opts: CertificateOptions) -> Result<Cert
         .create_cert_and_key(cert_opts.subject, cert_opts.validity_days)
         .context("create_and_set_image_cert: couldn't create device cert and key")?;
 
-    let cert_path = file::get_file_path(image, cert_opts.target_cert)?;
-    let key_path = file::get_file_path(image, cert_opts.target_key)?;
+    let dir = RegisteredTempDir::create()
+        .context("create_and_set_image_cert: cannot create a temp dir")?;
+    let cert_info = CertInfo {
+        cert_path: dir.path().join(cert_opts.target_cert),
+        key_path: dir.path().join(cert_opts.target_key),
+        _dir: dir,
+    };
 
-    fs::write(&cert_path, cert_pem).context("create_and_set_image_cert: write device_cert_path")?;
-    fs::write(&key_path, key_pem).context("create_and_set_image_cert: write device_key_path")?;
+    fs::write(&cert_info.cert_path, cert_pem)
+        .context("create_and_set_image_cert: write device_cert_path")?;
+    fs::write(&cert_info.key_path, key_pem)
+        .context("create_and_set_image_cert: write device_key_path")?;
 
-    Ok(CertInfo {
-        cert_path: cert_path.to_path_buf(),
-        key_path: key_path.to_path_buf(),
-    })
+    Ok(cert_info)
 }
 
 pub fn run() -> Result<()> {
@@ -197,9 +245,8 @@ pub fn run() -> Result<()> {
             image,
             partition,
             dest,
-            generate_bmap,
-            compress_image,
-        }) => run_image_command(image, generate_bmap, compress_image, |img| {
+            output,
+        }) => run_image_command(image, output, |img| {
             anyhow::ensure!(
                 dest.to_string_lossy().ends_with(".tar.gz"),
                 format!(
@@ -237,9 +284,8 @@ pub fn run() -> Result<()> {
             config,
             image,
             payload,
-            generate_bmap,
-            compress_image,
-        }) => run_image_command(image, generate_bmap, compress_image, |img| {
+            output,
+        }) => run_image_command(image, output, |img| {
             file::set_identity_config(&config, img, payload.as_deref())
         })?,
         Command::Identity(SetDeviceCertificate {
@@ -248,23 +294,19 @@ pub fn run() -> Result<()> {
             image,
             device_id,
             days,
-            generate_bmap,
-            compress_image,
+            output,
         }) => {
-            let cert_info = create_image_cert(
-                &image,
-                CertificateOptions {
-                    intermediate_full_chain_cert: &intermediate_full_chain_cert,
-                    intermediate_key: &intermediate_key,
-                    target_cert: "device_cert_path.pem",
-                    target_key: "device_key_path.key.pem",
-                    subject: &device_id,
-                    validity_days: days,
-                },
-            )
+            let cert_info = create_image_cert(CertificateOptions {
+                intermediate_full_chain_cert: &intermediate_full_chain_cert,
+                intermediate_key: &intermediate_key,
+                target_cert: "device_cert_path.pem",
+                target_key: "device_key_path.key.pem",
+                subject: &device_id,
+                validity_days: days,
+            })
             .context("set_device_certificate: could not create certificate")?;
 
-            run_image_command(image, generate_bmap, compress_image, |img| {
+            run_image_command(image, output, |img| {
                 file::set_device_cert(
                     Some(&intermediate_full_chain_cert),
                     &cert_info.cert_path,
@@ -279,23 +321,19 @@ pub fn run() -> Result<()> {
             image,
             device_id,
             days,
-            generate_bmap,
-            compress_image,
+            output,
         }) => {
-            let cert_info = create_image_cert(
-                &image,
-                CertificateOptions {
-                    intermediate_full_chain_cert: &intermediate_full_chain_cert,
-                    intermediate_key: &intermediate_key,
-                    target_cert: "edge_ca_cert_path.pem",
-                    target_key: "edge_ca_key_path.key.pem",
-                    subject: &device_id,
-                    validity_days: days,
-                },
-            )
+            let cert_info = create_image_cert(CertificateOptions {
+                intermediate_full_chain_cert: &intermediate_full_chain_cert,
+                intermediate_key: &intermediate_key,
+                target_cert: "edge_ca_cert_path.pem",
+                target_key: "edge_ca_key_path.key.pem",
+                subject: &device_id,
+                validity_days: days,
+            })
             .context("set_edge_ca_certificate: could not create certificate")?;
 
-            run_image_command(image, generate_bmap, compress_image, |img| {
+            run_image_command(image, output, |img| {
                 file::set_edge_ca_cert(
                     Some(&intermediate_full_chain_cert),
                     &cert_info.cert_path,
@@ -308,9 +346,8 @@ pub fn run() -> Result<()> {
             device_cert: device_cert_pem,
             device_key: device_key_pem,
             image,
-            generate_bmap,
-            compress_image,
-        }) => run_image_command(image, generate_bmap, compress_image, |img| {
+            output,
+        }) => run_image_command(image, output, |img| {
             file::set_device_cert(None, &device_cert_pem, &device_key_pem, img)
         })?,
         Command::Identity(SetIotedgeGatewayConfig {
@@ -319,9 +356,8 @@ pub fn run() -> Result<()> {
             root_ca,
             device_identity,
             device_identity_key,
-            generate_bmap,
-            compress_image,
-        }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
+            output,
+        }) => run_image_command(image, output, |img: &PathBuf| {
             file::set_iotedge_gateway_config(
                 &config,
                 img,
@@ -334,25 +370,22 @@ pub fn run() -> Result<()> {
             config,
             image,
             root_ca,
-            generate_bmap,
-            compress_image,
-        }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
+            output,
+        }) => run_image_command(image, output, |img: &PathBuf| {
             file::set_iot_leaf_sas_config(&config, img, &root_ca)
         })?,
         Command::Ssh(SetCertificate {
             image,
             root_ca,
-            generate_bmap,
-            compress_image,
-        }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
+            output,
+        }) => run_image_command(image, output, |img: &PathBuf| {
             file::set_ssh_tunnel_certificate(img, &root_ca)
         })?,
         Command::IotHubDeviceUpdate(IotHubDeviceUpdateSet {
             iot_hub_device_update_config,
             image,
-            generate_bmap,
-            compress_image,
-        }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
+            output,
+        }) => run_image_command(image, output, |img: &PathBuf| {
             file::set_iot_hub_device_update_config(&iot_hub_device_update_config, img)
         })?,
         Command::IotHubDeviceUpdate(IotHubDeviceUpdate::ImportUpdate {
@@ -467,17 +500,18 @@ pub fn run() -> Result<()> {
         Command::File(CopyToImage {
             file_copy_params,
             image,
-            generate_bmap,
-            compress_image,
-        }) => run_image_command(image, generate_bmap, compress_image, |img: &PathBuf| {
+            output,
+        }) => run_image_command(image, output, |img: &PathBuf| {
             file::copy_to_image(&file_copy_params, img)
         })?,
         Command::File(CopyFromImage {
             file_copy_params,
             image,
-        }) => run_image_command(image, false, None, |img: &PathBuf| {
-            file::copy_from_image(&file_copy_params, img)
-        })?,
+        }) => run_read_only_image_command(
+            image,
+            |img| check_outputs(&file_copy_params, img),
+            |img| file::copy_from_image(&file_copy_params, img),
+        )?,
     }
 
     Ok(())
