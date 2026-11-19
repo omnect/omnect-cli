@@ -182,15 +182,22 @@ struct SshTunnelInfo {
 
 async fn unpack_response<T: DeserializeOwned>(response: reqwest::Response) -> Result<T> {
     let status = response.status();
-    let body = response
-        .text()
-        .await
-        .map_err(|err| anyhow!("could not read response body: {err}"))?;
+    let body = response.text().await.map_err(|err| {
+        anyhow!(
+            "{}: could not read response body: {err}",
+            status_text(status)
+        )
+    })?;
 
     if !status.is_success() {
         anyhow::bail!(error_message(status, &body))
     } else {
-        serde_json::from_str(&body).map_err(|_| anyhow!("unsupported reply."))
+        serde_json::from_str(&body).map_err(|err| {
+            anyhow!(
+                "unsupported reply: {err}: {}",
+                with_body(status_text(status), &body)
+            )
+        })
     }
 }
 
@@ -208,11 +215,27 @@ fn error_message(status: reqwest::StatusCode, body: &str) -> String {
         }
     }
 
-    let status = match status.canonical_reason() {
+    let message = with_body(status_text(status), body);
+
+    // A 403 without the backend's error format can also come from a network
+    // filter in front of the backend, e.g. one that only allows a VPN.
+    if status == reqwest::StatusCode::FORBIDDEN {
+        format!(
+            "{message} (check that your account has access to the device, and that you are on a network the backend allows, e.g. a VPN)"
+        )
+    } else {
+        message
+    }
+}
+
+fn status_text(status: reqwest::StatusCode) -> String {
+    match status.canonical_reason() {
         Some(reason) => format!("HTTP {} {reason}", status.as_u16()),
         None => format!("HTTP {}", status.as_u16()),
-    };
+    }
+}
 
+fn with_body(status: String, body: &str) -> String {
     match printable(body) {
         shown if shown.is_empty() => status,
         shown => format!("{status}: {shown}"),
@@ -507,9 +530,38 @@ mod test {
     #[test]
     fn error_message_shows_status_and_body_of_unknown_reply() {
         assert_eq!(
-            error_message(reqwest::StatusCode::FORBIDDEN, "Forbidden\n"),
-            "HTTP 403 Forbidden: Forbidden"
+            error_message(reqwest::StatusCode::UNAUTHORIZED, "Unauthorized\n"),
+            "HTTP 401 Unauthorized: Unauthorized"
         );
+    }
+
+    #[test]
+    fn error_message_names_access_and_network_on_forbidden() {
+        let message = error_message(reqwest::StatusCode::FORBIDDEN, "Forbidden");
+
+        assert!(message.starts_with("HTTP 403 Forbidden: Forbidden ("));
+        assert!(message.contains("VPN"));
+    }
+
+    #[tokio::test]
+    async fn unpack_response_shows_status_and_body_of_unsupported_reply() {
+        let server = httpmock::MockServer::start_async().await;
+        server
+            .mock_async(|when, then| {
+                when.any_request();
+                then.status(200).body("<html>login</html>");
+            })
+            .await;
+        let response = reqwest::get(server.url("/")).await.unwrap();
+
+        let err = unpack_response::<SshTunnelInfo>(response)
+            .await
+            .err()
+            .unwrap()
+            .to_string();
+
+        assert!(err.starts_with("unsupported reply: "));
+        assert!(err.ends_with("HTTP 200 OK: <html>login</html>"));
     }
 
     #[test]
