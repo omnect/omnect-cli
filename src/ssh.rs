@@ -13,6 +13,7 @@ use url::Url;
 
 static BACKEND_API_ENDPOINT: &str = "/api/devices/prepareSSHConnection";
 static SSH_KEY_FORMAT: &str = "ed25519";
+const MAX_ERROR_BODY_CHARS: usize = 200;
 
 static BASTION_CERT_NAME: &str = "bastion-cert.pub";
 static DEVICE_CERT_NAME: &str = "device-cert.pub";
@@ -181,26 +182,74 @@ struct SshTunnelInfo {
 
 async fn unpack_response<T: DeserializeOwned>(response: reqwest::Response) -> Result<T> {
     let status = response.status();
-    let body = response
-        .text()
-        .await
-        .map_err(|err| anyhow!("could not read response body: {err}"))?;
+    let body = response.text().await.map_err(|err| {
+        anyhow!(
+            "{}: could not read response body: {err}",
+            status_text(status)
+        )
+    })?;
 
     if !status.is_success() {
-        #[derive(Deserialize)]
-        struct ErrorMessage {
-            #[serde(rename = "internalMsg")]
-            internal_message: String,
-        }
+        anyhow::bail!(error_message(status, &body))
+    } else {
+        serde_json::from_str(&body).map_err(|err| {
+            anyhow!(
+                "unsupported reply: {err}: {}",
+                with_body(status_text(status), &body)
+            )
+        })
+    }
+}
 
-        anyhow::bail!(
-            serde_json::from_str::<ErrorMessage>(&body)
-                .map(|err| err.internal_message)
-                .unwrap_or_else(|_| "unknown error type".to_string())
+fn error_message(status: reqwest::StatusCode, body: &str) -> String {
+    #[derive(Deserialize)]
+    struct ErrorMessage {
+        #[serde(rename = "internalMsg")]
+        internal_message: String,
+    }
+
+    if let Ok(err) = serde_json::from_str::<ErrorMessage>(body) {
+        let message = printable(&err.internal_message);
+        if !message.is_empty() {
+            return message;
+        }
+    }
+
+    let message = with_body(status_text(status), body);
+
+    // A 403 without the backend's error format can also come from a network
+    // filter in front of the backend, e.g. one that only allows a VPN.
+    if status == reqwest::StatusCode::FORBIDDEN {
+        format!(
+            "{message} (check that your account has access to the device, and that you are on a network the backend allows, e.g. a VPN)"
         )
     } else {
-        serde_json::from_str(&body).map_err(|_| anyhow!("unsupported reply."))
+        message
     }
+}
+
+fn status_text(status: reqwest::StatusCode) -> String {
+    match status.canonical_reason() {
+        Some(reason) => format!("HTTP {} {reason}", status.as_u16()),
+        None => format!("HTTP {}", status.as_u16()),
+    }
+}
+
+fn with_body(status: String, body: &str) -> String {
+    match printable(body) {
+        shown if shown.is_empty() => status,
+        shown => format!("{status}: {shown}"),
+    }
+}
+
+/// Server text can be a long HTML error page or hold terminal escape sequences.
+fn printable(text: &str) -> String {
+    let mut chars = text.chars().map(|c| if c.is_control() { ' ' } else { c });
+    let mut shown: String = chars.by_ref().take(MAX_ERROR_BODY_CHARS).collect();
+    if chars.next().is_some() {
+        shown.push_str("...");
+    }
+    shown.trim().to_string()
 }
 
 async fn request_ssh_tunnel(
@@ -466,6 +515,105 @@ pub async fn ssh_create_tunnel(
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn error_message_takes_internal_msg() {
+        assert_eq!(
+            error_message(
+                reqwest::StatusCode::BAD_REQUEST,
+                r#"{"internalMsg":"Device may not be online"}"#
+            ),
+            "Device may not be online"
+        );
+    }
+
+    #[test]
+    fn error_message_shows_status_and_body_of_unknown_reply() {
+        assert_eq!(
+            error_message(reqwest::StatusCode::UNAUTHORIZED, "Unauthorized\n"),
+            "HTTP 401 Unauthorized: Unauthorized"
+        );
+    }
+
+    #[test]
+    fn error_message_names_access_and_network_on_forbidden() {
+        let message = error_message(reqwest::StatusCode::FORBIDDEN, "Forbidden");
+
+        assert!(message.starts_with("HTTP 403 Forbidden: Forbidden ("));
+        assert!(message.contains("VPN"));
+    }
+
+    #[tokio::test]
+    async fn unpack_response_shows_status_and_body_of_unsupported_reply() {
+        let server = httpmock::MockServer::start_async().await;
+        server
+            .mock_async(|when, then| {
+                when.any_request();
+                then.status(200).body("<html>login</html>");
+            })
+            .await;
+        let response = reqwest::get(server.url("/")).await.unwrap();
+
+        let err = unpack_response::<SshTunnelInfo>(response)
+            .await
+            .err()
+            .unwrap()
+            .to_string();
+
+        assert!(err.starts_with("unsupported reply: "));
+        assert!(err.ends_with("HTTP 200 OK: <html>login</html>"));
+    }
+
+    #[test]
+    fn error_message_shows_status_of_empty_reply() {
+        assert_eq!(
+            error_message(reqwest::StatusCode::BAD_GATEWAY, ""),
+            "HTTP 502 Bad Gateway"
+        );
+    }
+
+    #[test]
+    fn error_message_ignores_empty_internal_msg() {
+        assert_eq!(
+            error_message(
+                reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+                r#"{"internalMsg":" "}"#
+            ),
+            "HTTP 500 Internal Server Error: {\"internalMsg\":\" \"}"
+        );
+    }
+
+    #[test]
+    fn error_message_drops_control_chars_of_internal_msg() {
+        assert_eq!(
+            error_message(
+                reqwest::StatusCode::BAD_REQUEST,
+                r#"{"internalMsg":"Device\u001b[2J offline\n"}"#
+            ),
+            "Device [2J offline"
+        );
+    }
+
+    #[test]
+    fn error_message_shows_status_without_reason() {
+        assert_eq!(
+            error_message(reqwest::StatusCode::from_u16(599).unwrap(), ""),
+            "HTTP 599"
+        );
+    }
+
+    #[test]
+    fn error_message_shortens_long_body_and_drops_control_chars() {
+        let body = format!("a\x1b[2J{}", "x".repeat(MAX_ERROR_BODY_CHARS));
+        let message = error_message(reqwest::StatusCode::BAD_GATEWAY, &body);
+
+        assert!(!message.contains('\x1b'));
+        assert!(message.ends_with("..."));
+        assert_eq!(
+            message.chars().count(),
+            "HTTP 502 Bad Gateway: ".len() + MAX_ERROR_BODY_CHARS + "...".len()
+        );
+    }
 
     fn test_query_yes_no_for_result(
         input: &str,
