@@ -12,6 +12,9 @@ Azure Device Update (create import manifest, import, remove).
 - `src/auth.rs`, `src/config.rs`: OAuth2 PKCE login against Keycloak with a
   local redirect server; the refresh token goes to the system keyring.
 - `src/device_update/`: Device Update REST client, token and blob SAS code.
+- `src/ssh.rs`: SSH tunnel over the bastion host, key pair creation.
+  `src/image.rs`: architecture of the firmware image; `src/docker.rs`:
+  pull and save docker images for it.
 - `src/file/`: image operations. `functions.rs` reads a partition out of
   the image, changes it with e2tools or mtools and writes back only the
   changed blocks. `partition.rs` reads GPT and MBR tables.
@@ -31,19 +34,25 @@ Azure Device Update (create import manifest, import, remove).
   and 5 on GPT, 5 and 6 on MBR. The mapping is in `get_partition_info()` in
   `src/file/functions.rs`.
 - The binary calls external tools: `e2cp`, `e2mkdir`, `mcopy`, `mmd`,
-  `ssh-keygen` and `docker`. The distroless image in `Dockerfile` contains
-  only the executables in its explicit copy list, so a new external tool
-  must be added there too.
-- `CONTAINERIZED=true` (set in the docker image) changes behaviour: the
-  OAuth redirect server binds `0.0.0.0:4000` instead of `127.0.0.1:4000`
-  and `[::1]:4000`, `docker inject` and custom SSH config dirs are refused.
-- Errors use `anyhow`; this is an application, not a library.
+  `ssh-keygen` and, on the host only, `docker`. The distroless image in
+  `Dockerfile` contains only the executables in its explicit copy list. A
+  new tool goes into the `apt-get install` list and the copy list of
+  `Dockerfile`, and into `depends` of `[package.metadata.deb]` in
+  `Cargo.toml`.
+- `CONTAINERIZED=true` or `1` (set in the docker image) changes behaviour:
+  the OAuth redirect server binds `0.0.0.0:4000` instead of
+  `127.0.0.1:4000` and `[::1]:4000`; `docker inject` and
+  `ssh set-connection --dir` are refused.
+- Errors use `anyhow`; the library target exists only for the binary and
+  the tests.
 
 ## Commands
 
 - Build: `cargo build` (needs `libmagic-dev` on the host)
-- Test: `cargo test`. Integration tests need e2tools and mtools on the
-  host and use temp dirs under `/tmp/omnect-cli-integration-tests/`.
-- Debian package: `cargo deb` (writes to `target/debian/`)
+- Test: `cargo test`. Integration tests need e2tools, mtools and
+  `ssh-keygen` on the host and use temp dirs under
+  `/tmp/omnect-cli-integration-tests/`.
+- Debian package: `cargo deb` (needs `cargo install cargo-deb`; writes to
+  `target/debian/`)
 - Docker image: `./build-image.sh`. It takes the version from `Cargo.toml`
   and installs the `.deb` from `target/debian/`, so run `cargo deb` first.
