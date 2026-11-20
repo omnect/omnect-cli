@@ -243,16 +243,16 @@ ssh -F /run/user/1000/omnect-cli/config prod_device
 [omnect@prod_device ~]$
 ```
 
-To connect to the device `dev_device` in the `dev` environment, we additionally
-have to supply a configuration with backend and the authentication details for
-the `dev` environment:
+To connect to the device `staging_device` in the `staging` environment, we
+additionally have to supply a configuration with backend and the authentication
+details for the `staging` environment:
 
-```dev_env.toml
-backend = 'https://cp.dev.omnect.conplement.cloud'
+```staging_env.toml
+backend = 'https://cp.staging.omnect.conplement.cloud'
 
 [auth.Keycloak]
-provider = 'https://keycloak.omnect.conplement.cloud'
-realm = 'cp-dev'
+provider = 'https://keycloak.staging.omnect.conplement.cloud'
+realm = 'cp-stag'
 client_id = 'cp-cli'
 bind_addrs = ['127.0.0.1:4000', '[::1]:4000']
 redirect = 'http://localhost:4000'
@@ -260,7 +260,7 @@ redirect = 'http://localhost:4000'
 
 You then have to pass this configuration with the `--env` flag:
 ```sh
-omnect-cli ssh set-connection dev_device --env dev_env.toml
+omnect-cli ssh set-connection staging_device --env staging_env.toml
 
 Successfully established ssh tunnel!
 ...
@@ -278,18 +278,18 @@ necessary:
    `windows`.
 3. map the container's port on localhost 4000 to the hosts port 4000
 
-With our `dev_device` from above, the call on a Windows host would then look,
-for example, as follows:
+With our `staging_device` from above, the call on a Windows host would then
+look, for example, as follows:
 
 ```sh
 docker run --rm \
   -u 0:0 \
   -v "C:/absolute/host/path/to/.ssh":/root/.config/omnect-cli \
-  -v dev_env.toml:/dev_env.toml \
+  -v staging_env.toml:/staging_env.toml \
   -e CONTAINER_HOST=windows \
   -p 127.0.0.1:4000:4000 \
   omnect/omnect-cli:latest \
-  ssh set-connection dev_device --env dev_env.toml
+  ssh set-connection staging_device --env staging_env.toml
 ```
 
 If you want to use a custom backend configuration, you additionally have to
